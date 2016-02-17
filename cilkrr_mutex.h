@@ -1,22 +1,29 @@
 #include <mutex>
 #include <list>
+#include <string>
+#include <iostream>
+#include <vector>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
-typedef uint64_t pedigree_t;
+typedef std::string pedigree_t;
 typedef struct acquire_info_s {
-	uint64_t ped;
-	__cilkrts_worker *worker;
+	pedigree_t ped;
+	int worker_id;
 	int n;
 } acquire_info_t;
+
+std::ostream& operator<< (std::ostream &out, struct acquire_info_s s);
+
 
 namespace cilkrr {
 
 	class mutex {
 	private:
 		std::mutex m_mutex;
-		std::list<acquire_info_t> m_acquires;
+		std::list<acquire_info_t> *m_acquires;
 		__cilkrts_worker *m_owner;
+		uint64_t m_id;
 
 		void record_acquire(int n);
 		static pedigree_t get_pedigree();

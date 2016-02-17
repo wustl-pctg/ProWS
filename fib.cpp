@@ -25,12 +25,23 @@
 
 #include "cilkrr_mutex.h"
 
-cilkrr::mutex g_mutex;
+cilkrr::mutex g_mutex0, g_mutex1;
 
 int fib(int n) {
 	if (n < 2) {
-		g_mutex.lock(n);
-		g_mutex.unlock();
+		if (n == 0) {
+			g_mutex0.lock(n);
+			std::cerr << "Worker " << __cilkrts_get_worker_number()
+								<< " acquired lock 0." << std::endl;
+			g_mutex0.unlock();
+		} else {
+			g_mutex1.lock(n);
+			std::cerr << "Worker " << __cilkrts_get_worker_number()
+								<< " acquired lock 1." << std::endl;
+
+			g_mutex1.unlock();
+		}
+
 		return (n);
 	} else {
 		int x = 0;

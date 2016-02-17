@@ -10,7 +10,6 @@ typedef std::string pedigree_t;
 typedef struct acquire_info_s {
 	pedigree_t ped;
 	int worker_id;
-	int n;
 } acquire_info_t;
 
 std::ostream& operator<< (std::ostream &out, struct acquire_info_s s);
@@ -25,14 +24,14 @@ namespace cilkrr {
 		__cilkrts_worker *m_owner;
 		uint64_t m_id;
 
-		void record_acquire(int n);
+		void record_acquire();
 		static pedigree_t get_pedigree();
 		
 	public:
 		mutex();
 		~mutex();
-		void lock(int n);
-		bool try_lock(int n);
+		void lock();
+		bool try_lock();
 		void unlock();
 	};
 

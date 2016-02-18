@@ -1,12 +1,11 @@
 #include "cilkrr_mutex.h"
 #include <cstdlib>
-#include <iostream>
 #include <fstream>
-#include <vector>
 
 std::ostream& operator<< (std::ostream &out, struct acquire_info_s s)
 {
-	out << "w: " << s.worker_id << "; " << s.ped;
+	//out << "w: " << s.worker_id << "; " << s.ped;
+	out << s.ped;
 	return out;
 }
 
@@ -42,10 +41,15 @@ namespace cilkrr {
 			env = std::getenv("CILKRR_MODE");
 			if (env) {
 				std::string mode = env;
-				if (mode == "record") g_mode = RECORD;
-				if (mode == "replay") g_mode = REPLAY;
+				if (mode == "record") {
+					g_mode = RECORD;
+				} if (mode == "replay") {
+					g_mode = REPLAY;
+					
+				}
 			}
 			free(env);
+
 		}
 		
 		~cilkrr_context()
@@ -121,7 +125,7 @@ namespace cilkrr {
 	void mutex::record_acquire()
 	{
 		pedigree_t ped = get_pedigree();
-		acquire_info_t a = {ped, __cilkrts_get_worker_number()};
+		acquire_info_t a = {ped};//, __cilkrts_get_worker_number()};
 		m_acquires->push_back(a);
 		__cilkrts_bump_worker_rank();
   
@@ -136,7 +140,7 @@ namespace cilkrr {
 		
 		pedigree_t p = "]";
 		while (current) {
-			// Prepending is probably not very performant...
+			/// @todo Prepending is probably not very performant...
 			p = std::to_string(current->rank) + "," + p;
 			current = current->parent;
 		}

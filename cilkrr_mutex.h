@@ -9,7 +9,6 @@
 typedef std::string pedigree_t;
 typedef struct acquire_info_s {
 	pedigree_t ped;
-	int worker_id;
 } acquire_info_t;
 
 std::ostream& operator<< (std::ostream &out, struct acquire_info_s s);

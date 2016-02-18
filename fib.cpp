@@ -37,7 +37,7 @@ int fib(int n) {
 		} else {
 			g_mutex0.lock();
 			std::cerr << "Worker " << __cilkrts_get_worker_number()
-								<< " acquired lock 1." << std::endl;
+								<< " acquired lock 0." << std::endl;
 
 			g_mutex0.unlock();
 		}

@@ -4,8 +4,8 @@
 
 std::ostream& operator<< (std::ostream &out, struct acquire_info_s s)
 {
-	//out << "w: " << s.worker_id << "; " << s.ped;
-	out << s.ped;
+	out << "w: " << s.worker_id << "; " << s.ped;
+	//out << s.ped;
 	return out;
 }
 
@@ -48,8 +48,6 @@ namespace cilkrr {
 					
 				}
 			}
-			free(env);
-
 		}
 		
 		~cilkrr_context()
@@ -99,39 +97,61 @@ namespace cilkrr {
 		if (--g_next_mutex_id == 0)
 			delete g_context;
 	}
+
+	inline void mutex::acquire() { m_owner = __cilkrts_get_tls_worker(); }
+	inline void mutex::release() { m_owner = nullptr; m_mutex.unlock(); }
+
 	
 	void mutex::lock()
 	{
+		if (g_mode == REPLAY) return replay_lock();
 		m_mutex.lock();
-		m_owner = __cilkrts_get_tls_worker();
-		record_acquire();
+		acquire();
+		if (g_mode == RECORD) record_acquire();
 	}
 
 	bool mutex::try_lock()
 	{
-		bool result = m_mutex.try_lock();
+		bool result;
+		if (g_mode == REPLAY)
+			result = replay_try_lock();
+		else
+			result = m_mutex.try_lock();
+		
 		if (result) {
-			m_owner = __cilkrts_get_tls_worker();
-			record_acquire();
+			acquire();
+			if (g_mode == RECORD) record_acquire();
 		}
 	}
 
 	void mutex::unlock()
 	{
-		m_owner = nullptr;
-		m_mutex.unlock();
+		release();
+		if (g_mode == REPLAY) replay_unlock();
 	}
 
 	void mutex::record_acquire()
 	{
-		pedigree_t ped = get_pedigree();
-		acquire_info_t a = {ped};//, __cilkrts_get_worker_number()};
+		//		pedigree_t ped = get_pedigree();
+		acquire_info_t a = {get_pedigree(), __cilkrts_get_worker_number()};
 		m_acquires->push_back(a);
 		__cilkrts_bump_worker_rank();
-  
-		//		std::cerr << "Acquiring " << this << ": " << a << std::endl;
 	}
 
+	void mutex::replay_lock()
+	{
+
+	}
+
+	bool mutex::replay_try_lock()
+	{
+		return m_mutex.try_lock();
+	}
+
+	void mutex::replay_unlock()
+	{
+
+	}
 
 	pedigree_t mutex::get_pedigree()
 	{

@@ -23,7 +23,7 @@
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
-#include "cilkrr_mutex.h"
+#include "mutex.h"
 
 cilkrr::mutex g_mutex0, g_mutex1;
 
@@ -32,12 +32,12 @@ int fib(int n) {
 		if (n == 0) {
 			g_mutex0.lock();
 			std::cerr << "Worker " << __cilkrts_get_worker_number()
-								<< " acquired lock 0." << std::endl;
+								<< " acquired lock at " << cilkrr::get_pedigree() << std::endl;
 			g_mutex0.unlock();
 		} else {
 			g_mutex0.lock();
 			std::cerr << "Worker " << __cilkrts_get_worker_number()
-								<< " acquired lock 0." << std::endl;
+								<< " acquired lock at " << cilkrr::get_pedigree() << std::endl;
 
 			g_mutex0.unlock();
 		}

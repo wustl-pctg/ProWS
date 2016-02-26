@@ -13,6 +13,7 @@ namespace cilkrr {
 	public:
 		pedigree_t ped;
 		int worker_id; // for debugging
+		void *suspended_deque;
 		acquire_info();
 		acquire_info(std::string s);
 	};
@@ -51,4 +52,6 @@ namespace cilkrr {
 	extern state *g_rr_state;
 
 	inline enum mode cilkrr_mode() { return g_rr_state->m_mode;	}
+
+	void suspend(std::list<acquire_info> * acquires, pedigree_t p);
 }

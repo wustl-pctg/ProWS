@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "cilkrr.h"
+#include <internal/abi.h>
 
 namespace cilkrr {
 
@@ -11,12 +12,14 @@ namespace cilkrr {
 	{
 		ped = get_pedigree();
 		worker_id = __cilkrts_get_worker_number();
+		suspended_deque = nullptr;
 	}
 
 	acquire_info::acquire_info(std::string s)
 	{
 		ped = s;
 		worker_id = -1;
+		suspended_deque = nullptr;
 	}
 
 	pedigree_t get_pedigree()
@@ -116,6 +119,28 @@ namespace cilkrr {
 	size_t state::remove_mutex(size_t index)
 	{
 		return --m_size;
+	}
+
+	void suspend(std::list<acquire_info> * acquires, pedigree_t p)
+	{
+		std::cout << "Suspend at: " << p << std::endl;
+
+		/// @todo use a hash table so we don't have to iterate through
+		acquire_info* a = nullptr;
+		for (auto it = acquires->begin(); it != acquires->end(); ++it) {
+			if (it->ped == p) {
+				a = &(*it);
+				break;
+			}
+		}
+		assert(a != nullptr);
+
+		// We actually don't even need to spawn, because in
+		//		__cilkrts_suspend_deque I suspend the current fiber and
+		//		resume the scheduling fiber, which implicitly does a setjmp.
+		a->suspended_deque = __cilkrts_get_deque();
+		__cilkrts_suspend_deque();
+		std::cout << "Resume at: " << get_pedigree() << std::endl;
 	}
 
 }

@@ -1,6 +1,8 @@
 #include "mutex.h"
 #include <cassert>
 
+#include <internal/abi.h>
+
 namespace cilkrr {
 
 	mutex::mutex()
@@ -57,6 +59,7 @@ namespace cilkrr {
 			acquire();
 			if (cilkrr_mode() == RECORD) record_acquire();
 		}
+		return result;
 	}
 
 	void mutex::unlock()
@@ -73,8 +76,10 @@ namespace cilkrr {
 	void mutex::replay_lock()
 	{
 		pedigree_t p = get_pedigree();
-		while (p != m_acquires->front().ped);
-		assert(m_owner == nullptr);
+		//		while (p != m_acquires->front().ped);
+		if (p != m_acquires->front().ped)
+			suspend(m_acquires, p);
+		
 		bool res = m_mutex.try_lock();
 		assert(res == true);
 		acquire();
@@ -94,6 +99,14 @@ namespace cilkrr {
 	void mutex::replay_unlock()
 	{
 		m_acquires->pop_front();
+
+		if (!m_acquires->empty()) {
+			if (m_acquires->front().suspended_deque != nullptr)
+				__cilkrts_resume_suspended(m_acquires->front().suspended_deque);
+		}
+
+		// Choice here: If this lock acquire was suspended, should we try
+		// to go back to the previous acquire strand?
 	}
 
 }

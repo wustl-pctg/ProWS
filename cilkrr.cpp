@@ -89,6 +89,7 @@ namespace cilkrr {
 
 	state::~state()
 	{
+		if (m_mode != RECORD) return;
 		std::ofstream output;
 		output.open(m_filename);
 		

@@ -31,6 +31,9 @@
 #define BEGIN_WITH_WORKER_LOCK(w) __cilkrts_worker_lock(w); do
 #define END_WITH_WORKER_LOCK(w)   while (__cilkrts_worker_unlock(w), 0)
 
+#define BEGIN_WITH_DEQUE_LOCK(w,d) __cilkrts_mutex_lock(w, &d->lock); do
+#define END_WITH_DEQUE_LOCK(w,d)   while (__cilkrts_mutex_unlock(w, &d->lock), 0)
+
 #define BEGIN_WITH_FRAME_LOCK(w, ff)                                     \
     do { full_frame *_locked_ff = ff; __cilkrts_frame_lock(w, _locked_ff); do
 
@@ -300,6 +303,7 @@ void deque_init(deque *d, size_t ltqsize)
 	d->protected_tail = d->ltq_limit;
 	d->frame_ff = 0;
 	d->resumeable_fiber = NULL;
+	__cilkrts_mutex_init(&d->lock);
 }
 /* int deque_add(__cilkrts_worker *w) */
 /* { */
@@ -323,7 +327,6 @@ void deque_init(deque *d, size_t ltqsize)
 /* 	return index; */
 /* } */
 
-/* void deque_switch(__cilkrts_worker *w, int n) */
 void deque_switch(__cilkrts_worker *w, deque *d)
 {
 	//	BEGIN_WITH_WORKER_LOCK(w) {

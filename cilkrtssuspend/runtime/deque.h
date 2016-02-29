@@ -12,6 +12,7 @@
 #include "rts-common.h"
 #include "cilk_fiber.h"
 #include "pedigrees.h"
+#include "worker_mutex.h"
 #include <internal/abi.h>
 
 __CILKRTS_BEGIN_EXTERN_C
@@ -26,9 +27,21 @@ struct deque
   __cilkrts_stack_frame *volatile *volatile protected_tail;
   __cilkrts_stack_frame *volatile *ltq_limit;
 	__cilkrts_stack_frame ** ltq;
+	
   struct full_frame *frame_ff;
+	struct mutex lock;
+	
 	__cilkrts_pedigree saved_ped;
+
+	// This is set ONLY when the fiber for this deque should be resumed
 	cilk_fiber *resumeable_fiber;
+
+	// As long as we allow deques to change which deque_pool they are
+	// in, I don't see how to get away with not having these pointers
+	// back to a deque's location in a deque pool. This is rather
+	// error-prone and inelegant...
+	__cilkrts_worker *worker;
+	deque **self;
 };
 
 void increment_E(__cilkrts_worker *victim, deque* d);

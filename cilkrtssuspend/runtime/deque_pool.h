@@ -17,18 +17,11 @@
 /* 	struct pentry[]; */
 /* } deque_pool; */
 
-/* struct deque */
-/* { */
-/*   __cilkrts_stack_frame *volatile *volatile tail; */
-/*   __cilkrts_stack_frame *volatile *volatile head; */
-/*   __cilkrts_stack_frame *volatile *volatile exc; */
-/*   __cilkrts_stack_frame *volatile *volatile protected_tail; */
-/*   __cilkrts_stack_frame *volatile *ltq_limit; */
-/* 	__cilkrts_stack_frame ** ltq; */
-/*   struct full_frame *frame_ff; */
-/* }; */
-
-// I'm calling this a deque pool, but really it's a deque of deques.
+// Currently, I implement this as a deque of deques. This is because I
+// was initially concerned with allowing workers to 'steal' deques
+// from each other in order to balance the number of suspended deques
+// across workers. Even though we currently don't steal suspended
+// deques, I'll keep it this way until it starts causing problems.
 typedef struct deque_pool_s {
 
 	deque *volatile *volatile tail;
@@ -40,7 +33,7 @@ typedef struct deque_pool_s {
 	//	deque *active; // Not stored in the deque of deques, like frame_ff
 } deque_pool;
 
-cilk_fiber* deque_pool_suspend(__cilkrts_worker *w);
+cilk_fiber* deque_pool_suspend(__cilkrts_worker *w, deque *new_deque);
 void deque_pool_init(deque_pool *p, size_t ltqsize);
 void deque_pool_free(deque_pool *p);
 

@@ -359,6 +359,9 @@ static void worker_unlock_other(__cilkrts_worker *w,
 #define BEGIN_WITH_WORKER_LOCK(w) __cilkrts_worker_lock(w); do
 #define END_WITH_WORKER_LOCK(w)   while (__cilkrts_worker_unlock(w), 0)
 
+#define BEGIN_WITH_DEQUE_LOCK(w,d) __cilkrts_mutex_lock(w, &d->lock); do
+#define END_WITH_DEQUE_LOCK(w,d)   while (__cilkrts_mutex_unlock(w, &d->lock), 0)
+
 // TBD(jsukha): These are worker lock acquistions on
 // a worker whose deque is empty.  My conjecture is that we
 // do not need to hold the worker lock at these points.
@@ -721,12 +724,13 @@ static void random_steal(__cilkrts_worker *w)
         n = 0;
         CILK_ASSERT(w->l->num_suspended_deques > 0);
     } else {
-        n = myrand(w) % (w->g->total_workers - 1);
-
         if (w->l->num_suspended_deques == 0) {
+            n = myrand(w) % (w->g->total_workers - 1);
             /* pick random *other* victim */
             if (n >= w->self)
                 ++n;
+        } else {
+            n = myrand(w) % w->g->total_workers;
         }
     }
 
@@ -740,11 +744,61 @@ static void random_steal(__cilkrts_worker *w)
 
     victim = w->g->workers[n];
 
-    START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
-        /* Verify that we can get a stack.  If not, no need to continue. */
-        fiber = cilk_fiber_allocate(&w->l->fiber_pool);
-    } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
+    /* do not steal from self */
+    //    CILK_ASSERT (victim != w);
 
+    deque *d;
+    // Unfortunately, we currently need to hold the worker lock while
+    // choosing a suspended deque, since the number of suspended
+    // deques could change and a suspended deque could be
+    // deallocated. Maybe instead I could keep a deque_pool lock and
+    // acquire that, but I am still holding out for a better
+    // synchronization solution.
+    __cilkrts_mutex_lock(w, &victim->l->lock);
+    if (victim == w) {
+        // don't choose from active deque of self
+        int dnum = myrand(w) % victim->l->num_suspended_deques;
+        d = *(victim->l->dod.head + dnum);
+    } else {
+        int dnum = myrand(w) % (victim->l->num_suspended_deques + 1);
+        if (dnum == 0)
+            d = victim->l->active_deque;
+        else
+            d = *(victim->l->dod.head + dnum - 1);
+    }
+
+    // If the deque was suspended and is now resumable, commandeer the deque and resume!
+    if (d->resumeable_fiber) {
+        fiber = d->resumeable_fiber;
+        d->resumeable_fiber = NULL; // Make sure no one else sees the resumable fiber
+
+        CILK_ASSERT(d->worker == victim);
+
+        // Switch this spot in the deque_pool out with something else
+        deque_pool *p = &d->worker->l->dod;
+        *(d->self) = *(p->head);
+        *(p->head) = NULL;
+        if (p->head != p->tail) p->head++;
+        d->worker->l->num_suspended_deques--;
+        
+        __cilkrts_mutex_unlock(w, &victim->l->lock);
+
+
+        // Now need to free the current deque, but someone else
+        // might be reading it to try to steal....
+        /// @todo fix
+        __cilkrts_free(w->l->active_deque);
+        w->l->active_deque = d;
+        deque_switch(w, d);
+        cilk_fiber_suspend_self_and_resume_other(w->l->scheduling_fiber, fiber);
+        return;
+    } else {
+        __cilkrts_mutex_unlock(w, &victim->l->lock);
+        START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
+            /* Verify that we can get a stack.  If not, no need to continue. */
+            fiber = cilk_fiber_allocate(&w->l->fiber_pool);
+        } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
+    }
 
     if (NULL == fiber) {
 #if FIBER_DEBUG >= 2
@@ -754,24 +808,7 @@ static void random_steal(__cilkrts_worker *w)
         return;
     }
 
-    /* do not steal from self */
-    //    CILK_ASSERT (victim != w);
 
-    //    deque *d = &victim->l->deques[0];
-    //deque *d = &victim->l->active_deque;
-    deque *d;
-    /// @todo locks/synchronization?
-    if (victim == w) {
-        // don't choose from active deque
-        int dnum = myrand(w) % victim->l->num_suspended_deques;
-        d = *(victim->l->dod.ltq + dnum);
-    } else {
-        int dnum = myrand(w) % (victim->l->num_suspended_deques + 1);
-        if (dnum == 0)
-            d = victim->l->active_deque;
-        else
-            d = *(victim->l->dod.ltq + dnum - 1);
-    }
 
     /* Execute a quick check before engaging in the THE protocol.
        Avoid grabbing locks if there is nothing to steal. */
@@ -783,10 +820,12 @@ static void random_steal(__cilkrts_worker *w)
             // and thus should not have any other references.
             CILK_ASSERT(0 == ref_count);
         } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+        CILK_ASSERT(w->l->active_deque->frame_ff == NULL);
         return;
     }
     
     /* Attempt to steal work from the victim */
+    /// @todo get deque locks, not worker locks
     if (worker_trylock_other(w, victim)) {
         if (w->l->type == WORKER_USER && victim->l->team != w) {
 

@@ -9,8 +9,8 @@ CILKFLAGS=-fcilkplus -I$(COMPILER_HOME)/include -fno-inline-detach
 
 default: fib
 
-fib: fib.o mutex.o cilkrr.o $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o cilkrr.o mutex.o $(LIB) -ldl -lpthread -o fib
+fib: fib.o mutex.o cilkrr.o syncstream.o $(LIB)
+	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o cilkrr.o mutex.o syncstream.o $(LIB) -ldl -lpthread -o fib
 
 fib.o: fib.cpp mutex.h cilkrr.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -c fib.cpp
@@ -20,3 +20,6 @@ mutex.o: mutex.h mutex.cpp cilkrr.h
 
 cilkrr.o: cilkrr.h cilkrr.cpp
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c cilkrr.cpp
+
+syncstream.o: syncstream.h syncstream.cpp
+	$(CXX) $(CFLAGS) -c syncstream.cpp

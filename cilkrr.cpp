@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "cilkrr.h"
+#include "syncstream.h"
 #include <internal/abi.h>
 
 namespace cilkrr {
@@ -124,7 +125,7 @@ namespace cilkrr {
 
 	void suspend(std::list<acquire_info> * acquires, pedigree_t p)
 	{
-		std::cout << "Suspend at: " << p << std::endl;
+		cilkrr::sout << "Suspend at: " << p << cilkrr::endl;
 
 		/// @todo use a hash table so we don't have to iterate through
 		acquire_info* a = nullptr;
@@ -141,7 +142,7 @@ namespace cilkrr {
 		//		resume the scheduling fiber, which implicitly does a setjmp.
 		a->suspended_deque = __cilkrts_get_deque();
 		__cilkrts_suspend_deque();
-		std::cout << "Resume at: " << get_pedigree() << std::endl;
+		cilkrr::sout << "Resume at: " << get_pedigree() << cilkrr::endl;
 	}
 
 }

@@ -23,3 +23,6 @@ cilkrr.o: cilkrr.h cilkrr.cpp
 
 syncstream.o: syncstream.h syncstream.cpp
 	$(CXX) $(CFLAGS) -c syncstream.cpp
+
+clean:
+	rm *.o fib

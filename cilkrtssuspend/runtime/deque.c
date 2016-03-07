@@ -334,6 +334,9 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 	CILK_ASSERT(d == w->l->active_deque);
 
 	d->resumeable_fiber = NULL;
+	d->worker = w;
+	d->self = &w->l->active_deque;
+	
 	w->tail = &d->tail;
 	w->head = &d->head;
 	w->exc = &d->exc;

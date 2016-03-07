@@ -36,10 +36,11 @@ struct deque
 	// This is set ONLY when the fiber for this deque should be resumed
 	cilk_fiber *resumeable_fiber;
 
-	// As long as we allow deques to change which deque_pool they are
-	// in, I don't see how to get away with not having these pointers
-	// back to a deque's location in a deque pool. This is rather
-	// error-prone and inelegant...
+	// As long as we allow suspended deques to change which deque_pool
+	// they are in, I don't see how to get away with not having these
+	// pointers back to a deque's location in a deque pool. This is
+	// rather error-prone and inelegant...
+	// If we don't allow entire suspended deques to be stolen, then I think we can do without this...
 	__cilkrts_worker *worker;
 	deque **self;
 };

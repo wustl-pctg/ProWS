@@ -748,6 +748,7 @@ static void random_steal(__cilkrts_worker *w)
     //    CILK_ASSERT (victim != w);
 
     deque *d;
+    char* msg;
     // Unfortunately, we currently need to hold the worker lock while
     // choosing a suspended deque, since the number of suspended
     // deques could change and a suspended deque could be
@@ -756,21 +757,29 @@ static void random_steal(__cilkrts_worker *w)
     // synchronization solution.
     __cilkrts_mutex_lock(w, &victim->l->lock);
     if (victim == w) {
+        // Hack: number of suspended deques may have changed...
+        if (victim->l->num_suspended_deques == 0) return;
         // don't choose from active deque of self
         int dnum = myrand(w) % victim->l->num_suspended_deques;
         d = *(victim->l->dod.head + dnum);
+
+        msg = "(w: %i) stealing from one of its suspended deques\n";
     } else {
         int dnum = myrand(w) % (victim->l->num_suspended_deques + 1);
-        if (dnum == 0)
+        if (dnum == 0) {
             d = victim->l->active_deque;
-        else
+            msg = "(w: %i) stealing from active deque of %i\n";
+        } else {
             d = *(victim->l->dod.head + dnum - 1);
+            msg = "(w: %i) stealing from a suspended deque of %i\n";
+        }
     }
 
     // If the deque was suspended and is now resumable, commandeer the deque and resume!
-    if (d->resumeable_fiber) {
+    if (0 && d->resumeable_fiber && cilk_fiber_is_resumable(d->resumeable_fiber)) {
         fiber = d->resumeable_fiber;
         d->resumeable_fiber = NULL; // Make sure no one else sees the resumable fiber
+        __cilkrts_fence();
 
         CILK_ASSERT(d->worker == victim);
 
@@ -780,16 +789,23 @@ static void random_steal(__cilkrts_worker *w)
         *(p->head) = NULL;
         if (p->head != p->tail) p->head++;
         d->worker->l->num_suspended_deques--;
+
+        deque *old_deque = w->l->active_deque;
+        w->l->active_deque = d;
         
         __cilkrts_mutex_unlock(w, &victim->l->lock);
 
-
-        // Now need to free the current deque, but someone else
-        // might be reading it to try to steal....
-        /// @todo fix
-        __cilkrts_free(w->l->active_deque);
-        w->l->active_deque = d;
+        // No one can see this now
+        __cilkrts_free(old_deque);
         deque_switch(w, d);
+
+        CILK_ASSERT(*w->l->frame_ff);
+
+        fprintf(stderr, "(w: %i) actually resuming a suspended fiber\n", w->self);
+
+        cilk_fiber_data *data = cilk_fiber_get_data(fiber);
+        CILK_ASSERT(!data->resume_sf);
+        data->owner = w;
         cilk_fiber_suspend_self_and_resume_other(w->l->scheduling_fiber, fiber);
         return;
     } else {
@@ -871,6 +887,7 @@ static void random_steal(__cilkrts_worker *w)
                         fprintf(stderr, "Wkr %d stole from victim %d, fiber = %p\n",
                                 w->self, victim->self, fiber);
                         #endif
+                        fprintf(stderr, msg, w->self, victim->self);
 
                         // The use of victim->self contradicts our
                         // classification of the "self" field as 

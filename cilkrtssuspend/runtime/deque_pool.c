@@ -28,8 +28,9 @@ cilk_fiber* deque_pool_suspend(__cilkrts_worker *w, deque *new_deque)
 {
 	deque_pool *p = &w->l->dod;
 	deque *d = w->l->active_deque;
+	CILK_ASSERT(d->frame_ff);
+	
 	d->saved_ped = w->pedigree;
-
 	d->worker = w;
 	d->self = (deque**) p->tail;
 	*(p->tail++) = d;
@@ -70,13 +71,14 @@ void __cilkrts_suspend_deque(void)
 																					 w->l->scheduling_fiber);
 }
 
-void __cilkrts_resume_suspended(void* _deque)
+void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 {
 	__cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
 	deque *deque_to_resume = (deque*) _deque;
 
 	// TBD: Maybe the right thing to do is for thieves to
 	// remove an empty suspended deque when they see one.
+	CILK_ASSERT(deque_to_resume->worker);
 	__cilkrts_worker *victim = deque_to_resume->worker;
 	BEGIN_WITH_WORKER_LOCK(victim) {
 		deque_pool *p = &deque_to_resume->worker->l->dod;
@@ -84,18 +86,27 @@ void __cilkrts_resume_suspended(void* _deque)
 		*(p->head) = NULL;
 		if (p->head != p->tail) p->head++;
 		victim->l->num_suspended_deques--;
+
+		// This might already by null, but also it might not be
+		if (deque_to_resume->resumeable_fiber) {
+			CILK_ASSERT(deque_to_resume->resumeable_fiber == deque_to_resume->frame_ff->fiber_self);
+			deque_to_resume->resumeable_fiber = NULL;
+		}
 	} END_WITH_WORKER_LOCK(victim);
 	deque_to_resume->worker = w;
 
 
 	deque *d = w->l->active_deque;
 	cilk_fiber *current_fiber = deque_pool_suspend(w, deque_to_resume);
-	d->resumeable_fiber = current_fiber;
+	d->resumeable_fiber = (enable_resume) ? current_fiber : NULL;
 
 	cilk_fiber* fiber_to_resume = deque_to_resume->frame_ff->fiber_self;
 	CILK_ASSERT(fiber_to_resume);
 
 	// switch fibers
+	cilk_fiber_data *data = cilk_fiber_get_data(fiber_to_resume);
+	CILK_ASSERT(!data->resume_sf);
+	data->owner = w;
 	cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
 
 }

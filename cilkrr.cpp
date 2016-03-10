@@ -31,6 +31,7 @@ namespace cilkrr {
 		pedigree_t p = "]";
 		while (current) {
 			/// @todo Prepending is probably not very performant...
+			//assert(current->rank < 10);
 			p = std::to_string(current->rank) + "," + p;
 			current = current->parent;
 		}
@@ -121,28 +122,6 @@ namespace cilkrr {
 	size_t state::remove_mutex(size_t index)
 	{
 		return --m_size;
-	}
-
-	void suspend(std::list<acquire_info> * acquires, pedigree_t p)
-	{
-		cilkrr::sout << "Suspend at: " << p << cilkrr::endl;
-
-		/// @todo use a hash table so we don't have to iterate through
-		acquire_info* a = nullptr;
-		for (auto it = acquires->begin(); it != acquires->end(); ++it) {
-			if (it->ped == p) {
-				a = &(*it);
-				break;
-			}
-		}
-		assert(a != nullptr);
-
-		// We actually don't even need to spawn, because in
-		//		__cilkrts_suspend_deque I suspend the current fiber and
-		//		resume the scheduling fiber, which implicitly does a setjmp.
-		a->suspended_deque = __cilkrts_get_deque();
-		__cilkrts_suspend_deque();
-		cilkrr::sout << "Resume at: " << get_pedigree() << cilkrr::endl;
 	}
 
 }

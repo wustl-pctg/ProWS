@@ -53,5 +53,4 @@ namespace cilkrr {
 
 	inline enum mode cilkrr_mode() { return g_rr_state->m_mode;	}
 
-	void suspend(std::list<acquire_info> * acquires, pedigree_t p);
 }

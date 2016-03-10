@@ -128,19 +128,19 @@ typedef void (*cilk_fiber_proc)(cilk_fiber*);
 /** @brief Data structure associated with each fiber. */
 typedef struct cilk_fiber_data
 {
-    __STDNS size_t          stack_size;       /**< Size of stack for fiber    */
-    __cilkrts_worker*       owner;            /**< Worker using this fiber    */
-    __cilkrts_stack_frame*  resume_sf;        /**< Stack frame to resume      */
-    __cilk_tbb_pfn_stack_op stack_op_routine; /**< Cilk/TBB interop callback  */
-    void*                   stack_op_data;    /**< Data for Cilk/TBB callback */
-    void*                   client_data;      /**< Data managed by client     */
+	__STDNS size_t          stack_size;       /**< Size of stack for fiber    */
+	__cilkrts_worker*       owner;            /**< Worker using this fiber    */
+	__cilkrts_stack_frame*  resume_sf;        /**< Stack frame to resume      */
+	__cilk_tbb_pfn_stack_op stack_op_routine; /**< Cilk/TBB interop callback  */
+	void*                   stack_op_data;    /**< Data for Cilk/TBB callback */
+	void*                   client_data;      /**< Data managed by client     */
 
 #ifdef _WIN32
-    char *initial_sp;       /**<  Initalized in fiber_stub */
+	char *initial_sp;       /**<  Initalized in fiber_stub */
 # ifdef _WIN64
-    char *steal_frame_sp;   /**< RSP for frame stealing work */
-                            // Needed for exception handling so we can
-                            // identify when about to unwind off stack
+	char *steal_frame_sp;   /**< RSP for frame stealing work */
+	// Needed for exception handling so we can
+	// identify when about to unwind off stack
 # endif
 #endif
 
@@ -156,22 +156,22 @@ typedef struct cilk_fiber_data
  */
 struct cilk_fiber_pool
 {
-    spin_mutex*      lock;       ///< Mutual exclusion for pool operations 
-    __STDNS size_t   stack_size; ///< Size of stacks for fibers in this pool.
-    cilk_fiber_pool* parent;     ///< @brief Parent pool.
-                                 ///< If this pool is empty, get from parent 
+	spin_mutex*      lock;       ///< Mutual exclusion for pool operations 
+	__STDNS size_t   stack_size; ///< Size of stacks for fibers in this pool.
+	cilk_fiber_pool* parent;     ///< @brief Parent pool.
+	///< If this pool is empty, get from parent 
 
-    // Describes inactive fibers stored in the pool.
-    cilk_fiber**     fibers;     ///< Array of max_size fiber pointers 
-    unsigned         max_size;   ///< Limit on number of fibers in pool 
-    unsigned         size;       ///< Number of fibers currently in the pool
+	// Describes inactive fibers stored in the pool.
+	cilk_fiber**     fibers;     ///< Array of max_size fiber pointers 
+	unsigned         max_size;   ///< Limit on number of fibers in pool 
+	unsigned         size;       ///< Number of fibers currently in the pool
 
-    // Statistics on active fibers that were allocated from this pool,
-    // but no longer in the pool.
-    int              total;      ///< @brief Fibers allocated - fiber deallocated from pool
-                                 ///< total may be negative for non-root pools.
-    int              high_water; ///< High water mark of total fibers
-    int              alloc_max;  ///< Limit on number of fibers allocated from the heap/OS
+	// Statistics on active fibers that were allocated from this pool,
+	// but no longer in the pool.
+	int              total;      ///< @brief Fibers allocated - fiber deallocated from pool
+	///< total may be negative for non-root pools.
+	int              high_water; ///< High water mark of total fibers
+	int              alloc_max;  ///< Limit on number of fibers allocated from the heap/OS
 };
 
 /** @brief Initializes a cilk_fiber_pool structure
@@ -434,10 +434,10 @@ cilk_fiber_data* cilk_fiber_get_data(cilk_fiber* fiber);
 __CILKRTS_INLINE
 __cilkrts_worker* cilk_fiber_get_owner(cilk_fiber* fiber)
 {
-    // TBD: We really want a static assert here, that this cast is
-    // doing the right thing.
-    cilk_fiber_data* fdata = (cilk_fiber_data*)fiber;
-    return fdata->owner;
+	// TBD: We really want a static assert here, that this cast is
+	// doing the right thing.
+	cilk_fiber_data* fdata = (cilk_fiber_data*)fiber;
+	return fdata->owner;
 }
 
 /** @brief Sets the owner field of a fiber.
@@ -448,10 +448,10 @@ __cilkrts_worker* cilk_fiber_get_owner(cilk_fiber* fiber)
 __CILKRTS_INLINE
 void cilk_fiber_set_owner(cilk_fiber* fiber, __cilkrts_worker* owner) 
 {
-    // TBD: We really want a static assert here, that this cast is
-    // doing the right thing.
-    cilk_fiber_data* fdata = (cilk_fiber_data*)fiber;
-    fdata->owner = owner;
+	// TBD: We really want a static assert here, that this cast is
+	// doing the right thing.
+	cilk_fiber_data* fdata = (cilk_fiber_data*)fiber;
+	fdata->owner = owner;
 }
     
 /** @brief Returns true if this fiber is resumable.
@@ -585,305 +585,306 @@ struct cilk_fiber_sysdep;
  */
 struct cilk_fiber : protected cilk_fiber_data
 {
-  protected:
-    // This is a rare acceptable use of protected inheritence and protected
-    // variable access: when the base class and derived class collaborate
-    // tightly to comprise a single component.
+protected:
+	// This is a rare acceptable use of protected inheritence and protected
+	// variable access: when the base class and derived class collaborate
+	// tightly to comprise a single component.
 
-    /// For overloading constructor of cilk_fiber. 
-    enum from_thread_t { from_thread = 1 };
+	/// For overloading constructor of cilk_fiber. 
+	enum from_thread_t { from_thread = 1 };
 
-    // Boolean flags capturing the status of the fiber.
-    // Each one can be set independently.
-    // A default fiber is constructed with a flag value of 0.
-    static const int RESUMABLE             = 0x01;  ///< True if the fiber is in a suspended state and can be resumed.
-    static const int ALLOCATED_FROM_THREAD = 0x02;  ///< True if fiber was allocated from a thread.
+	// Boolean flags capturing the status of the fiber.
+	// Each one can be set independently.
+	// A default fiber is constructed with a flag value of 0.
+	static const int RESUMABLE             = 0x01;  ///< True if the fiber is in a suspended state and can be resumed.
+	static const int ALLOCATED_FROM_THREAD = 0x02;  ///< True if fiber was allocated from a thread.
 
-    cilk_fiber_proc  m_start_proc;        ///< Function to run on start up/reset
-    cilk_fiber_proc  m_post_switch_proc;  ///< Function that executes when we first switch to a new fiber from a different one.
+	cilk_fiber_proc  m_start_proc;        ///< Function to run on start up/reset
+	cilk_fiber_proc  m_post_switch_proc;  ///< Function that executes when we first switch to a new fiber from a different one.
 
-    cilk_fiber*      m_pending_remove_ref;///< Fiber to possibly delete on start up or resume
-    cilk_fiber_pool* m_pending_pool;      ///< Pool where m_pending_remove_ref should go if it is deleted.
-    unsigned         m_flags;             ///< Captures the status of this fiber. 
+	cilk_fiber*				m_pending_remove_ref;	///< Fiber to possibly delete on start up or resume
+	cilk_fiber_pool*	m_pending_pool;	///< Pool where m_pending_remove_ref should go if it is deleted.
+	unsigned					m_flags;    ///< Captures the status of this fiber.
+	cilk_fiber*				m_from_fiber;  ///< Fiber we switched from
 
 #if NEED_FIBER_REF_COUNTS
-    volatile long    m_outstanding_references;  ///< Counts references to this fiber.
+	volatile long    m_outstanding_references;  ///< Counts references to this fiber.
 #endif
 
-    /// Creates a fiber with NULL data.
-    cilk_fiber();
+	/// Creates a fiber with NULL data.
+	cilk_fiber();
 
-    /**
-     * @brief Creates a fiber with user-specified arguments.
-     *
-     * @param stack_size   Size of stack to use for this fiber.
-     */
-    cilk_fiber(std::size_t stack_size);
+	/**
+	 * @brief Creates a fiber with user-specified arguments.
+	 *
+	 * @param stack_size   Size of stack to use for this fiber.
+	 */
+	cilk_fiber(std::size_t stack_size);
 
-    /// Empty destructor.
-    ~cilk_fiber();
+	/// Empty destructor.
+	~cilk_fiber();
 
-    /**
-     * @brief Performs any actions that happen after switching from
-     * one fiber to another.
-     *
-     * These actions are:
-     *   1. Execute m_post_switch_proc on a fiber.
-     *   2. Do any pending deallocations from the previous fiber.
-     */
-    void do_post_switch_actions();
+	/**
+	 * @brief Performs any actions that happen after switching from
+	 * one fiber to another.
+	 *
+	 * These actions are:
+	 *   1. Execute m_post_switch_proc on a fiber.
+	 *   2. Do any pending deallocations from the previous fiber.
+	 */
+	void do_post_switch_actions();
 
-    /**
-     *@brief Helper method that converts a @c cilk_fiber object into a
-     * @c cilk_fiber_sysdep object.
-     *
-     * The @c cilk_fiber_sysdep object contains the system-dependent parts
-     * of the implementation of a @\c cilk_fiber.
-     *
-     * We could have @c cilk_fiber_sysdep inherit from @c cilk_fiber and
-     * then use virtual functions.  But since a given platform only uses
-     * one definition of @c cilk_fiber_sysdep at a time, we statically
-     * cast between them.
-     */
-    inline cilk_fiber_sysdep* sysdep();
+	/**
+	 *@brief Helper method that converts a @c cilk_fiber object into a
+	 * @c cilk_fiber_sysdep object.
+	 *
+	 * The @c cilk_fiber_sysdep object contains the system-dependent parts
+	 * of the implementation of a @\c cilk_fiber.
+	 *
+	 * We could have @c cilk_fiber_sysdep inherit from @c cilk_fiber and
+	 * then use virtual functions.  But since a given platform only uses
+	 * one definition of @c cilk_fiber_sysdep at a time, we statically
+	 * cast between them.
+	 */
+	inline cilk_fiber_sysdep* sysdep();
 
-    /**
-     * @brief Set resumable flag to specified state.
-     */
-    inline void set_resumable(bool state) {
-        m_flags = state ?  (m_flags | RESUMABLE) : (m_flags & (~RESUMABLE));
-    }
+	/**
+	 * @brief Set resumable flag to specified state.
+	 */
+	inline void set_resumable(bool state) {
+		m_flags = state ?  (m_flags | RESUMABLE) : (m_flags & (~RESUMABLE));
+	}
 
-    /**
-     *@brief Set the allocated_from_thread flag. 
-     */
-    inline void set_allocated_from_thread(bool state) {
-        m_flags = state ?  (m_flags | ALLOCATED_FROM_THREAD) : (m_flags & (~ALLOCATED_FROM_THREAD));
-    }
+	/**
+	 *@brief Set the allocated_from_thread flag. 
+	 */
+	inline void set_allocated_from_thread(bool state) {
+		m_flags = state ?  (m_flags | ALLOCATED_FROM_THREAD) : (m_flags & (~ALLOCATED_FROM_THREAD));
+	}
 
-  public:
+public:
 
-    /**
-     * @brief Allocates and initializes a new cilk_fiber, either from
-     * the specified pool or from the heap.
-     *
-     * @pre pool should not be NULL.
-     */
-    static cilk_fiber* allocate(cilk_fiber_pool* pool);
+	/**
+	 * @brief Allocates and initializes a new cilk_fiber, either from
+	 * the specified pool or from the heap.
+	 *
+	 * @pre pool should not be NULL.
+	 */
+	static cilk_fiber* allocate(cilk_fiber_pool* pool);
 
-    /**
-     * @brief Allocates a fiber from the heap.
-     */
-    static cilk_fiber* allocate_from_heap(size_t stack_size);
+	/**
+	 * @brief Allocates a fiber from the heap.
+	 */
+	static cilk_fiber* allocate_from_heap(size_t stack_size);
 
-    /**
-     * @brief Return a fiber to the heap.
-     */
-    void deallocate_to_heap();
+	/**
+	 * @brief Return a fiber to the heap.
+	 */
+	void deallocate_to_heap();
 
-    /**
-     * @brief Reset the state of a fiber just allocated from a pool.
-     */
-    void reset_state(cilk_fiber_proc start_proc);
+	/**
+	 * @brief Reset the state of a fiber just allocated from a pool.
+	 */
+	void reset_state(cilk_fiber_proc start_proc);
 
-    /**
-     * @brief Remove a reference from this fiber, possibly
-     * deallocating it if the reference count becomes 0.
-     *
-     * @param pool The fiber pool to which this fiber should be returned.
-     * @return     The final reference count.
-     */
-    int remove_reference(cilk_fiber_pool* pool);
+	/**
+	 * @brief Remove a reference from this fiber, possibly
+	 * deallocating it if the reference count becomes 0.
+	 *
+	 * @param pool The fiber pool to which this fiber should be returned.
+	 * @return     The final reference count.
+	 */
+	int remove_reference(cilk_fiber_pool* pool);
 
-    /**
-     * @brief Deallocate the fiber by returning it to the pool.
-     * @pre This method should only be called if the reference count
-     * is 0.
-     *
-     * @param pool The fiber pool to return this fiber to. If NULL,
-     *   fiber is returned to the heap.
-     */
-    void deallocate_self(cilk_fiber_pool *pool);
+	/**
+	 * @brief Deallocate the fiber by returning it to the pool.
+	 * @pre This method should only be called if the reference count
+	 * is 0.
+	 *
+	 * @param pool The fiber pool to return this fiber to. If NULL,
+	 *   fiber is returned to the heap.
+	 */
+	void deallocate_self(cilk_fiber_pool *pool);
 
-    /** @brief Allocates and intializes this thread's main fiber. */
-    static cilk_fiber* allocate_from_thread();
+	/** @brief Allocates and intializes this thread's main fiber. */
+	static cilk_fiber* allocate_from_thread();
 
-    /** @brief Deallocate a fiber created from a thread,
-     * possibly destroying it.
-     *
-     * This method decrements the reference count of this fiber by 2,
-     * and destroys the fiber if the reference count is 0.
-     *
-     * OS-specific cleanup for the fiber executes unconditionally with for
-     * this method.  The destruction of the actual object, however, does
-     * not occur unless the reference count is 0.
-     *
-     * @return        Final reference count.  If the count is 0, the fiber was
-     *                returned to the heap.
-     */
-    int deallocate_from_thread();
+	/** @brief Deallocate a fiber created from a thread,
+	 * possibly destroying it.
+	 *
+	 * This method decrements the reference count of this fiber by 2,
+	 * and destroys the fiber if the reference count is 0.
+	 *
+	 * OS-specific cleanup for the fiber executes unconditionally with for
+	 * this method.  The destruction of the actual object, however, does
+	 * not occur unless the reference count is 0.
+	 *
+	 * @return        Final reference count.  If the count is 0, the fiber was
+	 *                returned to the heap.
+	 */
+	int deallocate_from_thread();
 
-    /** @brief Removes a reference from this fiber.
-     *
-     * This method deallocates this fiber if the reference count
-     * becomes 0.
-     *
-     * @pre     This fiber must be allocated from a thread.
-     * @return  The final reference count of this fiber.
-     */
-    int remove_reference_from_thread();
+	/** @brief Removes a reference from this fiber.
+	 *
+	 * This method deallocates this fiber if the reference count
+	 * becomes 0.
+	 *
+	 * @pre     This fiber must be allocated from a thread.
+	 * @return  The final reference count of this fiber.
+	 */
+	int remove_reference_from_thread();
 
 #if SUPPORT_GET_CURRENT_FIBER
-    /** @brief Get the current fiber from TLS.
-     *
-     * @note This function is only used for testing the runtime.
-     */
-    static cilk_fiber* get_current_fiber();
+	/** @brief Get the current fiber from TLS.
+	 *
+	 * @note This function is only used for testing the runtime.
+	 */
+	static cilk_fiber* get_current_fiber();
 #endif
 
-    /** @brief Suspend execution on current fiber resumes other fiber.
-     * 
-     * Control returns after resuming execution of the self fiber.
-     */ 
-    void suspend_self_and_resume_other(cilk_fiber* other);
+	/** @brief Suspend execution on current fiber resumes other fiber.
+	 * 
+	 * Control returns after resuming execution of the self fiber.
+	 */ 
+	void suspend_self_and_resume_other(cilk_fiber* other);
 
 
-    /** @brief Removes a reference from the currently executing fiber
-     * and resumes other fiber.
-     *
-     *  This fiber may be returned to a pool or deallocated.
-     */
-    NORETURN remove_reference_from_self_and_resume_other(cilk_fiber_pool* self_pool,
-                                                         cilk_fiber*      other);
+	/** @brief Removes a reference from the currently executing fiber
+	 * and resumes other fiber.
+	 *
+	 *  This fiber may be returned to a pool or deallocated.
+	 */
+	NORETURN remove_reference_from_self_and_resume_other(cilk_fiber_pool* self_pool,
+																											 cilk_fiber*      other);
 
-    /** @brief Set the proc method to execute immediately after a switch
-     * to this fiber.
-     *
-     * @param post_switch_proc Proc method to execute immediately
-     * after switching to this fiber.
-     */
-    inline void set_post_switch_proc(cilk_fiber_proc post_switch_proc) {
-        m_post_switch_proc = post_switch_proc;
-    }
+	/** @brief Set the proc method to execute immediately after a switch
+	 * to this fiber.
+	 *
+	 * @param post_switch_proc Proc method to execute immediately
+	 * after switching to this fiber.
+	 */
+	inline void set_post_switch_proc(cilk_fiber_proc post_switch_proc) {
+		m_post_switch_proc = post_switch_proc;
+	}
 
-    /** @brief Returns true if this fiber is resumable.
-     *
-     * A fiber is considered resumable when it is not currently being
-     * executed.
-     */
-    inline bool is_resumable(void) {
-        return (m_flags & RESUMABLE);
-    }
+	/** @brief Returns true if this fiber is resumable.
+	 *
+	 * A fiber is considered resumable when it is not currently being
+	 * executed.
+	 */
+	inline bool is_resumable(void) {
+		return (m_flags & RESUMABLE);
+	}
     
-    /** @brief Returns true if fiber was allocated from a thread. */   
-    inline bool is_allocated_from_thread(void) {
-        return (m_flags & ALLOCATED_FROM_THREAD);
-    }
+	/** @brief Returns true if fiber was allocated from a thread. */   
+	inline bool is_allocated_from_thread(void) {
+		return (m_flags & ALLOCATED_FROM_THREAD);
+	}
 
-    /**
-     *@brief Get the address at the base of the stack for this fiber.
-     */
-    inline char* get_stack_base();
+	/**
+	 *@brief Get the address at the base of the stack for this fiber.
+	 */
+	inline char* get_stack_base();
     
-    /** @brief Return the data for this fiber. */ 
-    cilk_fiber_data*       get_data()       { return this; }
+	/** @brief Return the data for this fiber. */ 
+	cilk_fiber_data*       get_data()       { return this; }
 
-    /** @brief Return the data for this fiber. */ 
-    cilk_fiber_data const* get_data() const { return this; }
+	/** @brief Return the data for this fiber. */ 
+	cilk_fiber_data const* get_data() const { return this; }
 
     
 #if NEED_FIBER_REF_COUNTS
-    /** @brief Verifies that this fiber's reference count equals v. */
-    inline void assert_ref_count_equals(long v) {
-    #if FIBER_CHECK_REF_COUNTS
-        CILK_ASSERT(m_outstanding_references >= v);
-    #endif
-    }
+	/** @brief Verifies that this fiber's reference count equals v. */
+	inline void assert_ref_count_equals(long v) {
+#if FIBER_CHECK_REF_COUNTS
+		CILK_ASSERT(m_outstanding_references >= v);
+#endif
+	}
 
-    /** @brief Verifies that this fiber's reference count is at least v. */
-    inline void assert_ref_count_at_least(long v) {
-    #if FIBER_CHECK_REF_COUNTS
-        CILK_ASSERT(m_outstanding_references >= v);
-    #endif
-    }
+	/** @brief Verifies that this fiber's reference count is at least v. */
+	inline void assert_ref_count_at_least(long v) {
+#if FIBER_CHECK_REF_COUNTS
+		CILK_ASSERT(m_outstanding_references >= v);
+#endif
+	}
 
-    /** @brief Get reference count. */
-    inline long get_ref_count()        { return m_outstanding_references; }
+	/** @brief Get reference count. */
+	inline long get_ref_count()        { return m_outstanding_references; }
 
-    /** @brief Initialize reference count.
-     *  Operation is not atomic.
-     */
-    inline void init_ref_count(long v) { m_outstanding_references = v; }
+	/** @brief Initialize reference count.
+	 *  Operation is not atomic.
+	 */
+	inline void init_ref_count(long v) { m_outstanding_references = v; }
 
-    // For Windows, updates to the fiber reference count need to be
-    // atomic, because exceptions can live on a stack that we are not
-    // currently executing on.  Thus, we can update the reference
-    // count of a fiber we are not currently executing on.
+	// For Windows, updates to the fiber reference count need to be
+	// atomic, because exceptions can live on a stack that we are not
+	// currently executing on.  Thus, we can update the reference
+	// count of a fiber we are not currently executing on.
 
-    /** @brief Increment reference count for this fiber [Windows]. */
-    inline void inc_ref_count()            { atomic_inc_ref_count(); }
+	/** @brief Increment reference count for this fiber [Windows]. */
+	inline void inc_ref_count()            { atomic_inc_ref_count(); }
 
-    /** @brief Decrement reference count for this fiber [Windows]. */
-    inline long dec_ref_count()            { return atomic_dec_ref_count(); }
+	/** @brief Decrement reference count for this fiber [Windows]. */
+	inline long dec_ref_count()            { return atomic_dec_ref_count(); }
 
-    /** @brief Subtract v from the reference count for this fiber [Windows]. */
-    inline long sub_from_ref_count(long v) { return atomic_sub_from_ref_count(v); }
+	/** @brief Subtract v from the reference count for this fiber [Windows]. */
+	inline long sub_from_ref_count(long v) { return atomic_sub_from_ref_count(v); }
 #else  // NEED_FIBER_REF_COUNTS
 
-    // Without reference counting, we have placeholder methods.
-    inline void init_ref_count(long v) { }
+	// Without reference counting, we have placeholder methods.
+	inline void init_ref_count(long v) { }
 
-    inline void inc_ref_count() { }
+	inline void inc_ref_count() { }
     
-    // With no reference counting, dec_ref_count always return 0.
-    // Thus, anyone checking is always the "last" one.
-    inline long dec_ref_count() { return 0; }
-    inline long sub_from_ref_count(long v) { return 0; }
+	// With no reference counting, dec_ref_count always return 0.
+	// Thus, anyone checking is always the "last" one.
+	inline long dec_ref_count() { return 0; }
+	inline long sub_from_ref_count(long v) { return 0; }
 
-    // The assert methods do nothing.
-    inline void assert_ref_count_equals(long v) { }
-    inline void assert_ref_count_at_least(long v) { }
+	// The assert methods do nothing.
+	inline void assert_ref_count_equals(long v) { }
+	inline void assert_ref_count_at_least(long v) { }
 #endif    
 
-    /**
-     * @brief Call TBB to tell it about an "interesting" event.
-     *
-     * @param op    Value specifying the event to track.
-     */
-    void invoke_tbb_stack_op(__cilk_tbb_stack_op op);
+	/**
+	 * @brief Call TBB to tell it about an "interesting" event.
+	 *
+	 * @param op    Value specifying the event to track.
+	 */
+	void invoke_tbb_stack_op(__cilk_tbb_stack_op op);
 
 private:
 
-    /**
-     * @brief Helper method: try to allocate a fiber from this pool or
-     * its ancestors without going to the OS / heap.
-     *
-     * Returns allocated pool, or NULL if no pool is found.
-     *
-     * If pool contains a suitable fiber. Return it.  Otherwise, try to
-     * recursively grab a fiber from the parent pool, if there is one.
-     *
-     * This method will not allocate a fiber from the heap.
-     */
-    static cilk_fiber* try_allocate_from_pool_recursive(cilk_fiber_pool* pool);
+	/**
+	 * @brief Helper method: try to allocate a fiber from this pool or
+	 * its ancestors without going to the OS / heap.
+	 *
+	 * Returns allocated pool, or NULL if no pool is found.
+	 *
+	 * If pool contains a suitable fiber. Return it.  Otherwise, try to
+	 * recursively grab a fiber from the parent pool, if there is one.
+	 *
+	 * This method will not allocate a fiber from the heap.
+	 */
+	static cilk_fiber* try_allocate_from_pool_recursive(cilk_fiber_pool* pool);
     
     
 #if NEED_FIBER_REF_COUNTS
-    /**
-     * @brief Atomic increment of reference count. 
-     */
-    void atomic_inc_ref_count();
+	/**
+	 * @brief Atomic increment of reference count. 
+	 */
+	void atomic_inc_ref_count();
 
-    /**
-     * @brief Atomic decrement of reference count.
-     */
-    long atomic_dec_ref_count();
+	/**
+	 * @brief Atomic decrement of reference count.
+	 */
+	long atomic_dec_ref_count();
 
-    /**
-     * @brief Atomic subtract of v from reference count.
-     * @param v Value to subtract.
-     */    
-    long atomic_sub_from_ref_count(long v);
+	/**
+	 * @brief Atomic subtract of v from reference count.
+	 * @param v Value to subtract.
+	 */    
+	long atomic_sub_from_ref_count(long v);
 #endif // NEED_FIBER_REF_COUNTS
     
 };

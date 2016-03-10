@@ -220,6 +220,7 @@ CILK_API(int) __cilkrts_get_total_workers(void);
  *  across multiple user threads.
  */
 CILK_API(int) __cilkrts_get_worker_number(void);
+CILK_API(int) __cilkrts_get_internal_worker_number(void);
 
 /** Tests whether "force reduce" behavior is enabled.
  *

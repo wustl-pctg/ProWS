@@ -1,5 +1,8 @@
 #include "mutex.h"
+#include "syncstream.h"
 #include <cassert>
+#include <memory>
+#include <atomic>
 
 #include <internal/abi.h>
 
@@ -16,6 +19,9 @@ namespace cilkrr {
 		// deterministic ids anyway, so the lock would be pointless.
 		m_id = g_rr_state->add_mutex();
 		m_acquires = g_rr_state->get_mutex(m_id);
+
+		if (g_rr_state->m_mode == REPLAY)
+			m_it = m_acquires->begin();
 
 		// std::cerr << "Creating cilkrr mutex: " << this
 		// 					<< ", " << m_id << std::endl;
@@ -64,8 +70,8 @@ namespace cilkrr {
 
 	void mutex::unlock()
 	{
-		release();
 		if (cilkrr_mode() == REPLAY) replay_unlock();
+		else release();
 	}
 
 	void mutex::record_acquire()
@@ -76,18 +82,23 @@ namespace cilkrr {
 	void mutex::replay_lock()
 	{
 		pedigree_t p = get_pedigree();
-		//		while (p != m_acquires->front().ped);
-		if (p != m_acquires->front().ped)
-			suspend(m_acquires, p);
-		
-		bool res = m_mutex.try_lock();
-		assert(res == true);
+		if (p != (*m_it).ped) {
+			suspend(p);
+		  // Invariant: Upon return, the lock is locked by this worker
+		} else {
+			bool result = m_mutex.try_lock();
+			assert(result == true);
+		}
 		acquire();
+		assert(m_owner = __cilkrts_get_tls_worker_fast());
 	}
 
 	bool mutex::replay_try_lock()
 	{
-		if (get_pedigree() == m_acquires->front().ped) {
+
+		/// @todo this isn't quite right. For try_locks, I think we'll
+		/// need to record failures as well.
+		if (get_pedigree() == (*m_it).ped) {
 			assert(m_owner == nullptr);
 			bool res = m_mutex.try_lock();
 			assert(res == true);
@@ -98,15 +109,84 @@ namespace cilkrr {
 
 	void mutex::replay_unlock()
 	{
-		m_acquires->pop_front();
-
-		if (!m_acquires->empty()) {
-			if (m_acquires->front().suspended_deque != nullptr)
-				__cilkrts_resume_suspended(m_acquires->front().suspended_deque);
+		//m_acquires->pop_front();
+		m_it++;
+		
+		//		To resume a suspended deque, we retain the lock, so we don't release
+		__sync_synchronize();
+		//		if (!m_acquires->empty() && m_acquires->front().suspended_deque) {
+		if (!(m_it == m_acquires->end()) && (*m_it).suspended_deque) {
+			void *d = (*m_it).suspended_deque;
+			cilkrr::sout << "(w: " << __cilkrts_get_tls_worker_fast()->self
+									 << ") about to resume suspended deque in replay_unlock" << cilkrr::endl;
+			__cilkrts_resume_suspended(d, 1);
+			cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
+									 << ") resuming in replay_unlock (p: "
+									 << get_pedigree() << ")" << cilkrr::endl;
+		} else { // Like a real release
+			m_owner = nullptr;
+			m_mutex.unlock();
 		}
 
-		// Choice here: If this lock acquire was suspended, should we try
-		// to go back to the previous acquire strand?
+		// We don't do a real release here since we may retain the lock to
+		// resume a suspended deque. But in any case we need to bump the rank.
+		__cilkrts_bump_worker_rank();
+
 	}
+
+	/// @todo use a hash table so we don't have to iterate through
+	acquire_info* mutex::find_acquire(pedigree_t& p)
+	{
+		assert(g_rr_state->m_mode == REPLAY);
+
+		for (auto it = m_it; it != m_acquires->end(); ++it) {
+			if (it->ped == p) {
+				return &(*it);
+				break;
+			}
+		}
+		cilkrr::sout << "Error: can't find " << p << cilkrr::endl;
+		assert(0);
+	}
+
+	void mutex::suspend(pedigree_t& p)
+	{
+		// cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
+		// 						 << ") Suspend at: " << p << cilkrr::endl;
+		acquire_info *a = find_acquire(p);
+		a->suspended_deque = __cilkrts_get_deque();
+		__sync_synchronize();
+		cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self << ") "
+								 << "suspending deque " << a->suspended_deque << " "
+								 << "at: " << p << cilkrr::endl;
+		
+		//		acquire_info *front = &m_acquires->front();
+		acquire_info *front = &(*m_it);
+		if (front->suspended_deque != nullptr
+				&& m_mutex.try_lock()) {
+
+			acquire();
+			// If this is the front, just continue on
+			if (front != a) {
+				cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
+										 << ") about to resume suspended deque in mutex::suspend" << cilkrr::endl;
+				__cilkrts_resume_suspended(front->suspended_deque, 0);
+			}
+		} else {
+			cilkrr::sout << "(w: " <<  __cilkrts_get_tls_worker()->self
+									 << ") about to resume stealing in mutex::suspend" << cilkrr::endl;
+			__cilkrts_suspend_deque();
+		}
+
+		// When this fiber is resumed, the mutex is locked!
+		//		acquire();
+		std::atomic_thread_fence(std::memory_order_seq_cst);
+		assert(this->m_owner == __cilkrts_get_tls_worker());
+
+		cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
+								 << ") Resume at: " << get_pedigree() << cilkrr::endl;
+	}
+
+
 
 }

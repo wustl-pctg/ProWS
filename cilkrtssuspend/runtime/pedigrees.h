@@ -123,16 +123,30 @@ void save_pedigree_leaf_from_user_worker(__cilkrts_worker *w);
  */ 
 COMMON_PORTABLE
 inline void update_pedigree_on_leave_frame(__cilkrts_worker *w,
-					   __cilkrts_stack_frame *sf) 
+                                           __cilkrts_stack_frame *sf) 
 {
-    // Update the worker's pedigree information if this is an ABI 1 or later
-    // frame
-    if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1)
+  // Update the worker's pedigree information if this is an ABI 1 or later
+  // frame
+  if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1)
     {
-	w->pedigree.rank = sf->spawn_helper_pedigree.rank + 1;
-	w->pedigree.parent = sf->spawn_helper_pedigree.parent;
+      w->pedigree.rank = sf->spawn_helper_pedigree.rank + 1;
+      w->pedigree.parent = sf->spawn_helper_pedigree.parent;
     }
 }
+
+/**                                                                             
+ * Update pedigree for a worker when passing cilk_sync successfully             
+ *                                                                              
+ * We have just passed a cilk_sync successfully (the sync can be trivial or     
+ * non-trivial, excepting or not-excepting), and we need to update the          
+ * pedigrees rank stored in the worker.  This code used to be inlined in        
+ * the compiled user code, but since we are modifying the shadow frame          
+ * to store a pointer to a deque instead of a pointer to a worker, this         
+ * code can no longer be inlined when the Cilk Plus code is executed by         
+ * this runtime.                                                                
+ */         
+COMMON_PORTABLE
+void update_pedigree_after_sync(__cilkrts_stack_frame *sf);
 
 
 

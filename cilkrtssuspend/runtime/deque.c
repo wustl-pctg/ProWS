@@ -41,6 +41,10 @@
     while (__cilkrts_frame_unlock(w, _locked_ff), 0); } while (0)
 
 
+
+
+
+
 /********************************************************************
  * THE protocol:
  ********************************************************************/
@@ -174,7 +178,8 @@ void detach_for_steal(__cilkrts_worker *w,
     __cilkrts_stack_frame *volatile *h;
     __cilkrts_stack_frame *sf;
 
-    w->l->team = victim->l->team;
+		//    w->l->team = victim->l->team;
+		w->l->active_deque->team = d->team;
 
     CILK_ASSERT(*w->l->frame_ff == 0 || w == victim);
 
@@ -199,6 +204,7 @@ void detach_for_steal(__cilkrts_worker *w,
            frame LOOT.  If loot_ff == parent_ff, then we hold loot_ff->lock,
            otherwise, loot_ff is newly created and we can modify it without
            holding its lock. */
+				sf->worker = victim;
         loot_ff = unroll_call_stack(w, parent_ff, sf);
 
         #if REDPAR_DEBUG >= 3
@@ -302,30 +308,15 @@ void deque_init(deque *d, size_t ltqsize)
 	d->head = d->tail = d->exc = d->ltq;
 	d->protected_tail = d->ltq_limit;
 	d->frame_ff = 0;
-	d->resumeable_fiber = NULL;
+	d->fiber = NULL;
+	d->call_stack = NULL;
+	d->team = NULL;
+	memset(&d->saved_ped, 0, sizeof(__cilkrts_pedigree));
 	__cilkrts_mutex_init(&d->lock);
+	__cilkrts_mutex_init(&d->steal_lock);
+	d->do_not_steal = 0;
+	d->resumable = 0;
 }
-/* int deque_add(__cilkrts_worker *w) */
-/* { */
-/* 	int index; */
-/* 	deque d; */
-/* 	d.ltq = (__cilkrts_stack_frame **) */
-/* 		__cilkrts_malloc(w->g->ltqsize * sizeof(__cilkrts_stack_frame*)); */
-/* 	d.ltq_limit = d.ltq + w->g->ltqsize; */
-/* 	d.head = d.tail = d.exc = d.ltq; */
-/* 	d.protected_tail = d.ltq_limit; */
-/* 	d.frame_ff = 0; */
-
-/* 	//	BEGIN_WITH_WORKER_LOCK(w) { */
-/* 		index = w->l->num_active_deques; */
-/* 		CILK_ASSERT(index < 1); */
-		
-/* 		w->l->deques[index] = d; */
-/* 		w->l->num_active_deques++; */
-/* 		//	} END_WITH_WORKER_LOCK(w); */
-	
-/* 	return index; */
-/* } */
 
 void deque_switch(__cilkrts_worker *w, deque *d)
 {
@@ -333,7 +324,7 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 		/* CILK_ASSERT(n < w->l->num_active_deques); */
 	CILK_ASSERT(d == w->l->active_deque);
 
-	d->resumeable_fiber = NULL;
+	d->fiber = NULL;
 	d->worker = w;
 	d->self = &w->l->active_deque;
 	
@@ -345,6 +336,7 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 	w->l->current_ltq = &d->ltq;
 	w->l->frame_ff = &d->frame_ff;
 	w->pedigree = d->saved_ped;
+	w->current_stack_frame = d->call_stack;
 	
 	// This deque is now active, so remove that saved pedigree information
 	memset(&d->saved_ped, 0, sizeof(__cilkrts_pedigree));
@@ -355,3 +347,41 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 
 }
 
+/* Assuming we have exclusive access to this deque, i.e. either
+ *  (1) w is working from d, so only it could set do_not_steal
+ *  (2) w has exclusive access to deque to resum it
+ */
+/* void deque_lock(__cilkrts_worker *w, deque *d) */
+/* { */
+/*     validate_worker(w); */
+/*     CILK_ASSERT(d->do_not_steal == 0); */
+
+/*     /\* tell thieves to stay out of the way *\/ */
+/*     d->do_not_steal = 1; */
+/*     __cilkrts_fence(); /\* probably redundant *\/ */
+
+/*     __cilkrts_mutex_lock(w, &d->lock); */
+/* } */
+
+/* /// @todo{Do we want a try_lock version for this} */
+/* void deque_lock_other(__cilkrts_worker *w, deque *d) */
+/* { */
+/* 	//	validate_worker(other); */
+
+/* 	// compete for the right to disturb */
+/* } */
+
+/* void deque_unlock(__cilkrts_worker *w, deque *d) */
+/* { */
+/*     __cilkrts_mutex_unlock(w, &w->l->lock); */
+/*     CILK_ASSERT(w->l->do_not_steal == 1); */
+/*     /\* The fence is probably redundant.  Use a release */
+/*        operation when supported (gcc and compatibile); */
+/*        that is faster on x86 which serializes normal stores. *\/ */
+/* #if defined __GNUC__ && (__GNUC__ * 10 + __GNUC_MINOR__ > 43 || __ICC >= 1110) */
+/*     __sync_lock_release(&w->l->do_not_steal); */
+/* #else */
+/*     w->l->do_not_steal = 0; */
+/*     __cilkrts_fence(); /\* store-store barrier, redundant on x86 *\/ */
+/* #endif */
+/* } */

@@ -30,11 +30,14 @@ struct deque
 	
   struct full_frame *frame_ff;
 	struct mutex lock;
+	struct mutex steal_lock;
+	int do_not_steal;
+	int resumable;
+	__cilkrts_worker *team;
 	
-	__cilkrts_pedigree saved_ped;
-
-	// This is set ONLY when the fiber for this deque should be resumed
-	cilk_fiber *resumeable_fiber;
+	cilk_fiber *fiber;
+		__cilkrts_pedigree saved_ped;
+	__cilkrts_stack_frame *call_stack; /// @todo is this necessary?
 
 	// As long as we allow suspended deques to change which deque_pool
 	// they are in, I don't see how to get away with not having these
@@ -58,8 +61,9 @@ void __cilkrts_promote_own_deque(__cilkrts_worker *w);
 void deque_init(deque *d, size_t ltqsize);
 void deque_switch(__cilkrts_worker *w, deque *d);
 
-// int deque_add(__cilkrts_worker *w);
-//void deque_switch(__cilkrts_worker *w, int n);
+void deque_lock(__cilkrts_worker *w, deque *d);
+void deque_unlock(__cilkrts_worker *w, deque *d);
+void deque_lock_other(__cilkrts_worker *w, deque *d);
 
 /** __cilkrts_c_THE_exception_check should probably be here, too. */
 

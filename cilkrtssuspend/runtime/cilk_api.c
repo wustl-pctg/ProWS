@@ -157,6 +157,15 @@ __cilkrts_get_worker_number(void)
 		return w->self + 1;
 }
 
+CILK_API_INT
+__cilkrts_get_internal_worker_number(void)
+{
+	__cilkrts_worker *w = __cilkrts_get_tls_worker();
+	if (!w) return -1;
+	return w->self;
+}
+
+
 /**
  * Internal definition of the pedigree context.  The size of the
  * structure must match __cilkrts_pedigree_context_t defined in abi.i

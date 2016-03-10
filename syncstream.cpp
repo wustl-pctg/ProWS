@@ -2,6 +2,9 @@
 
 namespace cilkrr
 {
+	thread_local std::ostringstream syncstream::m_s;
+	std::mutex syncstream::m_mut;
+
 	syncstream::~syncstream()
 	{
 		if (m_s.str() != "") {
@@ -25,6 +28,12 @@ namespace cilkrr
 		m_s << t;
 		return *this;
 	}
+
+	// syncstream& syncstream::operator<< (void* t)
+	// {
+	// 	m_s << t;
+	// 	return *this;
+	// }
 
 	syncstream& syncstream::operator<< (syncstream_manipulator manip)
 	{
@@ -55,5 +64,6 @@ namespace cilkrr
 
 	template syncstream& syncstream::operator<< <std::string> (const std::string&);
 	template syncstream& syncstream::operator<< <int> (const int&);
+	template syncstream& syncstream::operator<< <void*> (void* const&);
 	syncstream sout(std::cout);
 } // namespace cilkrr

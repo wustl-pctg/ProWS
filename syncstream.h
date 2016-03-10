@@ -21,6 +21,7 @@ namespace cilkrr
 		template <typename T>
 		syncstream& operator<< (const T& t);
 		syncstream& operator<< (const char* t);
+		//		syncstream& operator<< (void* const& t);
 
 		typedef syncstream& (*syncstream_manipulator)(syncstream&);
 		syncstream& operator<<(syncstream_manipulator manip);
@@ -30,8 +31,6 @@ namespace cilkrr
 	}; // class syncstream
 	
 	syncstream& endl(syncstream& os);
-	thread_local std::ostringstream syncstream::m_s;
-	std::mutex syncstream::m_mut;
 	extern syncstream sout;
 }
 

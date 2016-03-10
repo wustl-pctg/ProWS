@@ -32,13 +32,13 @@ int fib(int n) {
 	if (n < 2) {
 		if (n == 0) {
 			g_mutex0.lock();
-			cilkrr::sout << "Worker " << __cilkrts_get_worker_number()
-									 << " acquired lock at " << cilkrr::get_pedigree() << cilkrr::endl;
+			cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number()
+									 << ") acquired lock at " << cilkrr::get_pedigree() << cilkrr::endl;
 			g_mutex0.unlock();
 		} else {
 			g_mutex0.lock();
-			cilkrr::sout << "Worker " << __cilkrts_get_worker_number()
-									 << " acquired lock at " << cilkrr::get_pedigree() << cilkrr::endl;
+			cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number()
+									 << ") acquired lock at " << cilkrr::get_pedigree() << cilkrr::endl;
 
 			g_mutex0.unlock();
 		}
@@ -48,9 +48,23 @@ int fib(int n) {
 		int x = 0;
 		int y = 0;
 
+		cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number() << ") "
+								 << "(p: " << cilkrr::get_pedigree() << ") "
+								 << "entered fib " << n << cilkrr::endl;
+
 		x = cilk_spawn fib(n - 1);
+
+		cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number() << ") "
+								 << "(p: " << cilkrr::get_pedigree() << ") "
+								 << "in the middle of fib " << n << cilkrr::endl;
+
 		y = fib(n - 2);
 		cilk_sync;
+		
+		cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number() << ") "
+								 << "p: " << cilkrr::get_pedigree() << ") "
+								 << "exiting fib " << n << cilkrr::endl;
+
 
 		return (x + y);
 	}

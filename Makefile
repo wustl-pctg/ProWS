@@ -5,14 +5,20 @@ LIB=$(COMPILER_HOME)/lib/libcilkrts.a
 CC=$(COMPILER_HOME)/bin/clang
 CXX=$(COMPILER_HOME)/bin/clang++
 CFLAGS=-std=c++11 -g
-CILKFLAGS=-fcilkplus -I$(COMPILER_HOME)/include -fno-inline-detach
+CILKFLAGS=-fcilkplus -I$(COMPILER_HOME)/include -fcilk-no-inline
 
 default: fib
+
+cilkfor: cilkfor.o mutex.o cilkrr.o syncstream.o $(LIB)
+	$(CXX) $(CFLAGS) $(CILKFLAGS) cilkfor.o cilkrr.o mutex.o syncstream.o $(LIB) -ldl -lpthread -o cilkfor
+
+cilkfor.o: cilkfor.cpp mutex.h cilkrr.h syncstream.h
+	$(CXX) $(CFLAGS) $(CILKFLAGS) -c cilkfor.cpp
 
 fib: fib.o mutex.o cilkrr.o syncstream.o $(LIB)
 	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o cilkrr.o mutex.o syncstream.o $(LIB) -ldl -lpthread -o fib
 
-fib.o: fib.cpp mutex.h cilkrr.h
+fib.o: fib.cpp mutex.h cilkrr.h syncstream.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -c fib.cpp
 
 mutex.o: mutex.h mutex.cpp cilkrr.h

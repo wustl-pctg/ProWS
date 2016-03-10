@@ -587,6 +587,8 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
     /*CILK_ASSERT(sf->call_parent != sf);*/
 
     /* The leafmost frame is unsynched. */
+
+    /// @todo{ I think each stack frame should hold a deque pointer, not a worker pointer.}
     if (sf->worker != w || w->l->active_deque->frame_ff != ff)
         sf->flags |= CILK_FRAME_UNSYNCHED;
 
@@ -712,7 +714,9 @@ static void random_steal(__cilkrts_worker *w)
     if (__builtin_expect(w->g->stealing_disabled, 0))
         return;
 
-    CILK_ASSERT(w->l->type == WORKER_SYSTEM || w->l->team == w);
+    CILK_ASSERT(w->l->type == WORKER_SYSTEM
+                || w->l->active_deque->team == w
+                || w->l->num_suspended_deques > 0);
 
     /* If there is only one processor work can still be stolen.
        There must be only one worker to prevent stealing. */
@@ -754,14 +758,19 @@ static void random_steal(__cilkrts_worker *w)
     // deques could change and a suspended deque could be
     // deallocated. Maybe instead I could keep a deque_pool lock and
     // acquire that, but I am still holding out for a better
-    // synchronization solution.
+    // synchronization solution. If at all possible, stealing should
+    // require only a try_lock, not a full lock.
     __cilkrts_mutex_lock(w, &victim->l->lock);
     if (victim == w) {
         // Hack: number of suspended deques may have changed...
-        if (victim->l->num_suspended_deques == 0) return;
+        if (victim->l->num_suspended_deques == 0) {
+            __cilkrts_mutex_unlock(w, &victim->l->lock);
+            return;
+        }
         // don't choose from active deque of self
         int dnum = myrand(w) % victim->l->num_suspended_deques;
         d = *(victim->l->dod.head + dnum);
+        CILK_ASSERT(d);
 
         msg = "(w: %i) stealing from one of its suspended deques\n";
     } else {
@@ -776,32 +785,47 @@ static void random_steal(__cilkrts_worker *w)
     }
 
     // If the deque was suspended and is now resumable, commandeer the deque and resume!
-    if (0 && d->resumeable_fiber && cilk_fiber_is_resumable(d->resumeable_fiber)) {
-        fiber = d->resumeable_fiber;
-        d->resumeable_fiber = NULL; // Make sure no one else sees the resumable fiber
+    if (d->resumable && cilk_fiber_is_resumable(d->fiber)) {
+        d->resumable = 0; // Make sure no one else sees the resumable fiber
         __cilkrts_fence();
 
-        CILK_ASSERT(d->worker == victim);
+        fiber = d->fiber;
+
+        if (d->worker != victim) {
+            //CILK_ASSERT(d->worker == victim);
+            fprintf(stderr, "(w: %i) actually resuming a suspended fiber\n", w->self);
+            fprintf(stderr, "d->worker should be %i, but is %i (%p)\n",
+                    victim->self, d->worker->self, d);
+            CILK_ASSERT(0);
+        }
 
         // Switch this spot in the deque_pool out with something else
-        deque_pool *p = &d->worker->l->dod;
+        deque_pool *p = &victim->l->dod;
+        (*(p->head))->self = d->self;
         *(d->self) = *(p->head);
         *(p->head) = NULL;
         if (p->head != p->tail) p->head++;
-        d->worker->l->num_suspended_deques--;
+        else {
+            CILK_ASSERT(victim->l->num_suspended_deques == 1);
+            p->head = p->tail = p->ltq;
+        }
+        d->worker = w;
+        d->self = NULL;
+
+        victim->l->num_suspended_deques--;
 
         deque *old_deque = w->l->active_deque;
         w->l->active_deque = d;
-        
+        deque_switch(w, d);
         __cilkrts_mutex_unlock(w, &victim->l->lock);
 
         // No one can see this now
         __cilkrts_free(old_deque);
-        deque_switch(w, d);
 
         CILK_ASSERT(*w->l->frame_ff);
 
-        fprintf(stderr, "(w: %i) actually resuming a suspended fiber\n", w->self);
+        fprintf(stderr, "(w: %i) actually resuming a suspended fiber/deque (%p) from %i\n",
+                w->self, d, victim->self);
 
         cilk_fiber_data *data = cilk_fiber_get_data(fiber);
         CILK_ASSERT(!data->resume_sf);
@@ -824,8 +848,6 @@ static void random_steal(__cilkrts_worker *w)
         return;
     }
 
-
-
     /* Execute a quick check before engaging in the THE protocol.
        Avoid grabbing locks if there is nothing to steal. */
     if (!can_steal_from(victim, d)) {
@@ -843,7 +865,7 @@ static void random_steal(__cilkrts_worker *w)
     /* Attempt to steal work from the victim */
     /// @todo get deque locks, not worker locks
     if (worker_trylock_other(w, victim)) {
-        if (w->l->type == WORKER_USER && victim->l->team != w) {
+        if (w->l->type == WORKER_USER && d->team != w) {
 
             // Fail to steal if this is a user worker and the victim is not
             // on this team.  If a user worker were allowed to steal work
@@ -887,7 +909,7 @@ static void random_steal(__cilkrts_worker *w)
                         fprintf(stderr, "Wkr %d stole from victim %d, fiber = %p\n",
                                 w->self, victim->self, fiber);
                         #endif
-                        fprintf(stderr, msg, w->self, victim->self);
+//                        fprintf(stderr, msg, w->self, victim->self);
 
                         // The use of victim->self contradicts our
                         // classification of the "self" field as 
@@ -1018,11 +1040,11 @@ enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w,
                 // the frame is if the original user worker is spinning without
                 // work.
 
-                unset_sync_master(w->l->team, ff);
-                __cilkrts_push_next_frame(w->l->team, ff);
+                unset_sync_master(w->l->active_deque->team, ff);
+                __cilkrts_push_next_frame(w->l->active_deque->team, ff);
 
                 // If this is the team leader we're not abandoning the work
-                if (w == w->l->team)
+                if (w == w->l->active_deque->team)
                     result = CONTINUE_EXECUTION;
             } else {
                 __cilkrts_push_next_frame(w, ff);
@@ -1265,10 +1287,11 @@ static void setup_for_execution_pedigree(__cilkrts_worker *w)
     // the rank since that wouldn't happen in a sequential execution
     if (w->l->work_stolen || pedigree_unsynched)
     {
-        if (w->l->work_stolen)
+        if (w->l->work_stolen) {
             w->pedigree.rank = sf->parent_pedigree.rank + 1;
-        else
+        } else { 
             w->pedigree.rank = sf->parent_pedigree.rank;
+        }
     }
 
     w->pedigree.parent = sf->parent_pedigree.parent;
@@ -1481,7 +1504,12 @@ longjmp_into_runtime(__cilkrts_worker *w,
     // Assume that this is a steal or return from spawn in a force-reduce case.
     // We don't have a scheduling stack to switch to, so call the continuation
     // function directly.
-    if (1 == w->g->P && w->l->num_suspended_deques == 0) {
+
+    // ROB: I'm assuming this was just an optimization. We can't do
+    // this for the suspended deque case. Even if this particular
+    // worker has no suspended deques, it may have saved a fiber into
+    // w->l->fiber_to_free, which needs to be cleaned up below.
+    if (0 && 1 == w->g->P && w->l->num_suspended_deques == 0) {
         fcn(w, ff, sf);
 
         /* The call to function c() will have pushed ff as the next frame.  If
@@ -1652,12 +1680,20 @@ static full_frame* check_for_work(__cilkrts_worker *w)
     // If there is no work on the queue, try to steal some.
     if (NULL == ff) {
         START_INTERVAL(w, INTERVAL_STEALING) {
-            if (w->l->type != WORKER_USER && w->l->team != NULL) {
+            if (w->l->type != WORKER_USER && w->l->active_deque->team != NULL) {
+//                && w->l->num_suspended_deques == 0) {
                 // At this point, the worker knows for certain that it has run
                 // out of work.  Therefore, it loses its team affiliation.  User
                 // workers never change teams, of course.
+
+                // ROB: I'm not sure how having suspended deques
+                // changes the team mechanism. For now, I've changed
+                // it so that deque's have a team instead of
+                // workers. There is some question about the right
+                // approach - Should workers who come here and have
+                // suspended deques stay on the same team?
                 __cilkrts_worker_lock(w);
-                w->l->team = NULL;
+                w->l->active_deque->team = NULL;
                 __cilkrts_worker_unlock(w);
             }
 
@@ -1789,6 +1825,7 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
 {
     __cilkrts_worker *w = (__cilkrts_worker*) wptr;
     CILK_ASSERT(current_fiber == w->l->scheduling_fiber);
+    CILK_ASSERT(w == __cilkrts_get_tls_worker());
 
     // Stage 1: Transition from executing user code to the runtime code.
     // We don't need to do this call here any more, because 
@@ -2106,7 +2143,7 @@ NORETURN __cilkrts_c_sync(__cilkrts_worker *w,
     w = execute_reductions_for_sync(w, ff, sf_at_sync);
 
 #if FIBER_DEBUG >= 3
-    fprintf(stderr, "ThreadId=%p, w->self = %d. about to longjmp_into_runtim[c_sync] with ff=%p\n",
+    fprintf(stderr, "ThreadId=%p, w->self = %d. about to longjmp_into_runtime[c_sync] with ff=%p\n",
             cilkos_get_current_thread_id(), w->self, ff);
 #endif    
 
@@ -2138,7 +2175,7 @@ static void do_sync(__cilkrts_worker *w, full_frame *ff,
                 {
                     sf->parent_pedigree.rank = w->pedigree.rank;
                     sf->parent_pedigree.parent = w->pedigree.parent;
-
+                    
                     // Note that the pedigree rank needs to be updated
                     // when setup_for_execution_pedigree runs
                     sf->flags |= CILK_FRAME_SF_PEDIGREE_UNSYNCHED;
@@ -2714,7 +2751,7 @@ __cilkrts_worker *make_worker(global_state_t *g,
     w->reserved = NULL;
     
     w->l->worker_magic_0 = WORKER_MAGIC_0;
-    w->l->team = NULL;
+//    w->l->team = NULL; // now included in the deque structure
     w->l->type = WORKER_FREE;
     
     __cilkrts_mutex_init(&w->l->lock);
@@ -2972,11 +3009,15 @@ static enum schedule_t worker_runnable(__cilkrts_worker *w)
         // This worker is the root node and is the only one that may query the
         // global state to see if there are still any user workers in Cilk.
         if (w->l->steal_failure_count > g->max_steal_failures) {
-            if (signal_node_should_wait(w->l->signal_node)) {
+
+            // In the suspended deque case, we may reach this even
+            // when there is only 1 worker.
+            if (w->g->P > 1 && signal_node_should_wait(w->l->signal_node)) {
                 return SCHEDULE_WAIT;
             } else {
                 // Reset the steal_failure_count since we have verified that
                 // user workers are still in Cilk.
+                if (w->g->P == 1) CILK_ASSERT(w->l->num_suspended_deques > 0);
                 w->l->steal_failure_count = 0;
             }
         }

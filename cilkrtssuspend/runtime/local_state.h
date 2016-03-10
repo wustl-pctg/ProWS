@@ -247,8 +247,8 @@ struct local_state  /* COMMON_PORTABLE */
 	 *
 	 * [shared read-only]
 	 */
-	__attribute__((aligned(64)))
-	__cilkrts_worker *team;
+	// __attribute__((aligned(64)))
+	// __cilkrts_worker *team;
 
 	/**
 	 * Type of this worker

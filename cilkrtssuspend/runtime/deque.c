@@ -4,6 +4,7 @@
 #include "full_frame.h"
 #include "os.h"
 #include "scheduler.h"
+#include "deque.h"
 
 // Repeated from scheduler.c:
 //#define DEBUG_LOCKS 1
@@ -39,10 +40,6 @@
 
 #define END_WITH_FRAME_LOCK(w, ff)                       \
     while (__cilkrts_frame_unlock(w, _locked_ff), 0); } while (0)
-
-
-
-
 
 
 /********************************************************************
@@ -302,29 +299,23 @@ void __cilkrts_promote_own_deque(__cilkrts_worker *w)
 
 void deque_init(deque *d, size_t ltqsize)
 {
+	memset(d, 0, sizeof(deque));
 	d->ltq = (__cilkrts_stack_frame **)
 		__cilkrts_malloc(ltqsize * sizeof(__cilkrts_stack_frame*));
 	d->ltq_limit = d->ltq + ltqsize;
 	d->head = d->tail = d->exc = d->ltq;
 	d->protected_tail = d->ltq_limit;
-	d->frame_ff = 0;
-	d->fiber = NULL;
-	d->call_stack = NULL;
-	d->team = NULL;
-	memset(&d->saved_ped, 0, sizeof(__cilkrts_pedigree));
 	__cilkrts_mutex_init(&d->lock);
 	__cilkrts_mutex_init(&d->steal_lock);
-	d->do_not_steal = 0;
-	d->resumable = 0;
 }
 
 void deque_switch(__cilkrts_worker *w, deque *d)
 {
-	//	BEGIN_WITH_WORKER_LOCK(w) {
-		/* CILK_ASSERT(n < w->l->num_active_deques); */
+	/// @todo deque_switch should asser that w->l->active_deque is NULL
 	CILK_ASSERT(d == w->l->active_deque);
 
-	d->fiber = NULL;
+	if (d->resumable) CILK_ASSERT(d->fiber);
+	CILK_ASSERT(d->worker == NULL);
 	d->worker = w;
 	d->self = &w->l->active_deque;
 	
@@ -340,11 +331,110 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 	
 	// This deque is now active, so remove that saved pedigree information
 	memset(&d->saved_ped, 0, sizeof(__cilkrts_pedigree));
+}
+
+/// @todo push onto a random worker instead of self
+/// @todo don't add if deque is empty
+cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
+{
+	deque_pool *p = &w->l->dod;
+	deque *d = w->l->active_deque;
+
+	// An active deque should:
+	CILK_ASSERT(d->self == &w->l->active_deque); // know it is an active deque
+	CILK_ASSERT(d->fiber == NULL); // not have a fiber (stored in worker)
+	CILK_ASSERT(d->worker == w); // Know its worker
+	CILK_ASSERT(d->team); // Have a team
 	
-	//	w->l->active_deque = &w->l->deques[n];
+	d->saved_ped = w->pedigree;
+	d->call_stack = w->current_stack_frame;
 
-		//	} END_WITH_WORKER_LOCK(w);
+	if (!new_deque) {
+		new_deque = __cilkrts_malloc(sizeof(deque));
+		deque_init(new_deque, w->g->ltqsize);
+		new_deque->team = d->team;
+	} else {
 
+		// This deque should be mugged
+		CILK_ASSERT(new_deque->fiber);
+		CILK_ASSERT(new_deque->resumable == 1);
+		CILK_ASSERT(new_deque->self == NULL);
+		CILK_ASSERT(new_deque->worker == NULL);
+		new_deque->resumable = 0;
+	}
+	
+	// User workers should stay on the same team
+	if (w->l->type == WORKER_USER)
+		CILK_ASSERT(new_deque->team == w);
+
+	cilk_fiber *fiber;
+	BEGIN_WITH_WORKER_LOCK(w) {
+
+		// Switch to new deque
+		w->l->active_deque = new_deque;
+
+		{ // d is no longer accessible
+
+			CILK_ASSERT(d->frame_ff);
+			fiber = d->frame_ff->fiber_self;
+			CILK_ASSERT(fiber);
+			d->fiber = fiber;
+			d->self = (deque**) p->tail;
+			__asm__  volatile("": : :"memory");
+
+			// Now make d accessible as a suspended deque
+			*(p->tail++) = d;
+			w->l->num_suspended_deques++;
+		}
+
+		/// @todo deque switching should not be done in deque_suspend
+		deque_switch(w, w->l->active_deque);
+
+	} END_WITH_WORKER_LOCK(w);
+
+	return fiber;
+
+}
+
+void deque_mug(__cilkrts_worker *w, deque *d)
+{
+	CILK_ASSERT(d->worker);
+	CILK_ASSERT(d->worker->l->lock.owner == w);
+	CILK_ASSERT(d->fiber);
+	
+	__cilkrts_worker volatile* victim = d->worker;
+	deque_pool *p = &victim->l->dod;
+	cilk_fiber *fiber = d->fiber;
+
+	fprintf(stderr, "(w: %i) mugging %p from %i\n",
+					w->self, d, victim->self);
+
+	// Swap deque with head
+	*(d->self) = *(p->head);
+
+	// Make sure the swapped deque knows its new position
+	(*(p->head))->self = d->self;
+
+	// Overwrite for sanity
+	*(p->head) = NULL;
+
+	// Increment head if necessary, otherwise reset deque_pool
+	if (p->head != p->tail) p->head++;
+	else {
+		CILK_ASSERT(victim->l->num_suspended_deques == 1);
+		p->head = p->tail = p->ltq;
+	}
+	victim->l->num_suspended_deques--;
+
+	// "Dobby is a free deque!"
+	d->self = NULL;
+	d->worker = NULL;
+
+	// We may not execute this immediately, so keep this fiber
+	//	d->fiber = NULL;
+
+	// Regardless of whether this deque was resumable before, it definitely isn't now.
+	//	d->resumable = 0;
 }
 
 /* Assuming we have exclusive access to this deque, i.e. either

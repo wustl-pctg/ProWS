@@ -33,7 +33,6 @@ typedef struct deque_pool_s {
 	//	deque *active; // Not stored in the deque of deques, like frame_ff
 } deque_pool;
 
-cilk_fiber* deque_pool_suspend(__cilkrts_worker *w, deque *new_deque);
 void deque_pool_init(deque_pool *p, size_t ltqsize);
 void deque_pool_free(deque_pool *p);
 

@@ -44,7 +44,7 @@ struct deque
 	// pointers back to a deque's location in a deque pool. This is
 	// rather error-prone and inelegant...
 	// If we don't allow entire suspended deques to be stolen, then I think we can do without this...
-	__cilkrts_worker *worker;
+	__cilkrts_worker volatile* worker;
 	deque **self;
 };
 
@@ -60,6 +60,8 @@ void __cilkrts_promote_own_deque(__cilkrts_worker *w);
 
 void deque_init(deque *d, size_t ltqsize);
 void deque_switch(__cilkrts_worker *w, deque *d);
+cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque);
+void deque_mug(__cilkrts_worker *w, deque *d);
 
 void deque_lock(__cilkrts_worker *w, deque *d);
 void deque_unlock(__cilkrts_worker *w, deque *d);

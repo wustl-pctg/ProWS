@@ -691,12 +691,67 @@ void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber)
     __except (CILK_ASSERT(!"should not execute the the stub filter"),
               EXCEPTION_EXECUTE_HANDLER)
     {
-        // If we are here, that means something very wrong
+        // If we are here,that means something very wrong
         // has happened in our exception processing...
         CILK_ASSERT(! "should not be here!");
     }
 #endif
 }
+
+static void jump_to_suspended_fiber(__cilkrts_worker *w,
+                                    __cilkrts_worker *victim, deque *d)
+{
+
+    fprintf(stderr, "(w: %i) actually resuming a suspended fiber/deque (%p) from %i\n",
+            w->self, d, victim->self);
+    CILK_ASSERT(d->worker == victim);
+    CILK_ASSERT(d->fiber);
+    CILK_ASSERT(d->resumable == 1);
+
+    cilk_fiber *fiber = d->fiber;
+    deque_mug(w, d);
+    __cilkrts_mutex_unlock(w, &victim->l->lock);
+
+    d->fiber = NULL;
+    d->resumable = 0;
+
+    deque *old_deque = w->l->active_deque;
+    BEGIN_WITH_WORKER_LOCK(w) {
+        w->l->active_deque = d;
+        deque_switch(w, d);
+    } END_WITH_WORKER_LOCK(w);
+
+    // No one can see this now
+    __cilkrts_free(old_deque);
+
+    CILK_ASSERT(*w->l->frame_ff);
+
+    cilk_fiber_data *data = cilk_fiber_get_data(fiber);
+    CILK_ASSERT(!data->resume_sf);
+    data->owner = w;
+
+    w->l->steal_failure_count = 0;
+    cilk_fiber_suspend_self_and_resume_other(w->l->scheduling_fiber, fiber);
+
+}
+
+static deque* choose_deque(__cilkrts_worker *w, __cilkrts_worker *victim)
+{
+    CILK_ASSERT(victim->l->lock.owner == w);
+    if (victim->l->num_suspended_deques == 0) {
+        if (w == victim) { // Someone mugged us!
+            CILK_ASSERT(w->g->P > 1);
+            return NULL;
+        }
+        return victim->l->active_deque;
+    }
+
+    int dnum = myrand(w) % (victim->l->num_suspended_deques + 1);
+    if (dnum) return *(victim->l->dod.head + dnum - 1);
+
+    return victim->l->active_deque;
+}
+
 
 static void random_steal(__cilkrts_worker *w)
 {
@@ -728,6 +783,9 @@ static void random_steal(__cilkrts_worker *w)
         n = 0;
         CILK_ASSERT(w->l->num_suspended_deques > 0);
     } else {
+
+        // No one else could add suspended deques, so its fine to read
+        // this without a lock.
         if (w->l->num_suspended_deques == 0) {
             n = myrand(w) % (w->g->total_workers - 1);
             /* pick random *other* victim */
@@ -748,97 +806,31 @@ static void random_steal(__cilkrts_worker *w)
 
     victim = w->g->workers[n];
 
-    /* do not steal from self */
-    //    CILK_ASSERT (victim != w);
-
-    deque *d;
-    char* msg;
-    // Unfortunately, we currently need to hold the worker lock while
-    // choosing a suspended deque, since the number of suspended
-    // deques could change and a suspended deque could be
-    // deallocated. Maybe instead I could keep a deque_pool lock and
-    // acquire that, but I am still holding out for a better
-    // synchronization solution. If at all possible, stealing should
-    // require only a try_lock, not a full lock.
-    __cilkrts_mutex_lock(w, &victim->l->lock);
-    if (victim == w) {
-        // Hack: number of suspended deques may have changed...
-        if (victim->l->num_suspended_deques == 0) {
-            __cilkrts_mutex_unlock(w, &victim->l->lock);
-            return;
-        }
-        // don't choose from active deque of self
-        int dnum = myrand(w) % victim->l->num_suspended_deques;
-        d = *(victim->l->dod.head + dnum);
-        CILK_ASSERT(d);
-
-        msg = "(w: %i) stealing from one of its suspended deques\n";
-    } else {
-        int dnum = myrand(w) % (victim->l->num_suspended_deques + 1);
-        if (dnum == 0) {
-            d = victim->l->active_deque;
-            msg = "(w: %i) stealing from active deque of %i\n";
-        } else {
-            d = *(victim->l->dod.head + dnum - 1);
-            msg = "(w: %i) stealing from a suspended deque of %i\n";
-        }
-    }
-
-    // If the deque was suspended and is now resumable, commandeer the deque and resume!
-    if (d->resumable && cilk_fiber_is_resumable(d->fiber)) {
-        d->resumable = 0; // Make sure no one else sees the resumable fiber
-        __cilkrts_fence();
-
-        fiber = d->fiber;
-
-        if (d->worker != victim) {
-            //CILK_ASSERT(d->worker == victim);
-            fprintf(stderr, "(w: %i) actually resuming a suspended fiber\n", w->self);
-            fprintf(stderr, "d->worker should be %i, but is %i (%p)\n",
-                    victim->self, d->worker->self, d);
-            CILK_ASSERT(0);
-        }
-
-        // Switch this spot in the deque_pool out with something else
-        deque_pool *p = &victim->l->dod;
-        (*(p->head))->self = d->self;
-        *(d->self) = *(p->head);
-        *(p->head) = NULL;
-        if (p->head != p->tail) p->head++;
-        else {
-            CILK_ASSERT(victim->l->num_suspended_deques == 1);
-            p->head = p->tail = p->ltq;
-        }
-        d->worker = w;
-        d->self = NULL;
-
-        victim->l->num_suspended_deques--;
-
-        deque *old_deque = w->l->active_deque;
-        w->l->active_deque = d;
-        deque_switch(w, d);
+    // The suspended deques could change, so we need the lock just to select a deque
+    if (!__cilkrts_mutex_trylock(w, &victim->l->lock)) return;
+    deque *d = choose_deque(w, victim);
+    if (!d) {
         __cilkrts_mutex_unlock(w, &victim->l->lock);
-
-        // No one can see this now
-        __cilkrts_free(old_deque);
-
-        CILK_ASSERT(*w->l->frame_ff);
-
-        fprintf(stderr, "(w: %i) actually resuming a suspended fiber/deque (%p) from %i\n",
-                w->self, d, victim->self);
-
-        cilk_fiber_data *data = cilk_fiber_get_data(fiber);
-        CILK_ASSERT(!data->resume_sf);
-        data->owner = w;
-        cilk_fiber_suspend_self_and_resume_other(w->l->scheduling_fiber, fiber);
         return;
-    } else {
-        __cilkrts_mutex_unlock(w, &victim->l->lock);
-        START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
-            /* Verify that we can get a stack.  If not, no need to continue. */
-            fiber = cilk_fiber_allocate(&w->l->fiber_pool);
-        } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
     }
+
+    if (d->resumable)
+        return jump_to_suspended_fiber(w, victim, d); // will release lock
+
+    // We own victim lock, so it can't change its active deque
+    /* if (d != victim->l->active_deque && !can_steal_from(victim, d)) { */
+    /*     deque_mug(w, d); */
+
+    /*     // At this point, we could just continue on. But we know we can't steal, so. */
+    /*     __cilkrts_mutex_unlock(w, &victim->l->lock); */
+    /*     return; */
+    /* } */
+    __cilkrts_mutex_unlock(w, &victim->l->lock);
+    
+    START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
+        /* Verify that we can get a stack.  If not, no need to continue. */
+        fiber = cilk_fiber_allocate(&w->l->fiber_pool);
+    } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
 
     if (NULL == fiber) {
 #if FIBER_DEBUG >= 2

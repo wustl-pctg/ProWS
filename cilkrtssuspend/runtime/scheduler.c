@@ -712,6 +712,10 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     deque_mug(w, d);
     __cilkrts_mutex_unlock(w, &victim->l->lock);
 
+    // The deque has definitely been suspended, but its owner might
+    // not yet have switched fibers!
+    while (!cilk_fiber_is_resumable(d->fiber));
+
     d->fiber = NULL;
     d->resumable = 0;
 
@@ -814,17 +818,19 @@ static void random_steal(__cilkrts_worker *w)
         return;
     }
 
-    if (d->resumable)
-        return jump_to_suspended_fiber(w, victim, d); // will release lock
-
     // We own victim lock, so it can't change its active deque
-    /* if (d != victim->l->active_deque && !can_steal_from(victim, d)) { */
-    /*     deque_mug(w, d); */
+    if (d != victim->l->active_deque) {
+        if (d->resumable)
+            return jump_to_suspended_fiber(w, victim, d); // will release lock
 
-    /*     // At this point, we could just continue on. But we know we can't steal, so. */
-    /*     __cilkrts_mutex_unlock(w, &victim->l->lock); */
-    /*     return; */
-    /* } */
+        if (!can_steal_from(victim, d)) {
+            deque_mug(w, d);
+
+            // At this point, we could just continue on. But we know we can't steal, so.
+            __cilkrts_mutex_unlock(w, &victim->l->lock);
+            return;
+        }
+    }
     __cilkrts_mutex_unlock(w, &victim->l->lock);
     
     START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {

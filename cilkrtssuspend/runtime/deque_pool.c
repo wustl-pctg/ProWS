@@ -82,12 +82,15 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 		fprintf(stderr, "(w: %i) resuming free deque %p\n",
 						w->self, deque_to_resume);
 
-	deque *old_deque = w->l->active_deque;
-
 	// Resume this "non-resumable" deque
 	deque_to_resume->resumable = 1;
+
+	// This must be marked before switching, otherwise a thief may mug
+	// the deque, after which no one would resume it, since the critical
+	// section has already been executed.
+	w->l->active_deque->resumable = (enable_resume) ? 1 : 0;
+
 	cilk_fiber *current_fiber = deque_suspend(w, deque_to_resume);
-	old_deque->resumable = (enable_resume) ? 1 : 0;
 
 	fiber_to_resume = deque_to_resume->fiber;
 	CILK_ASSERT(fiber_to_resume);

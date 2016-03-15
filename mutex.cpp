@@ -82,13 +82,15 @@ namespace cilkrr {
 	void mutex::replay_lock()
 	{
 		pedigree_t p = get_pedigree();
-		if (p != (*m_it).ped) {
+		if (p != (*m_it).ped)
 			suspend(p);
+		else // may need to wait constant time as owner decides to release lock
+			m_mutex.lock();
 		  // Invariant: Upon return, the lock is locked by this worker
-		} else {
-			bool result = m_mutex.try_lock();
-			assert(result == true);
-		}
+		// } else {
+		// 	bool result = m_mutex.try_lock();
+		// 	assert(result == true);
+		// }
 		acquire();
 		assert(m_owner = __cilkrts_get_tls_worker_fast());
 	}
@@ -109,12 +111,11 @@ namespace cilkrr {
 
 	void mutex::replay_unlock()
 	{
-		//m_acquires->pop_front();
 		m_it++;
 		
 		//		To resume a suspended deque, we retain the lock, so we don't release
 		__sync_synchronize();
-		//		if (!m_acquires->empty() && m_acquires->front().suspended_deque) {
+	
 		if (!(m_it == m_acquires->end()) && (*m_it).suspended_deque) {
 			void *d = (*m_it).suspended_deque;
 			cilkrr::sout << "(w: " << __cilkrts_get_tls_worker_fast()->self
@@ -151,27 +152,46 @@ namespace cilkrr {
 
 	void mutex::suspend(pedigree_t& p)
 	{
-		// cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
-		// 						 << ") Suspend at: " << p << cilkrr::endl;
 		acquire_info *a = find_acquire(p);
-		a->suspended_deque = __cilkrts_get_deque();
+		void *deque = __cilkrts_get_deque();
+
+		a->suspended_deque = deque;
 		__sync_synchronize();
+
 		cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self << ") "
 								 << "suspending deque " << a->suspended_deque << " "
 								 << "at: " << p << cilkrr::endl;
-		
-		//		acquire_info *front = &m_acquires->front();
-		acquire_info *front = &(*m_it);
-		if (front->suspended_deque != nullptr
-				&& m_mutex.try_lock()) {
 
+		// if (front->suspended_deque != nullptr
+		// 		/// @todo There is some vanishingly small chance that m_it will change here...
+		// 		&& m_mutex.try_lock()) {
+		//			acquire();
+
+		// if (deque != nullptr
+		// 		&& (deque =
+		// 				__sync_val_compare_and_swap(&front->suspended_deque,
+		// 																		 deque, nullptr))) {
+
+		// 	// We are now responsible for deque...
+		// 	if (!m_mutex.try_lock()) { // didn't get lock, must try again
+		// 		a = front;
+		// 		p = front->ped;
+		// 		goto begin;
+		// 	}
+		acquire_info *front = &(*m_it);
+		//		deque = front->suspended_deque;
+		if (front == a && m_mutex.try_lock()) {
+
+			// Have lock, MUST resume
 			acquire();
+			
 			// If this is the front, just continue on
-			if (front != a) {
-				cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
-										 << ") about to resume suspended deque in mutex::suspend" << cilkrr::endl;
-				__cilkrts_resume_suspended(front->suspended_deque, 0);
-			}
+			//			if (&(*m_it) != a) {
+			// if (deque != __cilkrts_get_deque()) {
+			// 	cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
+			// 							 << ") about to resume suspended deque in mutex::suspend" << cilkrr::endl;
+			// 	__cilkrts_resume_suspended(deque, 0);
+			//	}
 		} else {
 			cilkrr::sout << "(w: " <<  __cilkrts_get_tls_worker()->self
 									 << ") about to resume stealing in mutex::suspend" << cilkrr::endl;

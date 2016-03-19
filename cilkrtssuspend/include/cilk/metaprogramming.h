@@ -174,7 +174,7 @@ public:
  *          alignment will result in a compilation error.
  */
 template <std::size_t Size, std::size_t Alignment>
-struct aligned_storage;
+class aligned_storage;
 
 /// @cond
 template<std::size_t Size> class aligned_storage<Size,  1>
@@ -348,7 +348,7 @@ public:
     const F* pointer() const { return 0; }
 
     /// Constructor discards the pointer to a stateless functor class.
-    typed_indirect_binary_function(const F* f) {}
+	typed_indirect_binary_function(const F* /* unused */) {}
 
     /// Create an instance of the stateless functor class and apply it to the arguments.
     R operator()(const A1& a1, const A2& a2) const { return F()(a1, a2); }

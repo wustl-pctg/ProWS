@@ -290,6 +290,7 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 		// There is no stack to return, so the program loses parallelism.
 		m_stack = NULL;
 		m_stack_base = NULL;
+		__cilkrts_bug("Cilk: out of memory for stacks\n");
 		return;
 	}
 

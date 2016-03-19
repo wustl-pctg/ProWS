@@ -4,31 +4,39 @@ LIB=$(COMPILER_HOME)/lib/libcilkrts.a
 
 CC=$(COMPILER_HOME)/bin/clang
 CXX=$(COMPILER_HOME)/bin/clang++
-CFLAGS=-std=c++11 -g
+CFLAGS=-std=c++11 -g -Wfatal-errors
 CILKFLAGS=-fcilkplus -I$(COMPILER_HOME)/include -fcilk-no-inline
 
 default: fib
 
-cilkfor: cilkfor.o mutex.o cilkrr.o syncstream.o $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) cilkfor.o cilkrr.o mutex.o syncstream.o $(LIB) -ldl -lpthread -o cilkfor
+lib: libcilkrr.a
+
+cilkfor: cilkfor.o libcilkrr.a mutex.h $(LIB)
+	$(CXX) $(CFLAGS) $(CILKFLAGS) cilkfor.o libcilkrr.a $(LIB) -ldl -lpthread -o cilkfor
+
+fib: fib.o libcilkrr.a mutex.h $(LIB)
+	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o libcilkrr.a $(LIB) -ldl -lpthread -o fib
 
 cilkfor.o: cilkfor.cpp mutex.h cilkrr.h syncstream.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -c cilkfor.cpp
 
-fib: fib.o mutex.o cilkrr.o syncstream.o $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o cilkrr.o mutex.o syncstream.o $(LIB) -ldl -lpthread -o fib
-
 fib.o: fib.cpp mutex.h cilkrr.h syncstream.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -c fib.cpp
 
-mutex.o: mutex.h mutex.cpp cilkrr.h
+libcilkrr.a: mutex.o cilkrr.o acquire.o syncstream.o
+	ar rcs $@ $^
+
+mutex.o: mutex.h mutex.cpp cilkrr.h syncstream.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c mutex.cpp
 
-cilkrr.o: cilkrr.h cilkrr.cpp
+cilkrr.o: cilkrr.h cilkrr.cpp util.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c cilkrr.cpp
+
+acquire.o: acquire.h syncstream.h util.h acquire.cpp
+	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c acquire.cpp
 
 syncstream.o: syncstream.h syncstream.cpp
 	$(CXX) $(CFLAGS) -c syncstream.cpp
 
 clean:
-	rm *.o fib
+	rm -f *.o *.a fib cilkfor

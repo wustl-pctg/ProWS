@@ -414,15 +414,18 @@ global_state_t* cilkg_get_user_settable_values()
 			g->max_user_workers         = 0;   // 0 unless set by user
 			g->fiber_pool_size          = 7;   // Arbitrary default
         
-			g->global_fiber_pool_size   = 3 * 3* g->P;  // Arbitrary default
+			g->global_fiber_pool_size   = 6 * 3* g->P;  // Arbitrary default
 			// 3*P was the default size of the worker array (including
 			// space for extra user workers).  This parameter was chosen
 			// to match previous versions of the runtime.
 
-			if (4 == sizeof(void *))
-				g->max_stacks           = 1200; // Only 1GB on 32-bit machines
-			else
-				g->max_stacks           = 2400; // 2GB on 64-bit machines
+			// if (4 == sizeof(void *))
+			// 	g->max_stacks           = 1200; // Only 1GB on 32-bit machines
+			// else
+			// 	g->max_stacks           = 2400; // 2GB on 64-bit machines
+
+			/// @rob: Changed this for suspended deques
+			g->max_stacks = INT_MAX;
 
 			// If we have 2400 1MB stacks, that is 2 gb.  If we reach this
 			// limit on a single-socket machine, we may have other

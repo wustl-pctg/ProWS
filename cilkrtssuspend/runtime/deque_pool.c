@@ -1,3 +1,5 @@
+#include <string.h> // memcpy
+
 #include "deque_pool.h"
 #include "local_state.h"
 #include "full_frame.h"
@@ -9,19 +11,35 @@
 #define BEGIN_WITH_DEQUE_LOCK(w,d) __cilkrts_mutex_lock(w, &d->lock); do
 #define END_WITH_DEQUE_LOCK(w,d)   while (__cilkrts_mutex_unlock(w, &d->lock), 0)
 
+static void resize(deque_pool *p, size_t cap)
+{
+	p->capacity = cap;
+	deque **new_array = (deque**) __cilkrts_malloc(cap * sizeof(deque*));
+
+	if (!new_array)
+		__cilkrts_bug("W%d could not resize deque pool to capacity %zu\n",
+									__cilkrts_get_tls_worker()->self, cap);
+
+	memcpy(new_array, p->array, p->size * sizeof(deque*));
+	new_array[p->size] = NULL;
+	
+	deque **old = p->array;
+	p->array = new_array;
+	__cilkrts_free(old);
+}
+
 void deque_pool_init(deque_pool *p, size_t ltqsize)
 {
-	p->ltq = (deque**) __cilkrts_malloc(ltqsize * sizeof(deque*));
-	p->ltq_limit = p->ltq + ltqsize;
-	p->head = p->tail = p->exc = p->ltq;
-	p->protected_tail = p->ltq_limit;
+	p->array = NULL;
+	p->size = 0;
+	resize(p, ltqsize);
 }
 
 void deque_pool_free(deque_pool *p)
 {
 	// There should be no suspended deques
-	CILK_ASSERT(p->head == p->tail);
-	__cilkrts_free(p->ltq);
+	CILK_ASSERT(p->size == 0);
+	__cilkrts_free(p->array);
 }
 
 void* __cilkrts_get_deque(void)
@@ -59,7 +77,6 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 	while (!deque_to_resume->fiber
 				 || !cilk_fiber_is_resumable(deque_to_resume->fiber));
 
-
 	int mugged = 0;
 	__cilkrts_worker volatile* victim = deque_to_resume->worker;
 	if (victim) { // deque hasn't been mugged yet
@@ -74,7 +91,8 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 			
 		} __cilkrts_mutex_unlock(w, &victim->l->lock);
 	}
-	CILK_ASSERT(deque_to_resume->self == NULL);
+	//	CILK_ASSERT(deque_to_resume->self == NULL);
+	CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);
 	if (mugged)
 		fprintf(stderr, "(w: %i) resuming %p for %i\n", w->self,
 						deque_to_resume, victim->self);
@@ -104,4 +122,70 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 
 	cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
 
+}
+
+void deque_pool_add(__cilkrts_worker *victim, deque_pool *p, deque *d)
+{
+	__cilkrts_worker *w = __cilkrts_get_tls_worker();
+	CILK_ASSERT(&victim->l->dod == p);
+	CILK_ASSERT(victim->l->lock.owner == w);
+
+	if (p->size == p->capacity) {
+		size_t cap = 2 * p->capacity;
+		fprintf(stderr, "(w: %i) resizing %i's deque to %zu\n",
+						w->self, victim->self, cap);
+		resize(p, 2 * p->capacity);
+	}
+
+	d->self = p->size;
+	d->worker = victim;
+	__asm__  volatile("": : :"memory");
+	p->array[p->size++] = d;
+	CILK_ASSERT(p->size <= p->capacity);
+
+	deque_pool_validate(p, victim);
+}
+
+void deque_pool_remove(deque_pool *p, deque *d)
+{
+	__cilkrts_worker *w = __cilkrts_get_tls_worker();
+	//	CILK_ASSERT(d->lock.owner == w);
+
+	CILK_ASSERT(d->self >= 0 && d->self < p->size);
+	CILK_ASSERT(p->array[d->self] == d);
+
+	// Swap deque with end
+	int last = p->size - 1;
+	p->array[d->self] = p->array[last];
+
+	// Make sure the swapped deque knows its new position
+	p->array[last]->self = d->self;
+
+	// Overwrite for sanity
+	p->array[last] = NULL;
+
+	fprintf(stderr, "(w: %i) erasing position %i from %i.\n",
+					w->self, last, d->worker->self);
+
+	p->size--;
+
+	CILK_ASSERT(p->size >= 0);
+	
+	// "Dobby is a free deque!"
+	d->self = INVALID_DEQUE_INDEX;
+	deque_pool_validate(p, d->worker);
+ 	d->worker = NULL;
+}
+
+void deque_pool_validate(deque_pool *p, __cilkrts_worker* w)
+{
+	CILK_ASSERT(w->l->lock.owner != NULL);
+
+	for (int i = 0; i < p->size; ++i) {
+		if (p->array[i] == NULL) {
+			fprintf(stderr, "(w: %i) has an invalid deque at position %i.\n",
+							w->self, i);
+			CILK_ASSERT(0);
+		}
+	}
 }

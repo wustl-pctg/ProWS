@@ -24,17 +24,22 @@
 // deques, I'll keep it this way until it starts causing problems.
 typedef struct deque_pool_s {
 
-	deque *volatile *volatile tail;
-	deque *volatile *volatile head;
-	deque *volatile *volatile exc;
-	deque *volatile * protected_tail;
-	deque **ltq_limit;
-	deque **ltq;
-	//	deque *active; // Not stored in the deque of deques, like frame_ff
+	/* deque *volatile *volatile tail; */
+	/* deque *volatile *volatile head; */
+	/* deque *volatile *volatile exc; */
+	/* deque *volatile * protected_tail; */
+	/* deque **ltq_limit; */
+	/* deque **ltq; */
+	deque ** array;
+	volatile size_t size;
+	size_t capacity;
 } deque_pool;
 
 void deque_pool_init(deque_pool *p, size_t ltqsize);
 void deque_pool_free(deque_pool *p);
+void deque_pool_add(__cilkrts_worker *victim, deque_pool *p, deque *d);
+void deque_pool_remove(deque_pool *p, deque *d);
+void deque_pool_validate(deque_pool *p, __cilkrts_worker *w);
 
 
 #endif

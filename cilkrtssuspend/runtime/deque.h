@@ -17,7 +17,12 @@
 
 __CILKRTS_BEGIN_EXTERN_C
 
+#define SUSDEQUE_DEBUG 0
+
 typedef struct deque deque;
+
+#define ACTIVE_DEQUE_INDEX -1
+#define INVALID_DEQUE_INDEX -2
 
 struct deque
 {
@@ -45,7 +50,8 @@ struct deque
 	// rather error-prone and inelegant...
 	// If we don't allow entire suspended deques to be stolen, then I think we can do without this...
 	__cilkrts_worker volatile* worker;
-	deque **self;
+	//deque **self;
+	int self; // index into worker's deque pool
 };
 
 void increment_E(__cilkrts_worker *victim, deque* d);

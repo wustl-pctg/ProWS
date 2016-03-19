@@ -426,6 +426,7 @@ char * walk_pedigree_nodes(char *p, const __cilkrts_pedigree *pnode);
 COMMON_PORTABLE
 __cilkrts_stack_frame *simulate_pop_tail(__cilkrts_worker *w);
 
+unsigned myrand(__cilkrts_worker *w);
 void incjoin(full_frame *ff);
 void decjoin(full_frame *ff);
 full_frame *unroll_call_stack(__cilkrts_worker *w, 

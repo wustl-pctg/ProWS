@@ -10,149 +10,167 @@ namespace cilkrr {
 
 	mutex::mutex()
 	{
-		// Static initialization order is tricky, but this hack works.
-		if (g_rr_state == nullptr)
-			g_rr_state = new cilkrr::state();
+		m_id = g_rr_state->register_mutex();
 
-
-		// You *could* protect this insert with a lock, but we must have
-		// deterministic ids anyway, so the lock would be pointless.
-		m_id = g_rr_state->add_mutex();
-		m_acquires = g_rr_state->get_mutex(m_id);
-
-		if (g_rr_state->m_mode == REPLAY)
-			m_it = m_acquires->begin();
-
-		// std::cerr << "Creating cilkrr mutex: " << this
-		// 					<< ", " << m_id << std::endl;
+		if (get_mode() != NONE)
+			m_acquires = g_rr_state->get_acquires(m_id);
 	}
 
-	mutex::~mutex()
+	mutex::mutex(uint64_t index)
 	{
-		// std::cerr << "Destroy cilkrr mutex: " << this << std::endl;
-
-		// Warning: All mutexes must be created before any can be destroyed!
-		if (g_rr_state->remove_mutex(m_id) == 0)
-			delete g_rr_state;
+		m_id = g_rr_state->register_mutex(index);
+		
+		if (get_mode() != NONE)
+			m_acquires = g_rr_state->get_acquires(m_id);
 	}
 
-	inline void mutex::acquire() { m_owner = __cilkrts_get_tls_worker(); }
+	mutex::~mutex() { g_rr_state->unregister_mutex(m_id); }
+
+	// Determinism is enforced at the lock acquires, hence the pedigree
+	// must be changed here, not in the release. Example: A programmer
+	// might grab the lock, but release it based on certain
+	// nondeterministic conditions.
+	inline void mutex::acquire()
+	{
+		m_owner = __cilkrts_get_tls_worker();
+		//		m_acq_count++;
+		__cilkrts_bump_worker_rank();
+	}
+	
 	inline void mutex::release()
 	{
 		m_owner = nullptr;
 		m_mutex.unlock();
-		__cilkrts_bump_worker_rank();
+		//__cilkrts_bump_worker_rank();
 	}
 
+	// pedigree_t mutex::get_pedigree()
+	// {
+	// 	pedigree_t p = cilkrr::get_pedigree();
+	// 	std::string c = std::to_string(m_acq_count) + ",]";
+	// 	p.replace(p.length()-1, c.length(), c);
+	// 	return p;
+	// }
+
+	// pedigree_t mutex::refresh_pedigree(pedigree_t &p)
+	// {
+	// 	std::string sub = p.substr(p.rfind(','));
+	// 	size_t count = std::stoul(sub);
+	// 	if (count != m_acq_count) {
+	// 		std::string start = p.substr(0, p.rfind(','));
+	// 		return start + std::to_string(m_acq_count) + ",]";
+	// 	}
+	// 	return p;
+	// }
 	
 	void mutex::lock()
 	{
-		if (cilkrr_mode() == REPLAY) return replay_lock();
-		m_mutex.lock();
+		enum mode m = get_mode();
+		pedigree_t p;
+		if (m != NONE) p = get_pedigree();
+		if (get_mode() == REPLAY)
+			replay_lock(p); // returns locked, but not acquired
+		else 
+			m_mutex.lock();
 		acquire();
-		if (cilkrr_mode() == RECORD) record_acquire();
+		if (get_mode() == RECORD) record_acquire(p);
 	}
 
 	bool mutex::try_lock()
 	{
 		bool result;
-		if (cilkrr_mode() == REPLAY)
-			result = replay_try_lock();
+		pedigree_t p;
+		
+		if (get_mode() != NONE) p = get_pedigree();
+		if (get_mode() == REPLAY)
+			result = replay_try_lock(p);
 		else
 			result = m_mutex.try_lock();
 		
 		if (result) {
 			acquire();
-			if (cilkrr_mode() == RECORD) record_acquire();
-		}
+			if (get_mode() == RECORD) record_acquire(p);
+		} else
+			__cilkrts_bump_worker_rank();
+				
 		return result;
 	}
 
 	void mutex::unlock()
 	{
-		if (cilkrr_mode() == REPLAY) replay_unlock();
+		if (get_mode() == REPLAY) replay_unlock();
 		else release();
 	}
 
-	void mutex::record_acquire()
-	{
-		m_acquires->push_back(acquire_info());
-	}
+	void mutex::record_acquire(pedigree_t& p) { m_acquires->add(p); }
 
-	void mutex::replay_lock()
+	void mutex::replay_lock(pedigree_t& p)
 	{
-		pedigree_t p = get_pedigree();
-		if (p != (*m_it).ped)
-			suspend(p);
+		if (p != m_acquires->current()->ped)
+			suspend(p); // returns locked, but not acquired
 		else // may need to wait constant time as owner decides to release lock
 			m_mutex.lock();
-		  // Invariant: Upon return, the lock is locked by this worker
-		// } else {
-		// 	bool result = m_mutex.try_lock();
-		// 	assert(result == true);
-		// }
-		acquire();
-		assert(m_owner = __cilkrts_get_tls_worker_fast());
+		// // Invariant: Upon return, the lock is locked by this worker
 	}
 
-	bool mutex::replay_try_lock()
+	bool mutex::replay_try_lock(pedigree_t& p)
 	{
+		acquire_info *a = m_acquires->find(p);
+		if (!a) { // this try_lock never succeeded
+			// Since we're assuming no determinacy races, this is ok.
+			return false;
+		}
 
-		/// @todo this isn't quite right. For try_locks, I think we'll
-		/// need to record failures as well.
-		if (get_pedigree() == (*m_it).ped) {
+		if (a == m_acquires->current()) {
 			assert(m_owner == nullptr);
 			bool res = m_mutex.try_lock();
 			assert(res == true);
-			return res;
+		} else {
+
+			// This is a bit weird for try_lock to wait, but it must in this
+			// case. We always increment the pedigree on try_locks, and this
+			// pedigree should be getting the lock, but we need to wait for
+			// other locks to complete.
+			suspend(p);
 		}
-		return false;
+		
+		return true;
 	}
 
 	void mutex::replay_unlock()
 	{
-		m_it++;
+		m_acquires->next();
 		
 		//		To resume a suspended deque, we retain the lock, so we don't release
 		__sync_synchronize();
+
+		acquire_info *current = m_acquires->current();
 	
-		if (!(m_it == m_acquires->end()) && (*m_it).suspended_deque) {
-			void *d = (*m_it).suspended_deque;
+		if (!(current == m_acquires->end()) && current->suspended_deque) {
+			void *d = current->suspended_deque;
+			
 			cilkrr::sout << "(w: " << __cilkrts_get_tls_worker_fast()->self
 									 << ") about to resume suspended deque in replay_unlock" << cilkrr::endl;
+			
 			__cilkrts_resume_suspended(d, 1);
+			
 			cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
 									 << ") resuming in replay_unlock (p: "
 									 << get_pedigree() << ")" << cilkrr::endl;
 		} else { // Like a real release
-			m_owner = nullptr;
-			m_mutex.unlock();
+			release();
 		}
 
-		// We don't do a real release here since we may retain the lock to
-		// resume a suspended deque. But in any case we need to bump the rank.
-		__cilkrts_bump_worker_rank();
 
-	}
-
-	/// @todo use a hash table so we don't have to iterate through
-	acquire_info* mutex::find_acquire(pedigree_t& p)
-	{
-		assert(g_rr_state->m_mode == REPLAY);
-
-		for (auto it = m_it; it != m_acquires->end(); ++it) {
-			if (it->ped == p) {
-				return &(*it);
-				break;
-			}
-		}
-		cilkrr::sout << "Error: can't find " << p << cilkrr::endl;
-		assert(0);
 	}
 
 	void mutex::suspend(pedigree_t& p)
 	{
-		acquire_info *a = find_acquire(p);
+		acquire_info *a = m_acquires->find(p);
+		if (!a) {
+			cilkrr::sout << "Error: can't find " << p << cilkrr::endl;
+			std::abort();
+		}
 		void *deque = __cilkrts_get_deque();
 
 		a->suspended_deque = deque;
@@ -162,36 +180,11 @@ namespace cilkrr {
 								 << "suspending deque " << a->suspended_deque << " "
 								 << "at: " << p << cilkrr::endl;
 
-		// if (front->suspended_deque != nullptr
-		// 		/// @todo There is some vanishingly small chance that m_it will change here...
-		// 		&& m_mutex.try_lock()) {
-		//			acquire();
-
-		// if (deque != nullptr
-		// 		&& (deque =
-		// 				__sync_val_compare_and_swap(&front->suspended_deque,
-		// 																		 deque, nullptr))) {
-
-		// 	// We are now responsible for deque...
-		// 	if (!m_mutex.try_lock()) { // didn't get lock, must try again
-		// 		a = front;
-		// 		p = front->ped;
-		// 		goto begin;
-		// 	}
-		acquire_info *front = &(*m_it);
-		//		deque = front->suspended_deque;
+		acquire_info *front = m_acquires->current();
 		if (front == a && m_mutex.try_lock()) {
-
 			// Have lock, MUST resume
-			acquire();
-			
-			// If this is the front, just continue on
-			//			if (&(*m_it) != a) {
-			// if (deque != __cilkrts_get_deque()) {
-			// 	cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
-			// 							 << ") about to resume suspended deque in mutex::suspend" << cilkrr::endl;
-			// 	__cilkrts_resume_suspended(deque, 0);
-			//	}
+			//acquire();
+
 		} else {
 			cilkrr::sout << "(w: " <<  __cilkrts_get_tls_worker()->self
 									 << ") about to resume stealing in mutex::suspend" << cilkrr::endl;
@@ -199,9 +192,7 @@ namespace cilkrr {
 		}
 
 		// When this fiber is resumed, the mutex is locked!
-		//		acquire();
 		std::atomic_thread_fence(std::memory_order_seq_cst);
-		assert(this->m_owner == __cilkrts_get_tls_worker());
 
 		cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
 								 << ") Resume at: " << get_pedigree() << cilkrr::endl;

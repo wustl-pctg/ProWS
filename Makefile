@@ -1,6 +1,8 @@
-COMPILER_HOME=/home/rob/src/llvm-cilk
+COMPILER_HOME=/home/rob/llvm-cilk
 RUNTIME_HOME=./cilkrtssuspend
 LIB=$(COMPILER_HOME)/lib/libcilkrts.a
+
+export LIBRARY_PATH=$(COMPILER_HOME)/lib:$LIBRARY_PATH
 
 CC=$(COMPILER_HOME)/bin/clang
 CXX=$(COMPILER_HOME)/bin/clang++

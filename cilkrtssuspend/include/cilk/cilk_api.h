@@ -277,6 +277,9 @@ __cilkrts_get_pedigree_internal(__cilkrts_worker *w);
 CILK_API(int)
 __cilkrts_bump_worker_rank_internal(__cilkrts_worker* w);
 
+CILK_API(int)
+__cilkrts_bump_loop_rank_internal(__cilkrts_worker* w);
+
 /// @endcond
 
 
@@ -377,7 +380,10 @@ int __cilkrts_bump_worker_rank(void)
 CILK_EXPORT_AND_INLINE
 int __cilkrts_bump_loop_rank(void)
 {
-    return 0;
+	// Someone claimed above that the compiler does this, but gcc 5.3
+	// and clang do not... I guess maybe icc does?
+	//return 0;
+	return __cilkrts_bump_loop_rank_internal(__cilkrts_get_tls_worker());
 }
 
 //@}

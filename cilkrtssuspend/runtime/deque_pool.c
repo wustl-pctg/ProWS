@@ -51,13 +51,20 @@ void* __cilkrts_get_deque(void)
 void __cilkrts_suspend_deque()
 {
 	__cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
-	cilk_fiber *current_fiber;
+	cilk_fiber *current_fiber, *fiber_to_resume;
+
+	// Sets fiber in active deque
 	current_fiber = deque_suspend(w, NULL);
 	
-	// suspend fiber and go back to work stealing
 	CILK_ASSERT(current_fiber);
+	if (w->l->active_deque) {
+		fiber_to_resume = w->l->active_deque->fiber;
+		w->l->active_deque->fiber = NULL;
+	} else { // no more memory for deques
+		fiber_to_resume = w->l->scheduling_fiber;
+	}
 	cilk_fiber_suspend_self_and_resume_other(current_fiber,
-																					 w->l->scheduling_fiber);
+																					 fiber_to_resume);
 }
 
 void __cilkrts_resume_suspended(void* _deque, int enable_resume)
@@ -111,8 +118,12 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 	cilk_fiber *current_fiber = deque_suspend(w, deque_to_resume);
 
 	fiber_to_resume = deque_to_resume->fiber;
+	CILK_ASSERT(w->l->active_deque);
+	CILK_ASSERT(fiber_to_resume == w->l->active_deque->fiber);
 	CILK_ASSERT(fiber_to_resume);
 	CILK_ASSERT(deque_to_resume->call_stack == w->current_stack_frame);
+
+	w->l->active_deque->fiber = NULL;
 	deque_to_resume->fiber = NULL;
 
 	// switch fibers
@@ -127,8 +138,11 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 void deque_pool_add(__cilkrts_worker *victim, deque_pool *p, deque *d)
 {
 	__cilkrts_worker *w = __cilkrts_get_tls_worker();
-	CILK_ASSERT(&victim->l->dod == p);
 	CILK_ASSERT(victim->l->lock.owner == w);
+	if (d->resumable)
+		CILK_ASSERT(&victim->l->resumable_deques == p);
+	else 
+		CILK_ASSERT(&victim->l->suspended_deques == p);
 
 	if (p->size == p->capacity) {
 		size_t cap = 2 * p->capacity;

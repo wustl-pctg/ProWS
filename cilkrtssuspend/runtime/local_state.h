@@ -226,9 +226,8 @@ struct local_state  /* COMMON_PORTABLE */
   // struct full_frame *core_frame_ff;
 
 	deque *active_deque;
-	//	deque deques[1]; // for now, a fixed amount of deques
-	deque_pool dod; // deque of deques;
-	size_t num_suspended_deques;
+	deque_pool suspended_deques;
+	deque_pool resumable_deques;
 
 	/**
 	 * Team on which this worker is a participant.  When a user worker enters,

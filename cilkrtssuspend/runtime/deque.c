@@ -306,22 +306,37 @@ void __cilkrts_promote_own_deque(__cilkrts_worker *w)
 	CILK_ASSERT((*w->l->frame_ff)->fiber_self == starting_fiber);
 }
 
-void deque_init(deque *d, size_t ltqsize)
+int deque_init(deque *d, size_t ltqsize)
 {
 	memset(d, 0, sizeof(deque));
 	d->ltq = (__cilkrts_stack_frame **)
 		__cilkrts_malloc(ltqsize * sizeof(__cilkrts_stack_frame*));
+
+	if (!d->ltq)
+		return -1;
+		//__cilkrts_bug("Cilk: out of memory for new deques!\n");
+	
 	d->ltq_limit = d->ltq + ltqsize;
 	d->head = d->tail = d->exc = d->ltq;
 	d->protected_tail = d->ltq_limit;
 	__cilkrts_mutex_init(&d->lock);
 	__cilkrts_mutex_init(&d->steal_lock);
+	return 0;
 }
 
 void deque_switch(__cilkrts_worker *w, deque *d)
 {
-	/// @todo deque_switch should asser that w->l->active_deque is NULL
 	CILK_ASSERT(d == w->l->active_deque);
+
+	// We may have run out of memory for deques, in which case we want
+	// to go back to the scheduling loop and try to mug resumable
+	// deques.
+	if (!d) {
+		w->tail = w->head = w->exc = w->protected_tail = NULL;
+		w->ltq_limit = w->l->current_ltq = w->l->frame_ff = NULL;
+		w->current_stack_frame = NULL;
+		return;
+	}
 
 	if (d->resumable) CILK_ASSERT(d->fiber);
 	CILK_ASSERT(d->worker == NULL);
@@ -342,15 +357,12 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 	memset(&d->saved_ped, 0, sizeof(__cilkrts_pedigree));
 }
 
-/// @todo push onto a random worker instead of self
 cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 {
-	deque_pool *p = &w->l->dod;
 	deque *d = w->l->active_deque;
 
 	// An active deque should:
-	//	CILK_ASSERT(d->self == &w->l->active_deque); // know it is an active deque
-	CILK_ASSERT(d->self == ACTIVE_DEQUE_INDEX);
+	CILK_ASSERT(d->self == ACTIVE_DEQUE_INDEX); // know it is an active deque
 	CILK_ASSERT(d->fiber == NULL); // not have a fiber (stored in worker)
 	CILK_ASSERT(d->worker == w); // Know its worker
 	CILK_ASSERT(d->team); // Have a team
@@ -359,22 +371,37 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 	d->call_stack = w->current_stack_frame;
 
 	if (!new_deque) {
-		new_deque = __cilkrts_malloc(sizeof(deque));
-		deque_init(new_deque, w->g->ltqsize);
-		new_deque->team = d->team;
-	} else {
+		// Before we allocate a new deque, let's see if we have something to resume
+		__cilkrts_mutex_lock(w, &w->l->lock);
+		new_deque = w->l->resumable_deques.array[0];
+		if (new_deque)
+			deque_mug(w, new_deque);
+		__cilkrts_mutex_unlock(w, &w->l->lock);
+		/// @todo{ Check other workers, too? }
+	}
 
+	if (!new_deque) { // Must allocate new
+			new_deque = __cilkrts_malloc(sizeof(deque));
+			if (new_deque
+					&& -1 != deque_init(new_deque, w->g->ltqsize)) {
+				new_deque->team = d->team;
+				new_deque->fiber = w->l->scheduling_fiber;
+			} else {
+				__cilkrts_free(new_deque);
+				new_deque = NULL;
+				//__cilkrts_bug("Cilk: out of memory for new deques!\n");
+			}
+	} else {
 		// This deque should be mugged
 		CILK_ASSERT(new_deque->fiber);
 		CILK_ASSERT(new_deque->resumable == 1);
-		//		CILK_ASSERT(new_deque->self == NULL);
 		CILK_ASSERT(new_deque->self == INVALID_DEQUE_INDEX);
 		CILK_ASSERT(new_deque->worker == NULL);
 		new_deque->resumable = 0;
 	}
 	
 	// User workers should stay on the same team
-	if (w->l->type == WORKER_USER)
+	if (w->l->type == WORKER_USER && new_deque)
 		CILK_ASSERT(new_deque->team == w);
 
 	__cilkrts_worker *victim = w->g->workers[myrand(w) % w->g->total_workers];
@@ -402,12 +429,15 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 				 * create the stolen frame. So just don't push to other
 				 * workers until someone has stolen from us.
 				*/
+				/// @todo{ What if a thief doesn't steal from the original
+				/// deque? Does it matter that they set the sync master of the
+				/// wrong loot frame?! }
 				victim = w;
 			}
 
 		}
 
-		deque_pool_validate(&w->l->dod, w);
+		//		deque_pool_validate(p, w);
 
 		deque_switch(w, w->l->active_deque);
 
@@ -415,15 +445,15 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 
 	fprintf(stderr, "(w: %i) pushing suspended deque onto %i\n",
 					w->self, victim->self);
-	//	__cilkrts_worker *victim = w;
 
 	// Might be nice to use trylock here, but I'm not sure what is the
 	// right thing to do if it fails.
 	__cilkrts_mutex_lock(w, &victim->l->lock); {
-		if (d->resumable || d->head != d->tail)
-			deque_pool_add(victim, &victim->l->dod, d);
-		else { // no need to add, will be resumed later
-			//d->self = NULL;
+		if (d->resumable)
+			deque_pool_add(victim, &victim->l->resumable_deques, d);
+		else if (d->head != d->tail) // not resumable, but stealable!
+			deque_pool_add(victim, &victim->l->suspended_deques, d);
+		else { // empty: no need to add, will be resumed later
 			d->self = INVALID_DEQUE_INDEX;
 			d->worker = NULL;
 		}
@@ -441,12 +471,14 @@ void deque_mug(__cilkrts_worker *w, deque *d)
 	CILK_ASSERT(d->worker->l->lock.owner == w);
 	CILK_ASSERT(d->fiber);
 
-	deque_pool_validate(&d->worker->l->dod, d->worker);
+	deque_pool *p = (d->resumable) ?
+		&d->worker->l->resumable_deques : &d->worker->l->suspended_deques;
+	deque_pool_validate(p, d->worker);
 
 	fprintf(stderr, "(w: %i) mugging %p from %i\n",
 					w->self, d, d->worker->self);
 
-	deque_pool_remove(&d->worker->l->dod, d);
+	deque_pool_remove(p, d);
 }
 
 /* Assuming we have exclusive access to this deque, i.e. either

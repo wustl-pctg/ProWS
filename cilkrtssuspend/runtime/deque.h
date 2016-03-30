@@ -41,8 +41,8 @@ struct deque
 	__cilkrts_worker *team;
 	
 	cilk_fiber *fiber;
-		__cilkrts_pedigree saved_ped;
-	__cilkrts_stack_frame *call_stack; /// @todo is this necessary?
+	__cilkrts_pedigree saved_ped;
+	__cilkrts_stack_frame *call_stack;
 
 	// As long as we allow suspended deques to change which deque_pool
 	// they are in, I don't see how to get away with not having these
@@ -50,7 +50,6 @@ struct deque
 	// rather error-prone and inelegant...
 	// If we don't allow entire suspended deques to be stolen, then I think we can do without this...
 	__cilkrts_worker volatile* worker;
-	//deque **self;
 	int self; // index into worker's deque pool
 };
 
@@ -64,7 +63,7 @@ void detach_for_steal(__cilkrts_worker *w,
 											deque *d, cilk_fiber* fiber);
 void __cilkrts_promote_own_deque(__cilkrts_worker *w);
 
-void deque_init(deque *d, size_t ltqsize);
+int deque_init(deque *d, size_t ltqsize);
 void deque_switch(__cilkrts_worker *w, deque *d);
 cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque);
 void deque_mug(__cilkrts_worker *w, deque *d);

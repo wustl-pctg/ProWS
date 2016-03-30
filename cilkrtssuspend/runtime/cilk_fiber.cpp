@@ -636,6 +636,12 @@ cilk_fiber* cilk_fiber::allocate_from_heap(std::size_t stack_size)
 
   ::new(ret) cilk_fiber_sysdep(stack_size);
 
+	if (ret->get_stack_sysdep() == NULL) { // mmap failed!
+		__cilkrts_free(ret);
+		return NULL;
+	}
+		
+
   CILK_ASSERT(0 == ret->m_flags);
   CILK_ASSERT(NULL == ret->m_pending_remove_ref);
   CILK_ASSERT(NULL == ret->m_pending_pool);

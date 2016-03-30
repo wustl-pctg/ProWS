@@ -13,11 +13,13 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Begin: %s\n", cilkrr::get_pedigree().c_str());
 	cilk_for(int i = 0; i < n; ++i) {
 
+		__cilkrts_bump_loop_rank();
+
 		fprintf(stderr, "i(%i): %s\n", i,
 						cilkrr::get_pedigree().c_str());
 
-		g_mutex.lock();
-		g_mutex.unlock();
+		// g_mutex.lock();
+		// g_mutex.unlock();
 
 	}
 	cilkrr::sout << "End: " << cilkrr::get_pedigree() << cilkrr::endl;

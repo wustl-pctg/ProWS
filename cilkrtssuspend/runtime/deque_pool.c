@@ -58,6 +58,12 @@ void __cilkrts_suspend_deque()
 	
 	CILK_ASSERT(current_fiber);
 	if (w->l->active_deque) {
+
+		// If we're jumping to a mugged deque/fiber, wait to make sure it's resumable
+		if (w->l->active_deque->fiber != w->l->scheduling_fiber)
+			while (!w->l->active_deque->fiber
+						 || !cilk_fiber_is_resumable(w->l->active_deque->fiber));
+		
 		fiber_to_resume = w->l->active_deque->fiber;
 		w->l->active_deque->fiber = NULL;
 	} else { // no more memory for deques

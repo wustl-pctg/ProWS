@@ -707,6 +707,7 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     CILK_ASSERT(d->worker == victim);
     CILK_ASSERT(d->fiber);
     CILK_ASSERT(d->resumable == 1);
+    CILK_ASSERT(d->call_stack);
 
     cilk_fiber *fiber = d->fiber;
     deque_mug(w, d);

@@ -37,7 +37,7 @@ esac
 
 ITER_PER_RECORD=$(( $ITER / $NUM_RECORDS ))
 
-maxtime=5
+maxtime=10
 line="                                                                               "
 
 declare verbose

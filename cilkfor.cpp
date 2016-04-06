@@ -1,9 +1,8 @@
-#include <iostream>
+#include <cstdio>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
 #include "mutex.h"
-#include "syncstream.h"
 
 cilkrr::mutex g_mutex;
 
@@ -22,6 +21,6 @@ int main(int argc, char *argv[])
 		// g_mutex.unlock();
 
 	}
-	cilkrr::sout << "End: " << cilkrr::get_pedigree() << cilkrr::endl;
+	fprintf(stderr, "End: %s\n", cilkrr::get_pedigree().c_str());
 	return 0;
 }

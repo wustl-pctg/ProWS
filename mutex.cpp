@@ -1,5 +1,5 @@
 #include "mutex.h"
-#include "syncstream.h"
+#include <cstdio>
 #include <cassert>
 #include <memory>
 #include <atomic>
@@ -33,7 +33,6 @@ namespace cilkrr {
 	inline void mutex::acquire()
 	{
 		m_owner = __cilkrts_get_tls_worker();
-		//		m_acq_count++;
 		__cilkrts_bump_worker_rank();
 	}
 	
@@ -44,25 +43,6 @@ namespace cilkrr {
 		//__cilkrts_bump_worker_rank();
 	}
 
-	// pedigree_t mutex::get_pedigree()
-	// {
-	// 	pedigree_t p = cilkrr::get_pedigree();
-	// 	std::string c = std::to_string(m_acq_count) + ",]";
-	// 	p.replace(p.length()-1, c.length(), c);
-	// 	return p;
-	// }
-
-	// pedigree_t mutex::refresh_pedigree(pedigree_t &p)
-	// {
-	// 	std::string sub = p.substr(p.rfind(','));
-	// 	size_t count = std::stoul(sub);
-	// 	if (count != m_acq_count) {
-	// 		std::string start = p.substr(0, p.rfind(','));
-	// 		return start + std::to_string(m_acq_count) + ",]";
-	// 	}
-	// 	return p;
-	// }
-	
 	void mutex::lock()
 	{
 		enum mode m = get_mode();
@@ -148,15 +128,15 @@ namespace cilkrr {
 	
 		if (!(current == m_acquires->end()) && current->suspended_deque) {
 			void *d = current->suspended_deque;
-			
-			cilkrr::sout << "(w: " << __cilkrts_get_tls_worker_fast()->self
-									 << ") about to resume suspended deque in replay_unlock" << cilkrr::endl;
+			fprintf(stderr, "(w: %d) about to resume suspended deque in replay_unlock\n",
+							__cilkrts_get_internal_worker_number());
 			
 			__cilkrts_resume_suspended(d, 1);
+
+			fprintf(stderr, "(w: %d) resuming in replay_unlock (p: %s)\n",
+							__cilkrts_get_internal_worker_number(),
+							get_pedigree().c_str());
 			
-			cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
-									 << ") resuming in replay_unlock (p: "
-									 << get_pedigree() << ")" << cilkrr::endl;
 		} else { // Like a real release
 			release();
 		}
@@ -168,7 +148,7 @@ namespace cilkrr {
 	{
 		acquire_info *a = m_acquires->find(p);
 		if (!a) {
-			cilkrr::sout << "Error: can't find " << p << cilkrr::endl;
+			fprintf(stderr, "Error: can't find %s\n", p.c_str());
 			std::abort();
 		}
 		void *deque = __cilkrts_get_deque();
@@ -176,9 +156,9 @@ namespace cilkrr {
 		a->suspended_deque = deque;
 		__sync_synchronize();
 
-		cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self << ") "
-								 << "suspending deque " << a->suspended_deque << " "
-								 << "at: " << p << cilkrr::endl;
+		fprintf(stderr, "(w: %d) suspending deque %p at: %s\n",
+						__cilkrts_get_internal_worker_number(), a->suspended_deque,
+						p.c_str());
 
 		acquire_info *front = m_acquires->current();
 		if (front == a && m_mutex.try_lock()) {
@@ -186,18 +166,20 @@ namespace cilkrr {
 			//acquire();
 
 		} else {
-			cilkrr::sout << "(w: " <<  __cilkrts_get_tls_worker()->self
-									 << ") about to resume stealing in mutex::suspend" << cilkrr::endl;
+			fprintf(stderr, "(w: %d) about to resume stealing in mutex::suspend\n",
+							__cilkrts_get_internal_worker_number());
 			__cilkrts_suspend_deque();
 		}
 
 		// When this fiber is resumed, the mutex is locked!
 		std::atomic_thread_fence(std::memory_order_seq_cst);
 
-		cilkrr::sout << "(w: " << __cilkrts_get_tls_worker()->self
-								 << ") Resume at: " << get_pedigree() << cilkrr::endl;
+		fprintf(stderr, "(w: %d) Resume at: %s\n",
+						__cilkrts_get_internal_worker_number(),
+						get_pedigree().c_str());
 	}
 
 
 
 }
+

@@ -1,5 +1,6 @@
 #include "acquire.h"
-#include "syncstream.h"
+#include <sstream>
+#include <cstdio>
 
 namespace cilkrr {
 
@@ -43,8 +44,7 @@ namespace cilkrr {
 	{
 		auto res = m_container.emplace(p, p);
 		if (res.second == false) {
-			cilkrr::sout << "Pedigree " << p << " already in container!"
-									 << cilkrr::endl;
+			fprintf(stderr, "Pedigree %s already in container!\n", p.c_str());
 			std::abort();
 		}
 		acquire_info* a = &(*res.first).second;

@@ -18,13 +18,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
-#include <iostream>
+#include <cstdio>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
 #include "mutex.h"
-#include "syncstream.h"
 
 cilkrr::mutex g_mutex0, g_mutex1;
 
@@ -32,14 +30,15 @@ int fib(int n) {
 	if (n < 2) {
 		if (n == 0) {
 			g_mutex0.lock();
-			cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number()
-									 << ") acquired lock at " << cilkrr::get_pedigree() << cilkrr::endl;
+			fprintf(stderr, "(w: %d) acquired lock at %s\n",
+							__cilkrts_get_internal_worker_number(),
+							cilkrr::get_pedigree().c_str());
 			g_mutex0.unlock();
 		} else {
 			g_mutex0.lock();
-			cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number()
-									 << ") acquired lock at " << cilkrr::get_pedigree() << cilkrr::endl;
-
+			fprintf(stderr, "(w: %d) acquired lock at %s\n",
+							__cilkrts_get_internal_worker_number(),
+							cilkrr::get_pedigree().c_str());
 			g_mutex0.unlock();
 		}
 
@@ -48,23 +47,23 @@ int fib(int n) {
 		int x = 0;
 		int y = 0;
 
-		cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number() << ") "
-								 << "(p: " << cilkrr::get_pedigree() << ") "
-								 << "entered fib " << n << cilkrr::endl;
+		fprintf(stderr, "(w: %d) (p: %s) entered fib %d\n",
+						__cilkrts_get_internal_worker_number(),
+						cilkrr::get_pedigree().c_str(), n);
+
 
 		x = cilk_spawn fib(n - 1);
 
-		cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number() << ") "
-								 << "(p: " << cilkrr::get_pedigree() << ") "
-								 << "in the middle of fib " << n << cilkrr::endl;
+		fprintf(stderr, "(w: %d) (p: %s) in the middle of fib %d\n",
+						__cilkrts_get_internal_worker_number(),
+						cilkrr::get_pedigree().c_str(), n);
 
 		y = fib(n - 2);
 		cilk_sync;
-		
-		cilkrr::sout << "(w: " << __cilkrts_get_internal_worker_number() << ") "
-								 << "p: " << cilkrr::get_pedigree() << ") "
-								 << "exiting fib " << n << cilkrr::endl;
 
+		fprintf(stderr, "(w: %d) (p: %s) exiting fib %d\n",
+						__cilkrts_get_internal_worker_number(),
+						cilkrr::get_pedigree().c_str(), n);
 
 		return (x + y);
 	}

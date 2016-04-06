@@ -44,63 +44,63 @@
 #define BEGIN_WITH_FRAME_LOCK(w, ff)																		\
 	do { full_frame *_locked_ff = ff; __cilkrts_frame_lock(w, _locked_ff); do
 
-#define END_WITH_FRAME_LOCK(w, ff)																			\
-																																					 while (__cilkrts_frame_unlock(w, _locked_ff), 0); } while (0)
+#define END_WITH_FRAME_LOCK(w, ff)															\
+	while (__cilkrts_frame_unlock(w, _locked_ff), 0); } while (0)
 
 
-		/********************************************************************
-		 * THE protocol:
-		 ********************************************************************/
-		/*
-		 * This is a protocol for work stealing that minimizes the overhead on
-		 * the victim.
-		 *
-		 * The protocol uses three shared pointers into the worker's deque:
-		 * - T - the "tail"
-		 * - H - the "head"
-		 * - E - the "exception"  NB: In this case, "exception" has nothing to do
-		 * with C++ throw-catch exceptions -- it refers only to a non-normal return,
-		 * i.e., a steal or similar scheduling exception.
-		 *
-		 * with H <= E, H <= T.  
-		 *
-		 * Stack frames SF, where H <= E < T, are available for stealing. 
-		 *
-		 * The worker operates on the T end of the stack.  The frame being
-		 * worked on is not on the stack.  To make a continuation available for
-		 * stealing the worker pushes a from onto the stack: stores *T++ = SF.
-		 * To return, it pops the frame off the stack: obtains SF = *--T.
-		 *
-		 * After decrementing T, the condition E > T signals to the victim that
-		 * it should invoke the runtime system's "THE" exception handler.  The
-		 * pointer E can become INFINITY, in which case the victim must invoke
-		 * the THE exception handler as soon as possible.
-		 *
-		 * See "The implementation of the Cilk-5 multithreaded language", PLDI 1998,
-		 * http://portal.acm.org/citation.cfm?doid=277652.277725, for more information
-		 * on the THE protocol.
-		 */
+/********************************************************************
+ * THE protocol:
+ ********************************************************************/
+/*
+ * This is a protocol for work stealing that minimizes the overhead on
+ * the victim.
+ *
+ * The protocol uses three shared pointers into the worker's deque:
+ * - T - the "tail"
+ * - H - the "head"
+ * - E - the "exception"  NB: In this case, "exception" has nothing to do
+ * with C++ throw-catch exceptions -- it refers only to a non-normal return,
+ * i.e., a steal or similar scheduling exception.
+ *
+ * with H <= E, H <= T.  
+ *
+ * Stack frames SF, where H <= E < T, are available for stealing. 
+ *
+ * The worker operates on the T end of the stack.  The frame being
+ * worked on is not on the stack.  To make a continuation available for
+ * stealing the worker pushes a from onto the stack: stores *T++ = SF.
+ * To return, it pops the frame off the stack: obtains SF = *--T.
+ *
+ * After decrementing T, the condition E > T signals to the victim that
+ * it should invoke the runtime system's "THE" exception handler.  The
+ * pointer E can become INFINITY, in which case the victim must invoke
+ * the THE exception handler as soon as possible.
+ *
+ * See "The implementation of the Cilk-5 multithreaded language", PLDI 1998,
+ * http://portal.acm.org/citation.cfm?doid=277652.277725, for more information
+ * on the THE protocol.
+ */
 
-		/* the infinity value of E */
+/* the infinity value of E */
 #define EXC_INFINITY  ((__cilkrts_stack_frame **) (-1))
 
-		void increment_E(__cilkrts_worker *victim, deque* d)
-		{
-			__cilkrts_stack_frame *volatile *tmp;
+void increment_E(__cilkrts_worker *victim, deque* d)
+{
+	__cilkrts_stack_frame *volatile *tmp;
 
-			// The currently executing worker must own the worker lock to touch
-			// victim->exc
-			ASSERT_WORKER_LOCK_OWNED(victim);
+	// The currently executing worker must own the worker lock to touch
+	// victim->exc
+	ASSERT_WORKER_LOCK_OWNED(victim);
 
-			tmp = d->exc;
-			if (tmp != EXC_INFINITY) {
-        /* On most x86 this pair of operations would be slightly faster
-           as an atomic exchange due to the implicit memory barrier in
-           an atomic instruction. */
-        d->exc = tmp + 1;
-        __cilkrts_fence();
-			}
-		}
+	tmp = d->exc;
+	if (tmp != EXC_INFINITY) {
+		/* On most x86 this pair of operations would be slightly faster
+			 as an atomic exchange due to the implicit memory barrier in
+			 an atomic instruction. */
+		d->exc = tmp + 1;
+		__cilkrts_fence();
+	}
+}
 
 void decrement_E(__cilkrts_worker *victim, deque* d)
 {
@@ -314,7 +314,7 @@ int deque_init(deque *d, size_t ltqsize)
 
 	if (!d->ltq)
 		return -1;
-		//__cilkrts_bug("Cilk: out of memory for new deques!\n");
+	//__cilkrts_bug("Cilk: out of memory for new deques!\n");
 	
 	d->ltq_limit = d->ltq + ltqsize;
 	d->head = d->tail = d->exc = d->ltq;
@@ -373,24 +373,26 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 	if (!new_deque) {
 		// Before we allocate a new deque, let's see if we have something to resume
 		__cilkrts_mutex_lock(w, &w->l->lock);
-		new_deque = w->l->resumable_deques.array[0];
-		if (new_deque)
+		int size = w->l->resumable_deques.size;
+		if (size > 0) {
+			new_deque = w->l->resumable_deques.array[size-1];
 			deque_mug(w, new_deque);
+		}
 		__cilkrts_mutex_unlock(w, &w->l->lock);
 		/// @todo{ Check other workers, too? }
 	}
 
 	if (!new_deque) { // Must allocate new
-			new_deque = __cilkrts_malloc(sizeof(deque));
-			if (new_deque
-					&& -1 != deque_init(new_deque, w->g->ltqsize)) {
-				new_deque->team = d->team;
-				new_deque->fiber = w->l->scheduling_fiber;
-			} else {
-				__cilkrts_free(new_deque);
-				new_deque = NULL;
-				//__cilkrts_bug("Cilk: out of memory for new deques!\n");
-			}
+		new_deque = __cilkrts_malloc(sizeof(deque));
+		if (new_deque
+				&& -1 != deque_init(new_deque, w->g->ltqsize)) {
+			new_deque->team = d->team;
+			new_deque->fiber = w->l->scheduling_fiber;
+		} else {
+			__cilkrts_free(new_deque);
+			new_deque = NULL;
+			//__cilkrts_bug("Cilk: out of memory for new deques!\n");
+		}
 	} else {
 		// This deque should be mugged
 		CILK_ASSERT(new_deque->fiber);
@@ -421,14 +423,14 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 			d->fiber = fiber;
 
 			if (WORKER_USER == w->l->type &&
-				NULL == w->l->last_full_frame) {
+					NULL == w->l->last_full_frame) {
 				//set_sync_master(w, d->frame_ff);
 				
 				/* This is big hack. I want to set the sync master for a
 				 * stolen frame from this deque, but only the thief will
 				 * create the stolen frame. So just don't push to other
 				 * workers until someone has stolen from us.
-				*/
+				 */
 				/// @todo{ What if a thief doesn't steal from the original
 				/// deque? Does it matter that they set the sync master of the
 				/// wrong loot frame?! }
@@ -456,6 +458,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 		else { // empty: no need to add, will be resumed later
 			d->self = INVALID_DEQUE_INDEX;
 			d->worker = NULL;
+			//			w->l->mugged++;
 		}
 	} __cilkrts_mutex_unlock(w, &victim->l->lock);
 	//} END_WITH_WORKER_LOCK(w);
@@ -478,6 +481,7 @@ void deque_mug(__cilkrts_worker *w, deque *d)
 	fprintf(stderr, "(w: %i) mugging %p from %i\n",
 					w->self, d, d->worker->self);
 
+	//	d->worker->l->mugged++;
 	deque_pool_remove(p, d);
 }
 
@@ -488,13 +492,13 @@ void deque_mug(__cilkrts_worker *w, deque *d)
 void deque_lock(__cilkrts_worker *w, deque *d)
 {
 	//    validate_worker(w);
-    CILK_ASSERT(d->do_not_steal == 0);
+	CILK_ASSERT(d->do_not_steal == 0);
 
-    /* tell thieves to stay out of the way */
-    d->do_not_steal = 1;
-    __cilkrts_fence(); /* probably redundant */
+	/* tell thieves to stay out of the way */
+	d->do_not_steal = 1;
+	__cilkrts_fence(); /* probably redundant */
 
-    __cilkrts_mutex_lock(w, &d->lock);
+	__cilkrts_mutex_lock(w, &d->lock);
 }
 
 /// @todo{Do we want a try_lock version for this}
@@ -507,15 +511,15 @@ void deque_lock_other(__cilkrts_worker *w, deque *d)
 
 void deque_unlock(__cilkrts_worker *w, deque *d)
 {
-    __cilkrts_mutex_unlock(w, &w->l->lock);
-    CILK_ASSERT(w->l->do_not_steal == 1);
-    /* The fence is probably redundant.  Use a release
-       operation when supported (gcc and compatibile);
-       that is faster on x86 which serializes normal stores. */
+	__cilkrts_mutex_unlock(w, &w->l->lock);
+	CILK_ASSERT(w->l->do_not_steal == 1);
+	/* The fence is probably redundant.  Use a release
+		 operation when supported (gcc and compatibile);
+		 that is faster on x86 which serializes normal stores. */
 #if defined __GNUC__ && (__GNUC__ * 10 + __GNUC_MINOR__ > 43 || __ICC >= 1110)
-    __sync_lock_release(&w->l->do_not_steal);
+	__sync_lock_release(&w->l->do_not_steal);
 #else
-    w->l->do_not_steal = 0;
-    __cilkrts_fence(); /* store-store barrier, redundant on x86 */
+	w->l->do_not_steal = 0;
+	__cilkrts_fence(); /* store-store barrier, redundant on x86 */
 #endif
 }

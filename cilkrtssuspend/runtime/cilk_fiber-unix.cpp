@@ -58,6 +58,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <string.h> // strerror
 #include "declare-alloca.h"
 
 // MAP_ANON is deprecated on Linux, but seems to be required on Mac...
@@ -299,6 +300,7 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 		
 		return;
 	}
+	fprintf(stderr, "Stack mmap: %p\n", p);
 
 	// mprotect guard pages.
 	mprotect(p + rounded_stack_size - s_page_size, s_page_size, PROT_NONE);
@@ -314,7 +316,8 @@ void cilk_fiber_sysdep::free_stack()
 	if (m_stack) {
 		size_t rounded_stack_size = m_stack_base - m_stack + s_page_size;
 		if (munmap(m_stack, rounded_stack_size) < 0)
-			__cilkrts_bug("Cilk: stack munmap failed error %d\n", errno);
+			__cilkrts_bug("Cilk: stack munmap failed error %s\n", strerror(errno));
+		fprintf(stderr, "Stack munmap: %p\n", m_stack);
 	}
 }
 

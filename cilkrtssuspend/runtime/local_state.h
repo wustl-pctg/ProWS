@@ -228,6 +228,8 @@ struct local_state  /* COMMON_PORTABLE */
 	deque *active_deque;
 	deque_pool suspended_deques;
 	deque_pool resumable_deques;
+	// int mugged;
+	// int waiting_stacks;
 
 	/**
 	 * Team on which this worker is a participant.  When a user worker enters,

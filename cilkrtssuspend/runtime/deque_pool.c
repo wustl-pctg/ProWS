@@ -60,9 +60,14 @@ void __cilkrts_suspend_deque()
 	if (w->l->active_deque) {
 
 		// If we're jumping to a mugged deque/fiber, wait to make sure it's resumable
-		if (w->l->active_deque->fiber != w->l->scheduling_fiber)
+		if (w->l->active_deque->fiber != w->l->scheduling_fiber) {
 			while (!w->l->active_deque->fiber
 						 || !cilk_fiber_is_resumable(w->l->active_deque->fiber));
+
+			// This deque was mugged
+			/* w->l->mugged--; */
+			/* CILK_ASSERT(w->l->mugged >= 0); */
+		}
 		
 		fiber_to_resume = w->l->active_deque->fiber;
 		w->l->active_deque->fiber = NULL;
@@ -104,7 +109,8 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 			
 		} __cilkrts_mutex_unlock(w, &victim->l->lock);
 	}
-	//	CILK_ASSERT(deque_to_resume->self == NULL);
+	/* w->l->mugged--; */
+	/* CILK_ASSERT(w->l->mugged >= 0); */
 	CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);
 	if (mugged)
 		fprintf(stderr, "(w: %i) resuming %p for %i\n", w->self,

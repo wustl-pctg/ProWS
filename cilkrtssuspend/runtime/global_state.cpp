@@ -426,7 +426,7 @@ global_state_t* cilkg_get_user_settable_values()
 
 			/// @rob: Changed this for suspended deques
 			g->max_stacks = INT_MAX;
-
+			
 			// If we have 2400 1MB stacks, that is 2 gb.  If we reach this
 			// limit on a single-socket machine, we may have other
 			// problems.  Is 2400 too small for large multicore machines?

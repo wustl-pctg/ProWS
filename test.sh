@@ -84,6 +84,7 @@ function runcmd() {
 }
 
 make fib
+rm -f core
 
 status=""
 for n in `seq $STARTN $ENDN`; do

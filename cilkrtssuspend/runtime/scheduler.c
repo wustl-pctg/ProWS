@@ -711,6 +711,8 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
 
     cilk_fiber *fiber = d->fiber;
     deque_mug(w, d);
+//    victim->l->mugged--;
+//    CILK_ASSERT(victim->l->mugged >= 0);
     __cilkrts_mutex_unlock(w, &victim->l->lock);
 
     // The deque has definitely been suspended, but its owner might
@@ -747,16 +749,25 @@ static deque* choose_deque(__cilkrts_worker *w, __cilkrts_worker *victim)
     deque_pool* pool;
 
     // Current policy: if there is a resumable deque, you must take it
-    if (victim->l->resumable_deques.size > 0)
+    if (victim->l->resumable_deques.size > 0) {
         pool = &victim->l->resumable_deques;
-    else
+
+        // Really we'd like to take the first element, but with the
+        // current implementation that would change the order (swap
+        // the last element)
+        /// @todo{ Implement resumable deques as a deque itself, with stealing from the top}
+        index = victim->l->resumable_deques.size;
+        //index = 1;
+    } else {
         pool = &victim->l->suspended_deques;
+        index = myrand(w) % (pool->size + 1);
+    }
     
     if (w == victim && pool->size == 0) { // someone mugged us
         CILK_ASSERT(w->g->P > 1);
         CILK_ASSERT(pool->array[0] == NULL);
     }
-    index = myrand(w) % (pool->size + 1);
+
     if (index) return pool->array[index-1];
     return victim->l->active_deque; // we might return our own deque, but then it's not stealable
 }
@@ -799,6 +810,11 @@ static void random_steal(__cilkrts_worker *w)
         n = 0;
         CILK_ASSERT(w->l->suspended_deques.size > 0
                     || w->l->resumable_deques.size > 0);
+
+        /* int s1 = w->l->fiber_pool.total + w->l->fiber_pool.parent->total; */
+        /* int s2 = w->l->suspended_deques.size + w->l->resumable_deques.size */
+        /*     + w->l->mugged + w->l->waiting_stacks; */
+        /* CILK_ASSERT((s1 == s2) || ((s1+1) == s2) || (s1 == (s2+1))); */
     } else {
         // No one else could add suspended deques, so its fine to read
         // this without a lock.
@@ -867,6 +883,7 @@ static void random_steal(__cilkrts_worker *w)
 #endif        
         return;
     }
+    fprintf(stderr, "(w: %d) allocated fiber %p\n", w->self, fiber);
     
     /* Execute a quick check before engaging in the THE protocol.
        Avoid grabbing locks if there is nothing to steal. */
@@ -1595,6 +1612,8 @@ longjmp_into_runtime(__cilkrts_worker *w,
     cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_ORPHAN);
     
     if (w->l->fiber_to_free) {
+
+        fprintf(stderr, "(w: %d) about to free %p\n", w->self, w->l->fiber_to_free);
         // Case 1: we are freeing this fiber.  We never
         // resume this fiber again after jumping into the runtime.
         w->l->fiber_to_free = NULL;
@@ -1637,8 +1656,11 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
         NOTE_INTERVAL(w, INTERVAL_SUSPEND_RESUME_OTHER);
 
+//        w->l->waiting_stacks++;
+
         cilk_fiber_suspend_self_and_resume_other(current_fiber,
                                                  w->l->scheduling_fiber);
+//        w->l->waiting_stacks--;
         // Resuming this fiber returns control back to
         // this function because our implementation uses OS fibers.
         //
@@ -2793,6 +2815,7 @@ __cilkrts_worker *make_worker(global_state_t *g,
     deque_pool_init(&w->l->suspended_deques, w->g->ltqsize);
     deque_pool_init(&w->l->resumable_deques, w->g->ltqsize);
     deque_switch(w, w->l->active_deque);
+//    w->l->mugged = w->l->waiting_stacks = 0;
         
     cilk_fiber_pool_init(&w->l->fiber_pool,
                          &g->fiber_pool,

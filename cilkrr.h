@@ -21,6 +21,9 @@ namespace cilkrr {
 		static constexpr size_t m_default_capacity = 32;
 
 	public:
+#if PMETHOD == PMDOT
+		uint64_t randvec[256];
+#endif
 		enum mode m_mode;
 
 		state();

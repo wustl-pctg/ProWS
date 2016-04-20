@@ -23,6 +23,13 @@
 #include <cilk/cilk_api.h>
 
 #include "mutex.h"
+int count = 0;
+
+#ifdef VERBOSE
+#define log(args...) fprintf(stderr, args)
+#else
+#define log(args...)
+#endif
 
 cilkrr::mutex g_mutex0, g_mutex1;
 
@@ -30,15 +37,19 @@ int fib(int n) {
 	if (n < 2) {
 		if (n == 0) {
 			g_mutex0.lock();
-			fprintf(stderr, "(w: %d) acquired lock at %s\n",
-							__cilkrts_get_internal_worker_number(),
-							cilkrr::get_pedigree().c_str());
+			log("(w: %d) acquired lock at %s (%zu)\n",
+					__cilkrts_get_internal_worker_number(),
+					cilkrr::get_pedigree().c_str(),
+					cilkrr::get_compressed_pedigree());
+			count++;
 			g_mutex0.unlock();
 		} else {
 			g_mutex0.lock();
-			fprintf(stderr, "(w: %d) acquired lock at %s\n",
-							__cilkrts_get_internal_worker_number(),
-							cilkrr::get_pedigree().c_str());
+			log("(w: %d) acquired lock at %s (%zu)\n",
+					__cilkrts_get_internal_worker_number(),
+					cilkrr::get_pedigree().c_str(),
+					cilkrr::get_compressed_pedigree());
+			count++;
 			g_mutex0.unlock();
 		}
 
@@ -47,23 +58,26 @@ int fib(int n) {
 		int x = 0;
 		int y = 0;
 
-		fprintf(stderr, "(w: %d) (p: %s) entered fib %d\n",
-						__cilkrts_get_internal_worker_number(),
-						cilkrr::get_pedigree().c_str(), n);
+		log("(w: %d) (p: %s) (%zu) entered fib %d\n",
+				__cilkrts_get_internal_worker_number(),
+				cilkrr::get_pedigree().c_str(),
+				cilkrr::get_compressed_pedigree(), n);
 
 
 		x = cilk_spawn fib(n - 1);
 
-		fprintf(stderr, "(w: %d) (p: %s) in the middle of fib %d\n",
-						__cilkrts_get_internal_worker_number(),
-						cilkrr::get_pedigree().c_str(), n);
+		log("(w: %d) (p: %s) (%zu) in the middle of fib %d\n",
+				__cilkrts_get_internal_worker_number(),
+				cilkrr::get_pedigree().c_str(),
+				cilkrr::get_compressed_pedigree(), n);
 
 		y = fib(n - 2);
 		cilk_sync;
 
-		fprintf(stderr, "(w: %d) (p: %s) exiting fib %d\n",
-						__cilkrts_get_internal_worker_number(),
-						cilkrr::get_pedigree().c_str(), n);
+		log("(w: %d) (p: %s) (%zu) exiting fib %d\n",
+				__cilkrts_get_internal_worker_number(),
+				cilkrr::get_pedigree().c_str(),
+				cilkrr::get_compressed_pedigree(), n);
 
 		return (x + y);
 	}
@@ -81,5 +95,8 @@ int main(int argc, char *argv[])
 
 	result = fib(n);
 	std::cout << "Result: " << result << std::endl;
+
+	// Prints out stack high watermark
+	//	__cilkrts_end_cilk();
 	return 0;
 }

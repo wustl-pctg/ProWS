@@ -50,6 +50,7 @@
 #include "os.h"
 #include "bug.h"
 #include "cilk_malloc.h"
+#include "global_state.h"
 #include <internal/abi.h>
 
 #if defined __linux__
@@ -192,7 +193,7 @@ __cilk_tbb_stack_op_thunk *__cilkrts_get_tls_tbb_interop(void)
 }
 
 // This counter should be updated atomically.
-static int __cilkrts_global_pedigree_tls_counter = -1;
+static int __cilkrts_global_pedigree_tls_counter = 0; // Use -1 for 0-based pedigrees
 
 COMMON_SYSDEP
 __cilkrts_pedigree *__cilkrts_get_tls_pedigree_leaf(int create_new)
@@ -220,15 +221,20 @@ __cilkrts_pedigree *__cilkrts_get_tls_pedigree_leaf(int create_new)
 		// This call sets the TLS pointer to the new node.
 		__cilkrts_set_tls_pedigree_leaf(pedigree_tls);
         
-		pedigree_tls[0].rank = 0;
+		pedigree_tls[0].rank = 1;
 		pedigree_tls[0].parent = &pedigree_tls[1];
+		/* pedigree_tls[0].length = 2; */
+		/* pedigree_tls[0].actual = */
+		/* 	t_worker->g->ped_compression_vec[0] + t_worker->g->ped_compression_vec[1]; */
 
 		// Create Y, whose rank begins as the global counter value.
 		pedigree_tls[1].rank =
 			__sync_add_and_fetch(&__cilkrts_global_pedigree_tls_counter, 1);
-
 		pedigree_tls[1].parent = NULL;
 		CILK_ASSERT(pedigree_tls[1].rank != -1);
+		/* pedigree_tls[1].length = 1; */
+		/* pedigree_tls[1].actual = t_worker->g->ped_compression_vec[0]; */
+		
 	}
 	return pedigree_tls;
 }
@@ -565,7 +571,8 @@ static void __attribute__((constructor)) init_once()
 #define PAGE 4096
 #define CILK_MIN_STACK_SIZE (4*PAGE)
 // Default size for the stacks that we create in Cilk for Unix.
-#define CILK_DEFAULT_STACK_SIZE 0x100000
+//#define CILK_DEFAULT_STACK_SIZE 0x100000
+#define CILK_DEFAULT_STACK_SIZE 0xF000
 
 /*
  * Convert the user's specified stack size into a "reasonable" value

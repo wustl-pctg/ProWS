@@ -131,6 +131,9 @@ inline void update_pedigree_on_leave_frame(__cilkrts_worker *w,
     {
       w->pedigree.rank = sf->spawn_helper_pedigree.rank + 1;
       w->pedigree.parent = sf->spawn_helper_pedigree.parent;
+			// w->pedigree.length = sf->spawn_helper_pedigree.length;
+			// w->pedigree.actual = sf->spawn_helper_pedigree.actual +
+			// 	w->g->ped_compression_vec[w->pedigree.length-1];
     }
 }
 
@@ -148,7 +151,7 @@ inline void update_pedigree_on_leave_frame(__cilkrts_worker *w,
 COMMON_PORTABLE
 void update_pedigree_after_sync(__cilkrts_stack_frame *sf);
 
-
+void init_pedigree_compression_vec(global_state_t* g);
 
 __CILKRTS_END_EXTERN_C
 

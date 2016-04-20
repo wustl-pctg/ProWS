@@ -95,9 +95,13 @@ CILK_API_VOID __cilkrts_end_cilk(void)
 										"running");
 		__cilkrts_stop_workers(g);
 		__cilkrts_deinit_internal(g);
+		fprintf(stderr, "Current stacks: %zu\n", g->active_stacks);
+		fprintf(stderr, "Stacks high watermark: %zu\n", g->stacks_high_watermark);
+
 	}
 
 	global_os_mutex_unlock();
+
 }
 
 CILK_API_INT
@@ -269,6 +273,7 @@ CILK_API_INT __cilkrts_bump_worker_rank_internal(__cilkrts_worker *w)
 	__cilkrts_pedigree *pedigree;
 	pedigree = (w ? &w->pedigree : __cilkrts_get_tls_pedigree_leaf(1));
 	pedigree->rank++;
+	//pedigree->actual += w->g->ped_compression_vec[pedigree->length - 1];
 	return 0;
 }
 

@@ -55,6 +55,7 @@
 #include "cilk/cilk_api.h"
 #include "cilk_malloc.h"
 #include "record-replay.h"
+#include "pedigrees.h"
 
 #include <algorithm>  // For max()
 #include <cstring>
@@ -233,6 +234,7 @@ namespace {
     static const char* const s_shared_stacks    = "shared stacks";
     static const char* const s_nstacks          = "nstacks";
     static const char* const s_stack_size       = "stack size";
+		static const char* const s_ped_seed         = "ped seed";
 
     // We must have a parameter and a value
     if (0 == param)
@@ -342,8 +344,14 @@ namespace {
         // the value that the runtime will actually use.
         g->stack_size = cilkos_validate_stack_size(g->stack_size);
         return ret;     
-			}
+			} else if (strmatch(param, s_ped_seed))
+			{
+				if (cilkg_singleton_ptr)
+					return __CILKRTS_SET_PARAM_LATE;
 
+				int ret = store_int(&g->ped_seed, value, 0, INT_MAX);
+				return ret;
+			}
 
     // If got here, then didn't match any of the strings
     return __CILKRTS_SET_PARAM_UNIMP;
@@ -426,6 +434,8 @@ global_state_t* cilkg_get_user_settable_values()
 
 			/// @rob: Changed this for suspended deques
 			g->max_stacks = INT_MAX;
+			g->active_stacks = 0;
+			g->stacks_high_watermark = 0;
 			
 			// If we have 2400 1MB stacks, that is 2 gb.  If we reach this
 			// limit on a single-socket machine, we may have other
@@ -534,6 +544,7 @@ global_state_t* cilkg_init_global_state()
 
 	// Get partially-initialized global state.
 	global_state_t* g = cilkg_get_user_settable_values();
+	init_pedigree_compression_vec(g);
 
 	if (g->max_stacks > 0) {
 
@@ -582,7 +593,7 @@ global_state_t* cilkg_init_global_state()
 	g->system_workers = g->P - 1; // system_workers is here for the debugger.
 	g->work_done = 0;
 	g->workers_running = 0;
-	g->ltqsize = 1024; /* FIXME */
+	g->ltqsize = 128; /* FIXME */
 
 	g->stack_size = cilkos_validate_stack_size(g->stack_size);
 	g->failure_to_allocate_stack = 0;

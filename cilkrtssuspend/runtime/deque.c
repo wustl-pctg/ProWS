@@ -321,12 +321,20 @@ int deque_init(deque *d, size_t ltqsize)
 	d->protected_tail = d->ltq_limit;
 	__cilkrts_mutex_init(&d->lock);
 	__cilkrts_mutex_init(&d->steal_lock);
+
 	return 0;
 }
 
 void deque_switch(__cilkrts_worker *w, deque *d)
 {
 	CILK_ASSERT(d == w->l->active_deque);
+
+	if (!d || d->saved_ped.rank == 0) { // 0 is no longer valid rank
+		w->pedigree.parent = NULL;
+		/* w->pedigree.actual = w->g->ped_compression_vec[0]; */
+		/* w->pedigree.length = 1; */
+		w->pedigree.rank = 1;
+	}
 
 	// We may have run out of memory for deques, in which case we want
 	// to go back to the scheduling loop and try to mug resumable
@@ -336,7 +344,7 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 		w->ltq_limit = w->l->current_ltq = w->l->frame_ff = NULL;
 		w->current_stack_frame = NULL;
 		return;
-	}
+	} 
 
 	if (d->resumable) CILK_ASSERT(d->fiber);
 	CILK_ASSERT(d->worker == NULL);
@@ -350,7 +358,6 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 	w->ltq_limit = &d->ltq_limit;
 	w->l->current_ltq = &d->ltq;
 	w->l->frame_ff = &d->frame_ff;
-	w->pedigree = d->saved_ped;
 	w->current_stack_frame = d->call_stack;
 	
 	// This deque is now active, so remove that saved pedigree information

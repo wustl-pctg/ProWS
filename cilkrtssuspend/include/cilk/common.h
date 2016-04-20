@@ -65,9 +65,9 @@
  */
 namespace cilk {
     
-    /** Namespace for definitions re-used in other Intel Cilk Plus definitions.
-     */
-    namespace internal {}
+	/** Namespace for definitions re-used in other Intel Cilk Plus definitions.
+	 */
+	namespace internal {}
 }
 #endif
 
@@ -224,16 +224,16 @@ namespace cilk {
  * set by the user), we must use a platform-specific detection of debug mode.
  */
 #if defined(_WIN32) && defined(_DEBUG)
-    /* Windows debug */
+/* Windows debug */
 #   define __CILKRTS_ASSERT(e) assert(e)
 #elif (! defined(_WIN32)) && ! defined(__OPTIMIZE__)
-    /* Unix non-optimized */
+/* Unix non-optimized */
 #   define __CILKRTS_ASSERT(e) assert(e)
 #elif defined __cplusplus
-    /* C++ non-debug */
+/* C++ non-debug */
 #   define __CILKRTS_ASSERT(e) static_cast<void>(0)
 #else
-    /* C non-debug */
+/* C non-debug */
 #   define __CILKRTS_ASSERT(e) ((void) 0)
 #endif
 
@@ -241,16 +241,16 @@ namespace cilk {
  * OS-independent macro to specify a function that should be inlined
  */
 #ifdef __cplusplus
-    // C++
+// C++
 #   define __CILKRTS_INLINE inline
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    // C99
+// C99
 #   define __CILKRTS_INLINE static inline
 #elif defined(_MSC_VER)
-    // C89 on Windows
+// C89 on Windows
 #   define __CILKRTS_INLINE __inline
 #else
-    // C89 on GCC-compatible systems
+// C89 on GCC-compatible systems
 #   define __CILKRTS_INLINE extern __inline__
 #endif
 
@@ -276,16 +276,16 @@ namespace cilk {
 #   elif defined(__GXX_EXPERIMENTAL_CXX0X__)
 #       define __CILKRTS_RVALUE_REFERENCES 1
 #   elif __cplusplus >= 199711L && __cplusplus < 201103L
-        // Compiler recognizes a language version prior to C++11
+// Compiler recognizes a language version prior to C++11
 #   elif __INTEL_COMPILER == 1200 && defined(__STDC_HOSTED__)
-        // Intel compiler version 12.0
-        // __cplusplus has a non-standard definition.  In the absence of a
-        // proper definition, look for the C++0x macro, __STDC_HOSTED__.
+// Intel compiler version 12.0
+// __cplusplus has a non-standard definition.  In the absence of a
+// proper definition, look for the C++0x macro, __STDC_HOSTED__.
 #       define __CILKRTS_RVALUE_REFERENCES 1
 #   elif __INTEL_COMPILER > 1200 && defined(CHAR16T)
-        // Intel compiler version >= 12.1
-        // __cplusplus has a non-standard definition.  In the absence of a
-        // proper definition, look for the Intel macro, CHAR16T
+// Intel compiler version >= 12.1
+// __cplusplus has a non-standard definition.  In the absence of a
+// proper definition, look for the Intel macro, CHAR16T
 #       define __CILKRTS_RVALUE_REFERENCES 1
 #   endif
 #endif
@@ -302,15 +302,15 @@ namespace cilk {
 #else
 #   ifndef __MS_STDINT_TYPES_DEFINED__
 #       define __MS_STDINT_TYPES_DEFINED__
-        typedef signed char int8_t;
-        typedef short int16_t;
-        typedef int int32_t;
-        typedef __int64 int64_t;
+typedef signed char int8_t;
+typedef short int16_t;
+typedef int int32_t;
+typedef __int64 int64_t;
 
-        typedef unsigned char uint8_t;
-        typedef unsigned short uint16_t;
-        typedef unsigned int uint32_t;
-        typedef unsigned __int64 uint64_t;
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned __int64 uint64_t;
 #   endif  /* __MS_STDINT_TYPES_DEFINED__ */
 #endif  /* ! defined(_MSC_VER) || (_MSC_VER >= 1600) */
 
@@ -328,10 +328,10 @@ namespace cilk {
 #   ifdef IN_CILK_RUNTIME
 #       define __CILKRTS_ABI_VERSION 1
 #   elif defined(__INTEL_COMPILER) && (__INTEL_COMPILER <= 1200)
-        // Intel compilers prior to version 12.1 support only ABI 0
+// Intel compilers prior to version 12.1 support only ABI 0
 #       define __CILKRTS_ABI_VERSION 0
 #   else
-        // Non-Intel compiler or Intel compiler after version 12.0.
+// Non-Intel compiler or Intel compiler after version 12.0.
 #       define __CILKRTS_ABI_VERSION 1
 #   endif
 #endif
@@ -340,25 +340,25 @@ namespace cilk {
 // the internal version of API methods require a worker
 // structure as parameter. 
 __CILKRTS_BEGIN_EXTERN_C
-    /// Worker struct, exported for inlined API methods
-    /// @ingroup api
-    struct __cilkrts_worker;
+/// Worker struct, exported for inlined API methods
+/// @ingroup api
+struct __cilkrts_worker;
 
-    /// Worker struct, exported for inlined API methods
-    /// @ingroup api
-    typedef struct __cilkrts_worker __cilkrts_worker;     
+/// Worker struct, exported for inlined API methods
+/// @ingroup api
+typedef struct __cilkrts_worker __cilkrts_worker;     
 
-    /// Worker struct pointer, exported for inlined API methods
-    /// @ingroup api
-    typedef struct __cilkrts_worker *__cilkrts_worker_ptr; 
+/// Worker struct pointer, exported for inlined API methods
+/// @ingroup api
+typedef struct __cilkrts_worker *__cilkrts_worker_ptr; 
     
     
-    /// Fetch the worker out of TLS.
-    CILK_ABI(__cilkrts_worker_ptr) __cilkrts_get_tls_worker(void);
+/// Fetch the worker out of TLS.
+CILK_ABI(__cilkrts_worker_ptr) __cilkrts_get_tls_worker(void);
 
-    /// void *, defined to work around complaints from the compiler
-    /// about using __declspec(nothrow) after the "void *" return type
-    typedef void * __cilkrts_void_ptr;
+/// void *, defined to work around complaints from the compiler
+/// about using __declspec(nothrow) after the "void *" return type
+typedef void * __cilkrts_void_ptr;
 
 __CILKRTS_END_EXTERN_C
 
@@ -371,11 +371,20 @@ __CILKRTS_END_EXTERN_C
  */
 typedef struct __cilkrts_pedigree
 {
-    /** Rank at start of spawn helper. Saved rank for spawning functions */
-    uint64_t rank;
-                                         
-    /** Link to next in chain */
-    const struct __cilkrts_pedigree *parent;
+	/** Rank at start of spawn helper. Saved rank for spawning functions */
+	uint64_t rank;
+  
+	/** Link to next in chain */
+	const struct __cilkrts_pedigree *parent;
+	
+	/** Pre-computed hash of pedigree */
+	//uint64_t actual;
+
+	// The alternative to length is actually keeping v_i here. This
+	// would reduce the cost of retrieving
+	// g->ped_compression_vec[length] at every update. But length may
+	// have other nice uses.
+	//uint64_t length;
 } __cilkrts_pedigree;
 
 #endif // __CILKRTS_ABI_VERSION >= 1

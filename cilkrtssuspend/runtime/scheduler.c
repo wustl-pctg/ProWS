@@ -883,7 +883,7 @@ static void random_steal(__cilkrts_worker *w)
 #endif        
         return;
     }
-    fprintf(stderr, "(w: %d) allocated fiber %p\n", w->self, fiber);
+    //fprintf(stderr, "(w: %d) allocated fiber %p\n", w->self, fiber);
     
     /* Execute a quick check before engaging in the THE protocol.
        Avoid grabbing locks if there is nothing to steal. */
@@ -1332,12 +1332,16 @@ static void setup_for_execution_pedigree(__cilkrts_worker *w)
     {
         if (w->l->work_stolen) {
             w->pedigree.rank = sf->parent_pedigree.rank + 1;
+            /* w->pedigree.actual = sf->parent_pedigree.actual + */
+            /*     w->g->ped_compression_vec[sf->parent_pedigree.length-1]; */
         } else { 
             w->pedigree.rank = sf->parent_pedigree.rank;
+//            w->pedigree.actual = sf->parent_pedigree.actual;
         }
     }
 
     w->pedigree.parent = sf->parent_pedigree.parent;
+    //w->pedigree.length = sf->parent_pedigree.length;
     w->l->work_stolen = 0;
 }
 
@@ -1613,7 +1617,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
     
     if (w->l->fiber_to_free) {
 
-        fprintf(stderr, "(w: %d) about to free %p\n", w->self, w->l->fiber_to_free);
+        //fprintf(stderr, "(w: %d) about to free %p\n", w->self, w->l->fiber_to_free);
         // Case 1: we are freeing this fiber.  We never
         // resume this fiber again after jumping into the runtime.
         w->l->fiber_to_free = NULL;
@@ -2223,8 +2227,10 @@ static void do_sync(__cilkrts_worker *w, full_frame *ff,
                 // or later frame
                 if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1)
                 {
-                    sf->parent_pedigree.rank = w->pedigree.rank;
-                    sf->parent_pedigree.parent = w->pedigree.parent;
+                    /* sf->parent_pedigree.rank = w->pedigree.rank; */
+                    /* sf->parent_pedigree.parent = w->pedigree.parent; */
+                    sf->parent_pedigree = w->pedigree;
+                    
                     
                     // Note that the pedigree rank needs to be updated
                     // when setup_for_execution_pedigree runs
@@ -2789,8 +2795,10 @@ __cilkrts_worker *make_worker(global_state_t *g,
     w->self = self;
     w->g = g;
 
-    w->pedigree.rank = 0;    // Initial rank is 0
+    w->pedigree.rank = 1;    // Initial rank is 1, for precomputation
     w->pedigree.parent = NULL;
+    /* w->pedigree.length = 1; */
+    /* w->pedigree.actual = g->ped_compression_vec[0]; */
 
     w->l = (local_state *)__cilkrts_malloc(sizeof(*w->l));
 
@@ -3130,8 +3138,7 @@ void __cilkrts_init_internal(int start)
 
     if (cilkg_is_published()) {
         g = cilkg_init_global_state();
-    }
-    else {
+    } else {
 
         // We think the state has not been published yet.
         // Grab the lock and try to initialize/publish.

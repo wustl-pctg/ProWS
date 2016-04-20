@@ -121,8 +121,21 @@ void update_pedigree_after_sync(__cilkrts_stack_frame *sf)
   // frame
   if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1) {
 		++(w->pedigree.rank);
+    //w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
 	}
 
+}
+
+void init_pedigree_compression_vec(global_state_t* g)
+{
+    if (g->ped_seed == -1) srand(time(NULL));
+    else srand(g->ped_seed);
+
+    g->big_prime = (1L << 63) - 58;
+
+    for (int i = 0; i < 256; ++i)
+        g->ped_compression_vec[i] = rand() % g->big_prime;
+        //g->ped_compression_vec[i] = i+1;
 }
 
 

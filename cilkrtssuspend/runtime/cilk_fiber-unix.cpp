@@ -52,10 +52,15 @@
 #include "bug.h"
 #include "os.h"
 
+/// @todo{Remove this include; only for debugging suspended fibers}
+#include "global_state.h" 
+extern global_state_t *__cilkrts_global_state;
+
 #include <cstdio>
 #include <cstdlib>
 
 #include <errno.h>
+#include <signal.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h> // strerror
@@ -297,10 +302,18 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 		// when jumping to this fiber...so I've added this call to
 		// __cilkrts_bug.
 		//		__cilkrts_bug("Cilk: out of memory for stacks\n");
+		fprintf(stderr, "Cilk: out of memory for stacks!\n");
+		raise(SIGSTOP);
 		
 		return;
 	}
-	fprintf(stderr, "Stack mmap: %p\n", p);
+	//fprintf(stderr, "Stack mmap: %p\n", p);
+	size_t newval = __sync_fetch_and_add(&__cilkrts_global_state->active_stacks, 1) + 1;
+	size_t oldval = __cilkrts_global_state->stacks_high_watermark;
+	while (newval > oldval
+				 &&  !__sync_bool_compare_and_swap(&__cilkrts_global_state->stacks_high_watermark, oldval, newval)) {
+		oldval = __cilkrts_global_state->stacks_high_watermark;
+	}
 
 	// mprotect guard pages.
 	mprotect(p + rounded_stack_size - s_page_size, s_page_size, PROT_NONE);
@@ -315,9 +328,13 @@ void cilk_fiber_sysdep::free_stack()
 {
 	if (m_stack) {
 		size_t rounded_stack_size = m_stack_base - m_stack + s_page_size;
-		if (munmap(m_stack, rounded_stack_size) < 0)
-			__cilkrts_bug("Cilk: stack munmap failed error %s\n", strerror(errno));
-		fprintf(stderr, "Stack munmap: %p\n", m_stack);
+		if (munmap(m_stack, rounded_stack_size) < 0) {
+			fprintf(stderr, "Cilk: stack munmap failed error %s\n", strerror(errno));
+			raise(SIGSTOP);
+		}
+		__sync_fetch_and_sub(&__cilkrts_global_state->active_stacks, 1);
+			//__cilkrts_bug("Cilk: stack munmap failed error %s\n", strerror(errno));
+		//fprintf(stderr, "Stack munmap: %p\n", m_stack);
 	}
 }
 

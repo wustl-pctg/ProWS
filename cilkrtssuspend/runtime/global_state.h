@@ -266,6 +266,11 @@ struct global_state_t { /* COMMON_PORTABLE */
 
 	int P;         ///< USER SETTING: number of system workers + 1 (fixed)
 	int Q;         ///< Number of user threads currently bound to workers 
+	size_t active_stacks;
+	size_t stacks_high_watermark;
+	int ped_seed;
+	size_t big_prime;
+	size_t ped_compression_vec[256];
 };
 
 /**
@@ -357,6 +362,10 @@ global_state_t* cilkg_get_global_state(void)
  *   stacks and the app will lose parallelism.  0 means unlimited.  Default is
  *   unlimited.  Minimum is twice the number of worker threads, though that
  *   cannot be tested at this time.
+ *
+ * - "ped seed" - (Not publicly documented at this time) Sets the seed
+ *   to use to generate the vector of random ints for pedigree
+ *   compression.
  */
 int cilkg_set_param(const char* param, const char* value);
 #ifdef _WIN32

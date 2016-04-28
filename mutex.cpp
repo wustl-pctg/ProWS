@@ -5,6 +5,7 @@
 #include <atomic>
 
 #include <internal/abi.h>
+#include "cilk/cilk_api.h"
 
 namespace cilkrr {
 
@@ -90,12 +91,11 @@ namespace cilkrr {
 
 	void mutex::replay_lock(pedigree_t& p)
 	{
-		//if (p != m_acquires->current()->ped)
 		if (!(p == m_acquires->current()->ped))
 			suspend(p); // returns locked, but not acquired
 		else // may need to wait constant time as owner decides to release lock
 			m_mutex.lock();
-		// // Invariant: Upon return, the lock is locked by this worker
+		// Invariant: Upon return, the lock is locked by this worker
 	}
 
 	bool mutex::replay_try_lock(pedigree_t& p)

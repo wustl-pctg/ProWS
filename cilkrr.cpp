@@ -9,31 +9,13 @@
 
 namespace cilkrr {
 
-	size_t num_places(size_t n)
-	{
-		if (n < 10) return 1;
-		if (n < 100) return 2;
-		if (n < 1000) return 3;
-		if (n < 10000) return 4;
-		if (n < 100000) return 5;
-		if (n < 1000000) return 6;
-		if (n < 10000000) return 7;
-		if (n < 100000000) return 8;
-		if (n < 1000000000) return 9;
-		if (n < 10000000000) return 10;
-		if (n < 100000000000) return 11;
-		if (n < 1000000000000) return 12;
-		// unlikely
-		fprintf(stderr, "Very deep parallelism...\n");
-		std::abort();
-	}
 
-#if PMETHOD == PMDOT
+#if PTYPE == PDOT
 	// 2^64 - 59
 	static size_t big_prime = std::numeric_limits<size_t>::max() - 58;
 #endif
 
-#if PTYPE == PINT && IMETHOD == IHASHCONFLICT
+#ifdef CONFLICT_CHECK
 	full_pedigree_t get_full_pedigree()
 	{
 		const __cilkrts_pedigree tmp = __cilkrts_get_pedigree();
@@ -62,44 +44,18 @@ namespace cilkrr {
 	pedigree_t get_pedigree()
 	{
 		const __cilkrts_pedigree tmp = __cilkrts_get_pedigree();
-		const __cilkrts_pedigree *current = &tmp;
+		const __cilkrts_pedigree* current = &tmp;
 		pedigree_t p;
 
-#if PMETHOD == PMNONE
+#if PTYPE == PNONE
 		// do nothing
-#elif PMETHOD == PMWALK
+#elif PTYPE == PWALK
 		while (current) {
 			current = current->parent;
 		}
-#elif PMETHOD == PMPRE
+#elif PTYPE == PPRE
 		p = current->actual;
-#elif PMETHOD == PMGET
-#  if PTYPE == PSTRING
-		size_t nchars = 2; // [ and ] and null
-		while (current) {
-			nchars += num_places(current->rank) + 1; // for comma
-			current = current->parent;
-		}
-		char* chars = (char*)malloc(sizeof(char) * (nchars+1));
-		size_t ind = nchars;
-		chars[ind] = '\0';
-		chars[--ind] = ']';
-		current = &tmp;
-
-		// It's illegal to use itoa in C++, so we're forced to use sprintf
-		// which ALWAYS puts a null character at the end.
-		while (current) {
-			size_t comma = --ind;
-			ind -= num_places(current->rank);
-			sprintf(&chars[ind], "%lu", current->rank);
-			chars[comma] = ',';
-			current = current->parent;
-		}
-
-		chars[--ind] = '[';
-		assert(ind == 0);
-		p.assign(chars, nchars);
-#  elif PTYPE == PARRAY
+#elif PTYPE == PARRAY
 		p.length = 0;
 		while (current) {
 			p.length++;
@@ -112,14 +68,6 @@ namespace cilkrr {
 			p.array[ind--] = current->rank;
 			current = current->parent;
 		}
-		// 	//ped += g_rr_state->randvec[ind--] * current->rank;
-		// 	ped += g_rr_state->randvec[ind++] * current->rank;
-		// 	current = current->parent;
-		// }
-		// ped %= big_prime;
-#  else
-#    error "Invalid PTYPE for method PMGET"
-#  endif
 #elif PMETHOD == PMDOT
 		p = 0;
 		size_t ind = 0;
@@ -139,7 +87,7 @@ namespace cilkrr {
 	{
 		char *env;
 
-#if PMETHOD == PMDOT
+#if PTYPE == PDOT
 		srand(0);
 		for (int i = 0; i < 256; ++i)
 			randvec[i] = rand() % big_prime;
@@ -204,29 +152,40 @@ namespace cilkrr {
 		}
 	}
 
+	void test(std::ofstream &output)
+	{
+		output << "help" << std::endl;
+	}
+
 	state::~state()
 	{
 		assert(m_active_size == 0);
-#if PTYPE == PINT && IMETHOD == IHASHCONFLICT
-		fprintf(stderr, "Num conflicts: %zu out of %zu\n",
-						m_all_acquires[0]->m_num_conflicts,
-						m_all_acquires[0]->m_cont_size);
+#ifdef CONFLICT_CHECK
+		if (m_mode == RECORD)
+			fprintf(stderr, "Conflicts: %zu\n", m_all_acquires[0]->m_num_conflicts);
 #endif
+
 		return; // Only for measuring the overhead
 		if (m_mode != RECORD) return;
 		std::ofstream output;
 		acquire_container* cont;
 		output.open(m_filename);
 		
-		output << m_size << std::endl;
+		// In all example programs I can find, std::to_string is not
+		// necessary Something strange is going on, but I am in the mood
+		// to punch through the damn monitor, so I won't waste the time to
+		// try to figure it out.
+		output << std::to_string(m_size) << std::endl;
 		for (int i = 0; i < m_size; ++i) {
 			output << "{" << i << ":" << std::endl;
 			
 			cont = m_all_acquires[i];
-		 	cont->reset();
-			for (auto acq = cont->begin(); acq != cont->end(); acq = cont->next()) {
-				output << "\t" << *acq << std::endl;
-			}
+			cont->print(output);
+			// test(output);
+		 	// cont->reset();
+			// for (auto acq = cont->begin(); acq != cont->end(); acq = cont->next()) {
+			// 	output << "\t" << *acq << std::endl;
+			// }
 			output << "}" << std::endl;
 		}
 		output.close();
@@ -306,6 +265,5 @@ namespace cilkrr {
 		delete cilkrr::g_rr_state;
 	}
 }
-
 
 

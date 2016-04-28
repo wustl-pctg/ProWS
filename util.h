@@ -7,36 +7,52 @@
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
+// PTYPE
 #define PNONE 0
-#define PSTRING 1
+#define PWALK 1
 #define PARRAY 2
-#define PINT 3
-
-#define INONE 0
-#define IHASH 1
-#define ILL 2
-#define IHASHCONFLICT 3
-
-#define PMNONE 0
-#define PMWALK 1
-#define PMGET 2
-#define PMDOT 3
-#define PMPRE 4
+#define PDOT 3
+#define PPRE 4
 
 #ifndef PTYPE
-#define PTYPE PSTRING
+#define PTYPE PNONE
 #endif
+
+// IMETHOD
+#define INONE 0
+#define ILL 1
+#define ICHUNKLL 2
+#define IHASH 3
+#define IMYHASH 4
+#define IMIXED 5
+
 #ifndef IMETHOD
-#define IMETHOD IHASH
+#define IMETHOD INONE
 #endif
-#ifndef PMETHOD
-#define PMETHOD PMGET
+
+// Also CONFLICT_CHECK, USE_STL
+
+#ifndef RESERVE_SIZE
+#define RESERVE_SIZE 4096
 #endif
+
+#if IMETHOD == IHASH
+#if !(PTYPE == PDOT || PTYPE == PARRAY)
+#error "Can only use hash with compressed pedigrees."
+#endif
+#endif
+
+// Disabled for benchmarking
+/* #if PTYPE == PDOT || PTYPE == PARRAY */
+/* #if !(IMETHOD == IHASH || IMETHOD == IHASHCONFLICT) */
+/* #error "Compressed pedigrees require using hash" */
+/* #endif */
+/* #endif */
 
 namespace cilkrr {
 
 #if PTYPE == PARRAY
-	typedef struct pedigree_s{
+	typedef struct pedigree_s {
 		size_t length;
 		uint64_t *array;
 
@@ -51,32 +67,22 @@ namespace cilkrr {
 		}
 	} pedigree_t;
 
-	struct array_hasher {
-		size_t operator()(const pedigree_t& k) const
-		{
-			size_t h;
-			for (int i = 0; i < k.length; ++i)
-				h = (h + (324723947 + k.array[i])) ^ 93485734985;
-			//				h ^= std::hash<uint64_t>()(k.array[i]);
-
-			return h;
-		}
-	};
-#elif PTYPE == PNONE || PTYPE == PSTRING
-	typedef std::string pedigree_t;
-#elif PTYPE == PINT
+#else
 	typedef uint64_t pedigree_t;
-
-#  if IMETHOD == IHASHCONFLICT
+		
+		// For use with STL unordred_multiset
+		struct compressed_hasher {
+			size_t operator()(const pedigree_t& k) const { return k; }
+		};
+#endif
+#ifdef CONFLICT_CHECK
 	typedef struct {
 		size_t length;
 		uint64_t *array;
 	} full_pedigree_t;
 	full_pedigree_t get_full_pedigree();
-#  endif
-#else
-#error "Invalid PTYPE"
 #endif
+
 	pedigree_t get_pedigree();
 
 	enum mode {

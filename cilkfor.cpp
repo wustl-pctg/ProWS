@@ -15,10 +15,12 @@ int main(int argc, char *argv[])
 #pragma cilk grainsize=1
 	cilk_for(int i = 0; i < n; ++i) {
 
-		//__cilkrts_bump_loop_rank();
+		__cilkrts_bump_loop_rank();
 
+		// fprintf(stderr, "i(%i): %zu\n", i,
+		// 				cilkrr::get_pedigree());
 		// fprintf(stderr, "i(%i): %s\n", i,
-		// 				cilkrr::get_pedigree().c_str());
+		// 				cilkrr::get_full_pedigree().c_str());
 
 		g_mutex.lock();
 		count++;

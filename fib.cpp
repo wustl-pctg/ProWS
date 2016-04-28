@@ -19,6 +19,7 @@
  *
  */
 #include <cstdio>
+#include <chrono>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
@@ -31,7 +32,7 @@ int count = 0;
 #define log(args...)
 #endif
 
-cilkrr::mutex g_mutex0, g_mutex1;
+cilkrr::mutex g_mutex0;//, g_mutex1;
 
 int fib(int n) {
 	if (n < 2) {
@@ -93,8 +94,12 @@ int main(int argc, char *argv[])
 	}
 	n = atoi(argv[1]);
 
+	// auto start = std::chrono::high_resolution_clock::now();
 	result = fib(n);
+	// auto end = std::chrono::high_resolution_clock::now();
 	std::cout << "Result: " << result << std::endl;
+	std::cout << "Count: " << count << std::endl;
+	// std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
 
 	// Prints out stack high watermark
 	//	__cilkrts_end_cilk();

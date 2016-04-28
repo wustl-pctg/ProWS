@@ -37,7 +37,7 @@ esac
 
 ITER_PER_RECORD=$(( $ITER / $NUM_RECORDS ))
 
-maxtime=10
+maxtime=20
 line="                                                                               "
 
 declare verbose
@@ -61,6 +61,10 @@ function showstatus() {
 
 # 1=n, 2=recordp, 3=replayp
 function runcmd() {
+
+		acquire_stacks=$(echo "((1.618 ^ $1 ) + 1 - 1) / 1 + 1" | bc)
+		normal_stacks=$(echo "$3 * $1 + 1" | bc)
+		let "max_stacks = acquire_stacks + normal_stacks"
 		cmd="CILK_NWORKERS=$3 CILKRR_MODE=replay timeout --signal=SIGABRT ${maxtime}s ./fib $1"
 		msg="fib($1) recorded with $2 workers, replayed with $3 workers"
 		suffix=""
@@ -81,6 +85,13 @@ function runcmd() {
 				printf "$msg\nSee log for details.\n"
 				exit 1
 		fi
+
+		used_stacks=$(tail -1 log | cut -d ":" -f 2)
+		if [[ $used_stacks -gt $max_stacks ]]; then
+				printf "\n Used too many stacks!\n"
+				printf "Used: $used_stacks, Max: $max_stacks"
+				exit 1
+		fi
 }
 
 make fib
@@ -90,6 +101,7 @@ status=""
 for n in `seq $STARTN $ENDN`; do
 		status="fib($n):"
 		for recordp in `seq 1 8`; do
+		#for recordp in `seq 8 8`; do
 				for i in `seq 1 $NUM_RECORDS`; do
 						showstatus
 						CILK_NWORKERS=$recordp CILKRR_MODE=record ./fib $n >& log

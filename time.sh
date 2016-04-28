@@ -1,10 +1,15 @@
 #!/bin/bash
 
-# N=${1:-10000000}
-# export PROG=cilkfor
-N=${1:-38}
-export PROG=fib
-ITER=${2:-5}
+PROG=${1:-cilkfor}
+N=${2:-100000000}
+RESERVE=$N
+
+# PROG=${1:-fib}
+# N=${2:-38}
+# RESERVE=$(echo "s=1.618 ^ $N; scale = 0; s /= 1; s += 100; print s" | bc)
+
+export PROG
+ITER=${3:-3}
 P=1 # Fixed, for now
 
 clean() {
@@ -27,8 +32,8 @@ runcmd() {
 		local P=$3
 		local E=$4
 
-		#cmd="CILK_NWORKERS=$P $E /usr/bin/time -f "%E" -- ./$PROG $N 2>&1 | tail -1 | cut -d ':' -f 2"
 		cmd="CILK_NWORKERS=$P $E /usr/bin/time -f '%E' -- ./$PROG $N 2>&1"
+		# cmd="CILK_NWORKERS=$P $E ./$PROG $N 2>&1"
 		local result=0
 		local tmp=0
 		for i in `seq 1 $ITER`; do
@@ -39,6 +44,7 @@ runcmd() {
 						exit 1;
 				fi
 				tmp=$(eval "echo '$tmp' | tail -1 | awk -F : '{ print (\$1 * 60) + \$2 }'")
+				# tmp=$(eval "echo '$tmp' | tail -1")
 				result=$(echo "scale=2; $tmp + $result" | bc)
 		done
 		echo $(echo "scale=2; $result / $ITER" | bc)
@@ -46,79 +52,112 @@ runcmd() {
 
 printf "Running %s %d, P=%d, %d iterations \n" $PROG $N $P $ITER
 
-# clean "" mv fib fib_base
+clean
+base=$(runcmd $ITER $N $P "CILKRR_MODE=none")
+printf "Base: %f\n" $base
 
-# Just doing a normal make results in slower (non-recording) code that
-#using these params... this is strange, and something I ought to
-#figure out
-# clean "PARAMS='-DPTYPE=0 -DPMETHOD=0 -DIMETHOD=0'"
-# base=$(runcmd $ITER $N $P "CILKRR_MODE=none")
-# printf "Base: %f\n" $base
+clean "PARAMS='-DPTYPE=0 -DIMETHOD=0'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Call only: %f\n" $record
 
-# clean "PARAMS='-DPTYPE=0 -DPMETHOD=0 -DIMETHOD=0'"
-# # mv fib fib_call
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "Call only: %f\n" $record
+clean "PARAMS='-DPTYPE=1 -DIMETHOD=0'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Walk only: %f\n" $record
 
-# clean "PARAMS='-DPTYPE=0 -DPMETHOD=1 -DIMETHOD=0'"
-# # mv fib fib_walk
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "Walk only: %f\n" $record
-
-# clean "PARAMS='-DPTYPE=1 -DPMETHOD=2 -DIMETHOD=0'"
-# # mv fib fib_str_none
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "String,none: %f\n" $record
-
-# clean "PARAMS='-DPTYPE=1 -DPMETHOD=2 -DIMETHOD=1'"
-# # mv fib fib_str_hash
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "String,hash: %f\n" $record
-
-# clean "PARAMS='-DPTYPE=1 -DPMETHOD=2 -DIMETHOD=2'"
-# # # mv fib fib_str_ll
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "String,LL: %f\n" $record
-
-clean "PARAMS='-DPTYPE=2 -DPMETHOD=2 -DIMETHOD=0'"
+clean "PARAMS='-DPTYPE=2 -DIMETHOD=0'"
 record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
 printf "Array,none: %f\n" $record
 
-# Too slow...which is fine, we only NEED hash for compressed pedigrees
-# clean "PARAMS='-DPTYPE=2 -DPMETHOD=2 -DIMETHOD=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "Array,hash: %f\n" $record
+clean "PARAMS='-DPTYPE=2 -DIMETHOD=1 -DUSE_STL=1'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Array,STL list: %f\n" $record
 
-clean "PARAMS='-DPTYPE=2 -DPMETHOD=2 -DIMETHOD=2'"
+clean "PARAMS='-DPTYPE=2 -DIMETHOD=1'"
 record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
 printf "Array,LL: %f\n" $record
 
-clean "PARAMS='-DPTYPE=3 -DPMETHOD=3 -DIMETHOD=0'"
+clean "PARAMS='-DPTYPE=2 -DIMETHOD=2'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Array,CLL: %f\n" $record
+
+clean "PARAMS='-DPTYPE=2 -DIMETHOD=2 -DRESERVE_SIZE=$RESERVE'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Array,CLL,reserve: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=0'"
 record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
 printf "Dot,none: %f\n" $record
 
-clean "PARAMS='-DPTYPE=3 -DPMETHOD=3 -DIMETHOD=1'"
-# cp fib fib_dot_hash
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=2'"
 record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-printf "Dot,hash: %f\n" $record
+printf "Dot,CLL only: %f\n" $record
 
-clean "PARAMS='-DPTYPE=3 -DPMETHOD=3 -DIMETHOD=3'"
-# cp fib fib_dot_conflict
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1'"
 record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-printf "Dot,hash-conflict: %f\n" $record
+printf "Dot,STL hash: %f\n" $record
 
-# clean "PARAMS='-DPTYPE=3 -DPMETHOD=4 -DIMETHOD=0'"
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1 -DRESERVE_SIZE=$RESERVE'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,STL hash, reserve: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1 -DCONFLICT_CHECK=1'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,STL hash,conflict: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,STL hash, reserve, conflict: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=5'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,Mixed: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=5 -DRESERVE_SIZE=$RESERVE'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,Mixed, reserve: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=5 -DCONFLICT_CHECK=1'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,Mixed,conflict: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=5 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,Mixed, reserve, conflict: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=4'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,myhash: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,myhash,reserve: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=4 -DCONFLICT_CHECK=1'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,myhash-conflict: %f\n" $record
+
+clean "PARAMS='-DPTYPE=3 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1'"
+record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+printf "Dot,myhash-conflict,reserve: %f\n" $record
+
+# clean "PARAMS='-DPTYPE=4 -DIMETHOD=0 -DPRECOMPUTE_PEDIGREES=1'"
 # record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
 # printf "Pre,none: %f\n" $record
 
-# clean "PARAMS='-DPTYPE=3 -DPMETHOD=4 -DIMETHOD=1'"
+# clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DPRECOMPUTE_PEDIGREES=1'"
 # record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "Pre,hash: %f\n" $record
+# printf "Pre,myhash: %f\n" $record
 
-# clean "PARAMS='-DPTYPE=3 -DPMETHOD=4 -DIMETHOD=3'"
+# clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE -DPRECOMPUTE_PEDIGREES=1'"
 # record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
-# printf "Pre,hash-conflict: %f\n" $record
+# printf "Pre,myhash,reserve: %f\n" $record
 
-# overhead=$(echo "scale=2; $record / $base" | bc)
-# printf "Overhead: %.2fx\n" $overhead
+# clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DCONFLICT_CHECK=1 -DPRECOMPUTE_PEDIGREES=1'"
+# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# printf "Pre,myhash-conflict: %f\n" $record
+
+# clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1 -DPRECOMPUTE_PEDIGREES=1'"
+# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# printf "Pre,myhash-conflict,reserve: %f\n" $record
+
 unset PROG

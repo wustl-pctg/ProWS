@@ -377,14 +377,17 @@ typedef struct __cilkrts_pedigree
 	/** Link to next in chain */
 	const struct __cilkrts_pedigree *parent;
 	
-	/** Pre-computed hash of pedigree */
-	//uint64_t actual;
 
 	// The alternative to length is actually keeping v_i here. This
 	// would reduce the cost of retrieving
 	// g->ped_compression_vec[length] at every update. But length may
 	// have other nice uses.
-	//uint64_t length;
+#ifdef PRECOMPUTE_PEDIGREES
+	uint64_t length;
+	/** Pre-computed hash of pedigree */
+	uint64_t actual;
+#endif
+
 } __cilkrts_pedigree;
 
 #endif // __CILKRTS_ABI_VERSION >= 1

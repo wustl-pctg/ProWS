@@ -131,9 +131,13 @@ inline void update_pedigree_on_leave_frame(__cilkrts_worker *w,
     {
       w->pedigree.rank = sf->spawn_helper_pedigree.rank + 1;
       w->pedigree.parent = sf->spawn_helper_pedigree.parent;
-			// w->pedigree.length = sf->spawn_helper_pedigree.length;
-			// w->pedigree.actual = sf->spawn_helper_pedigree.actual +
-			// 	w->g->ped_compression_vec[w->pedigree.length-1];
+#ifdef PRECOMPUTE_PEDIGREES
+			w->pedigree.length = sf->spawn_helper_pedigree.length;
+			w->pedigree.actual = sf->spawn_helper_pedigree.actual +
+				w->g->ped_compression_vec[w->pedigree.length-1];
+			if (w->pedigree.actual >= w->g->big_prime)
+				w->pedigree.actual %= w->g->big_prime;
+#endif
     }
 }
 

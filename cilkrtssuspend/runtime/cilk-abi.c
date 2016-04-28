@@ -172,8 +172,13 @@ CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *self)
 	self->call_parent->parent_pedigree = w->pedigree;
 	w->pedigree.rank = 1; // Need nonzero for precomputing pedigrees
 	w->pedigree.parent = &self->spawn_helper_pedigree;
-	// w->pedigree.length++;
-	// w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
+
+#ifdef PRECOMPUTE_PEDIGREES
+	w->pedigree.length++;
+	w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
+	if (w->pedigree.actual >= w->g->big_prime)
+		w->pedigree.actual %= w->g->big_prime;
+#endif
 
 	CILK_ASSERT(tail < *w->ltq_limit);
 	*tail++ = parent;
@@ -334,8 +339,11 @@ CILK_ABI_VOID __cilkrts_sync(__cilkrts_stack_frame *sf)
   if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1) {
 		sf->parent_pedigree.rank = w->pedigree.rank;
 		sf->parent_pedigree.parent = w->pedigree.parent;
-		// sf->parent_pedigree.length = w->pedigree.length; // is this necessary?
-		// sf->parent_pedigree.actual = w->pedigree.actual;
+
+#ifdef PRECOMPUTE_PEDIGREES
+		sf->parent_pedigree.length = w->pedigree.length; // is this necessary?
+		sf->parent_pedigree.actual = w->pedigree.actual;
+#endif
 	}
 
 	/*    DBGPRINTF("%d-%p __cilkrts_sync - sf %p\n", w->self, GetWorkerFiber(w), sf); */
@@ -814,8 +822,13 @@ __cilkrts_bump_loop_rank_internal(__cilkrts_worker* w)
 	// Normally, we'd just write "w->pedigree.parent->rank++"
 	// But we need to cast away the "const".
 	((__cilkrts_pedigree*) w->pedigree.parent)->rank++;
-	// ((__cilkrts_pedigree*) w->pedigree.parent)->actual +=
-	// 	w->g->ped_compression_vec[w->pedigree.length-1];
+
+#ifdef PRECOMPUTE_PEDIGREES
+	__cilkrts_pedigree *ped = ((_cilkrts_pedigree*) w->pedigree.parent);
+	ped->actual += w->g->ped_compression_vec[w->pedigree.length-1];
+	if (ped->actual >= w->g->big_prime)
+			ped->actual %= w->g->big_prime;
+#endif
 
 	// Zero the worker's pedigree rank since this is the start of a new
 	// pedigree domain.

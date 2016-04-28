@@ -223,17 +223,26 @@ __cilkrts_pedigree *__cilkrts_get_tls_pedigree_leaf(int create_new)
         
 		pedigree_tls[0].rank = 1;
 		pedigree_tls[0].parent = &pedigree_tls[1];
-		/* pedigree_tls[0].length = 2; */
-		/* pedigree_tls[0].actual = */
-		/* 	t_worker->g->ped_compression_vec[0] + t_worker->g->ped_compression_vec[1]; */
+
+#ifdef PRECOMPUTE_PEDIGREES
+		pedigree_tls[0].length = 2;
+		pedigree_tls[0].actual =
+			t_worker->g->ped_compression_vec[0] + t_worker->g->ped_compression_vec[1];
+		if (pedigree_tls[0].actual >= w->g->big_prime)
+			pedigree_tls[0].actual %= w->g->big_prime;
+
+#endif
 
 		// Create Y, whose rank begins as the global counter value.
 		pedigree_tls[1].rank =
 			__sync_add_and_fetch(&__cilkrts_global_pedigree_tls_counter, 1);
 		pedigree_tls[1].parent = NULL;
 		CILK_ASSERT(pedigree_tls[1].rank != -1);
-		/* pedigree_tls[1].length = 1; */
-		/* pedigree_tls[1].actual = t_worker->g->ped_compression_vec[0]; */
+
+#ifdef PRECOMPUTE_PEDIGREES
+		pedigree_tls[1].length = 1;
+		pedigree_tls[1].actual = t_worker->g->ped_compression_vec[0];
+#endif
 		
 	}
 	return pedigree_tls;

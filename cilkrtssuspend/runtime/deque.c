@@ -331,9 +331,13 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 
 	if (!d || d->saved_ped.rank == 0) { // 0 is no longer valid rank
 		w->pedigree.parent = NULL;
-		/* w->pedigree.actual = w->g->ped_compression_vec[0]; */
-		/* w->pedigree.length = 1; */
 		w->pedigree.rank = 1;
+
+#ifdef PRECOMPUTE_PEDIGREES
+		w->pedigree.actual = w->g->ped_compression_vec[0];
+		w->pedigree.length = 1;
+#endif
+
 	}
 
 	// We may have run out of memory for deques, in which case we want

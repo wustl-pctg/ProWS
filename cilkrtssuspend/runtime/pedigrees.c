@@ -121,13 +121,19 @@ void update_pedigree_after_sync(__cilkrts_stack_frame *sf)
   // frame
   if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1) {
 		++(w->pedigree.rank);
-    //w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
+#ifdef PRECOMPUTE_PEDIGREES
+    w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
+    if (w->pedigree.actual >= w->g->big_prime)
+        w->pedigree.actual %= w->g->big_prime;
+
+#endif
 	}
 
 }
 
 void init_pedigree_compression_vec(global_state_t* g)
 {
+#ifdef PRECOMPUTE_PEDIGREES
     if (g->ped_seed == -1) srand(time(NULL));
     else srand(g->ped_seed);
 
@@ -136,6 +142,7 @@ void init_pedigree_compression_vec(global_state_t* g)
     for (int i = 0; i < 256; ++i)
         g->ped_compression_vec[i] = rand() % g->big_prime;
         //g->ped_compression_vec[i] = i+1;
+#endif
 }
 
 

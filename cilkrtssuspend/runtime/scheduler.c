@@ -1332,11 +1332,17 @@ static void setup_for_execution_pedigree(__cilkrts_worker *w)
     {
         if (w->l->work_stolen) {
             w->pedigree.rank = sf->parent_pedigree.rank + 1;
-            /* w->pedigree.actual = sf->parent_pedigree.actual + */
-            /*     w->g->ped_compression_vec[sf->parent_pedigree.length-1]; */
+#ifdef PRECOMPUTE_PEDIGREES
+            w->pedigree.actual = sf->parent_pedigree.actual +
+                w->g->ped_compression_vec[sf->parent_pedigree.length-1];
+            if (w->pedigree.actual >= w->g->big_prime)
+                w->pedigree.actual %= w->g->big_prime;
+#endif
         } else { 
             w->pedigree.rank = sf->parent_pedigree.rank;
-//            w->pedigree.actual = sf->parent_pedigree.actual;
+#ifdef PRECOMPUTE_PEDIGREES
+            w->pedigree.actual = sf->parent_pedigree.actual;
+#endif
         }
     }
 
@@ -2797,8 +2803,11 @@ __cilkrts_worker *make_worker(global_state_t *g,
 
     w->pedigree.rank = 1;    // Initial rank is 1, for precomputation
     w->pedigree.parent = NULL;
-    /* w->pedigree.length = 1; */
-    /* w->pedigree.actual = g->ped_compression_vec[0]; */
+
+#ifdef PRECOMPUTE_PEDIGREES
+    w->pedigree.length = 1;
+    w->pedigree.actual = g->ped_compression_vec[0];
+#endif
 
     w->l = (local_state *)__cilkrts_malloc(sizeof(*w->l));
 

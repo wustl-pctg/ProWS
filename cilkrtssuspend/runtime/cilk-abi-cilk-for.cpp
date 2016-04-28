@@ -161,17 +161,26 @@ void call_cilk_for_loop_body(count_t low, count_t high,
 
     loop_leaf_pedigree.rank = (uint64_t)low;
     loop_leaf_pedigree.parent = loop_root_pedigree;
-		// loop_leaf_pedigree.length = loop_root_pedigree->length + 1;
-		// loop_leaf_pedigree.actual = loop_root_pedigree->actual +
-		// 	w->g->ped_compression_vec[loop_leaf_pedigree.length - 1];
 
     // The worker's pedigree always starts with a rank of 0
     w->pedigree.rank = 1;
     w->pedigree.parent = &loop_leaf_pedigree;
-		// w->pedigree.length = loop_leaf_pedigree.length + 1;
-		// w->pedigree.actual = loop_leaf_pedigree.actual +
-		// 	w->g->ped_compression_vec[w->pedigree.length];
-		// CILK_ASSERT(w->pedigree.length < 256);
+
+#ifdef PRECOMPUTE_PEDIGREES
+		loop_leaf_pedigree.length = loop_root_pedigree->length + 1;
+		loop_leaf_pedigree.actual = loop_root_pedigree->actual +
+			w->g->ped_compression_vec[loop_leaf_pedigree.length - 1];
+		if (loop_leaf_pedigree.actual >= w->g->big_prime)
+			loop_leaf_pedigree.actual %= w->g->big_prime;
+
+
+		w->pedigree.length = loop_leaf_pedigree.length + 1;
+		w->pedigree.actual = loop_leaf_pedigree.actual +
+			w->g->ped_compression_vec[w->pedigree.length];
+		if (w->pedigree.actual >= w->g->big_prime)
+			w->pedigree.actual %= w->g->big_prime;
+		CILK_ASSERT(w->pedigree.length < 256);
+#endif
 
     // Call the compiler generated cilk_for loop body lambda function
     body(data, low, high);
@@ -347,8 +356,13 @@ static void cilk_for_root(F body, void *data, count_t count, int grain)
     // _Cilk_spawn
 		// @todo{ I don't quite understand this case...}
     --w->pedigree.rank;
+
+#ifdef PRECOMPUTE_PEDIGREES
 		//w->pedigree.length = ??;
-		//w->pedigree.actual -= w->g->ped_compression_vec[w->pedigree.length - 1];
+		w->pedigree.actual -= w->g->ped_compression_vec[w->pedigree.length - 1];
+		if (w->pedigree.actual >= w->g->big_prime)
+			w->pedigree.actual %= w->g->big_prime;
+#endif
 
     // Save the current worker pedigree into loop_root_pedigree, which will be
     // the root node for our flattened pedigree.
@@ -375,7 +389,11 @@ static void cilk_for_root(F body, void *data, count_t count, int grain)
 
     // Bump the worker pedigree.
     ++w->pedigree.rank;
-		//w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length];
+#ifdef PRECOMPUTE_PEDIGREES
+		w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length];
+		if (w->pedigree.actual >= w->g->big_prime)
+			w->pedigree.actual %= w->g->big_prime;
+#endif
 
     // Implicit sync will increment the pedigree leaf rank again, for a total
     // of two increments.  If the noop spawn above is removed, then we'll need

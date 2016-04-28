@@ -273,7 +273,12 @@ CILK_API_INT __cilkrts_bump_worker_rank_internal(__cilkrts_worker *w)
 	__cilkrts_pedigree *pedigree;
 	pedigree = (w ? &w->pedigree : __cilkrts_get_tls_pedigree_leaf(1));
 	pedigree->rank++;
-	//pedigree->actual += w->g->ped_compression_vec[pedigree->length - 1];
+
+#ifdef PRECOMPUTE_PEDIGREES
+	pedigree->actual += w->g->ped_compression_vec[pedigree->length - 1];
+	if (w->pedigree.actual >= w->g->big_prime)
+		w->pedigree.actual %= w->g->big_prime;
+#endif
 	return 0;
 }
 

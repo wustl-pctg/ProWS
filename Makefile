@@ -28,6 +28,27 @@ default: fib cilkfor cbt
 
 lib: libcilkrr.a
 
+libcilkrr.a: mutex.o cilkrr.o acquire.o
+	ar rcs $(ARFLAGS) $@ $^
+
+mutex.o: mutex.h mutex.cpp cilkrr.h
+	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c mutex.cpp
+
+cilkrr.o: cilkrr.h cilkrr.cpp util.h
+	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c cilkrr.cpp
+
+acquire.o: acquire.h util.h acquire.cpp
+	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c acquire.cpp
+
+cilkfor.o: cilkfor.cpp mutex.h cilkrr.h
+	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c cilkfor.cpp
+
+fib.o: fib.cpp mutex.h cilkrr.h
+	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c fib.cpp
+
+cbt.o: cbt.cpp mutex.h cilkrr.h
+	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c cbt.cpp
+
 cbt: cbt.o libcilkrr.a mutex.h $(LIB)
 	$(CXX) $(CFLAGS) $(CILKFLAGS) cbt.o libcilkrr.a $(LIB) $(LDFLAGS) -o cbt
 
@@ -36,30 +57,6 @@ cilkfor: cilkfor.o libcilkrr.a mutex.h $(LIB)
 
 fib: fib.o libcilkrr.a mutex.h $(LIB)
 	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o libcilkrr.a $(LIB) $(LDFLAGS) -o fib
-
-cilkfor.o: cilkfor.cpp mutex.h cilkrr.h syncstream.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c cilkfor.cpp
-
-fib.o: fib.cpp mutex.h cilkrr.h syncstream.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c fib.cpp
-
-cbt.o: cbt.cpp mutex.h cilkrr.h syncstream.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c cbt.cpp
-
-libcilkrr.a: mutex.o cilkrr.o acquire.o syncstream.o
-	ar rcs $(ARFLAGS) $@ $^
-
-mutex.o: mutex.h mutex.cpp cilkrr.h syncstream.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c mutex.cpp
-
-cilkrr.o: cilkrr.h cilkrr.cpp util.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c cilkrr.cpp
-
-acquire.o: acquire.h syncstream.h util.h acquire.cpp
-	$(CXX) $(CFLAGS) $(CILKFLAGS) -I$(RUNTIME_HOME)/include -c acquire.cpp
-
-syncstream.o: syncstream.h syncstream.cpp
-	$(CXX) $(CFLAGS) -c syncstream.cpp
 
 clean:
 	rm -f *.o *.a fib cilkfor cbt

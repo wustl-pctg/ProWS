@@ -7,37 +7,44 @@ export LIBRARY_PATH=$(COMPILER_HOME)/lib:$LIBRARY_PATH
 CC=$(COMPILER_HOME)/bin/clang
 CXX=$(COMPILER_HOME)/bin/clang++
 
-# Optimize
-OPT ?= -O3 -march=native -flto
+# Optimize with lto
+OPT ?= -march=native -flto -O3 -DNDEBUG
 ARFLAGS = --plugin $(COMPILER_HOME)/lib/LLVMgold.so
 
-# Don't optimize
-# OPT ?= -O0
+# OPT ?= -march=native -O3 -DNDEBUG
+# ARFLAGS = 
 
-CFLAGS = -std=c++11 -Wfatal-errors $(OPT) $(PARAMS) -g
-CILKFLAGS = -fcilkplus -I$(COMPILER_HOME)/include -fcilk-no-inline
+# Don't optimize
+# OPT ?= -O0 
+# ARFLAGS = 
+
+INC = -I/usr/local/gcc5/include/c++/5.3.0 -I/usr/local/gcc5/include/c++/5.3.0/x86_64-unknown-linux-gnu
+CFLAGS = -std=c++11 -Wfatal-errors $(OPT) $(PARAMS) $(INC) -g
+CILKFLAGS = -fcilkplus -fcilk-no-inline
+APPFLAGS = -I$(RUNTIME_HOME)/include
+LDFLAGS = -ldl -lpthread -l/usr/local/gcc5/lib64/libstdc++.a -ltcmalloc
 
 default: fib cilkfor cbt
 
 lib: libcilkrr.a
 
 cbt: cbt.o libcilkrr.a mutex.h $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) cbt.o libcilkrr.a $(LIB) -ldl -lpthread -o cbt
+	$(CXX) $(CFLAGS) $(CILKFLAGS) cbt.o libcilkrr.a $(LIB) $(LDFLAGS) -o cbt
 
 cilkfor: cilkfor.o libcilkrr.a mutex.h $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) cilkfor.o libcilkrr.a $(LIB) -ldl -lpthread -o cilkfor
+	$(CXX) $(CFLAGS) $(CILKFLAGS) cilkfor.o libcilkrr.a $(LIB) $(LDFLAGS) -o cilkfor
 
 fib: fib.o libcilkrr.a mutex.h $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o libcilkrr.a $(LIB) -ldl -lpthread -o fib
+	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o libcilkrr.a $(LIB) $(LDFLAGS) -o fib
 
 cilkfor.o: cilkfor.cpp mutex.h cilkrr.h syncstream.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) -c cilkfor.cpp
+	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c cilkfor.cpp
 
 fib.o: fib.cpp mutex.h cilkrr.h syncstream.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) -c fib.cpp
+	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c fib.cpp
 
 cbt.o: cbt.cpp mutex.h cilkrr.h syncstream.h
-	$(CXX) $(CFLAGS) $(CILKFLAGS) -c cbt.cpp
+	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c cbt.cpp
 
 libcilkrr.a: mutex.o cilkrr.o acquire.o syncstream.o
 	ar rcs $(ARFLAGS) $@ $^

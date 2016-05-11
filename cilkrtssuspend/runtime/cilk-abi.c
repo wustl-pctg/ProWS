@@ -804,9 +804,6 @@ CILK_API_INT __cilkrts_synched(void)
 	return 1 == ff->join_counter;
 }
 
-
-
-
 CILK_API_INT
 __cilkrts_bump_loop_rank_internal(__cilkrts_worker* w)
 {

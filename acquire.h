@@ -12,46 +12,39 @@ namespace cilkrr {
 	class acquire_info {
 	public:
 		pedigree_t ped;
-#ifdef CONFLICT_CHECK
+#if PTYPE != PARRAY
 		full_pedigree_t actual;
 #endif
 		acquire_info *chain_next;
-		acquire_info *next; // we no longer need this!
+		acquire_info *next; // Needed for replay only
 		void *suspended_deque;
 		acquire_info();
 		acquire_info(pedigree_t p);
+    std::string str();
+  private:
+    std::string array_str();
 	};
 	std::ostream& operator<< (std::ostream &out, acquire_info s);
-	std::ofstream& operator<< (std::ofstream &out, acquire_info s);
 
 	class acquire_container {
 	private:
 
-		acquire_info* m_first;
-		acquire_info* m_it;
-		acquire_info m_sentinel;
+#define RESERVE_SIZE 1024
 
-#if IMETHOD == IHASH && defined(USE_STL)
-		std::unordered_multimap<pedigree_t, acquire_info, compressed_hasher> m_container;
-#elif IMETHOD == IMYHASH
+    // Hash table
 		size_t m_unique = 0;
 		size_t m_num_buckets = RESERVE_SIZE;
-		size_t m_num_buckets_used;
 		acquire_info** m_buckets;
-		inline size_t hash(pedigree_t k) { return k % m_num_buckets; }
 		size_t bucket_add(acquire_info** bucket, acquire_info* item);
+    #if PTYPE == PARRAY
+    size_t hash(pedigree_t k);
+#else
+    inline size_t hash(pedigree_t k) { return k % m_num_buckets; }
+#endif
+
 		void rehash(size_t new_cap);
-#endif
 
-#if IMETHOD == ILL && defined(USE_STL)
-		std::list<acquire_info> m_container;
-#endif
-
-#if IMETHOD == IMIXED
-		std::unordered_set<pedigree_t, compressed_hasher> m_container;
-#endif
-
-#if IMETHOD == ICHUNKLL || IMETHOD == IMYHASH || IMETHOD == IMIXED
+    // Chunked linked list that stores the actual acquire_info structs
 		size_t m_size = 0;
 		// chunked Linked list
 		struct chunk {
@@ -63,7 +56,9 @@ namespace cilkrr {
 		size_t m_chunk_size = RESERVE_SIZE;
 		struct chunk* m_first_chunk;
 		struct chunk* m_current_chunk;
-#endif
+
+    acquire_info* m_it = nullptr;
+    acquire_info* m_first = nullptr;
 
 		// This is not really necessary (cilkrr_mode()), but maybe is more
 		// efficient?
@@ -83,6 +78,9 @@ namespace cilkrr {
 		void print(std::ofstream& output);
 		
 		acquire_info* add(pedigree_t p);
+#if PTYPE != PARRAY
+    acquire_info* add(pedigree_t p, full_pedigree_t full);
+#endif
 		acquire_info* find(pedigree_t& p);
 
 	};

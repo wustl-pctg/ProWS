@@ -18,19 +18,14 @@ namespace cilkrr {
 		acquire_container* m_acquires = nullptr;
 
 		void record_acquire(pedigree_t& p);
-		void replay_lock(pedigree_t& p);
-		bool replay_try_lock(pedigree_t& p);
+		void replay_lock(acquire_info *a);
+		/* bool replay_try_lock(pedigree_t& p); */
 		void replay_unlock();
 
 		inline void acquire();
 		inline void release();
 
-		void suspend(pedigree_t& p);
-
-		// Functionality for allowing determinacy races
-		//		size_t m_acq_count = 0;
-		//		pedigree_t get_pedigree();
-		//		pedigree_t refresh_pedigree(pedigree_t &p);
+		void suspend(acquire_info* a);
 		
 	public:
 		mutex();
@@ -41,7 +36,7 @@ namespace cilkrr {
 
 		// Must be called deterministically! No determinacy races!
 		// i.e. races only within critical sections!
-		bool try_lock();
+		/* bool try_lock(); */
 
 	};
 

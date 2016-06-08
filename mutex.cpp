@@ -47,37 +47,37 @@ namespace cilkrr {
 	{
 		enum mode m = get_mode();
 		pedigree_t p;
-		if (m != NONE) 
-			p = get_pedigree();
-		if (get_mode() == REPLAY)
-			replay_lock(p); // returns locked, but not acquired
-		else 
+		if (m != NONE) p = get_pedigree();
+    
+		if (get_mode() == REPLAY) {
+      // returns locked, but not acquired
+			replay_lock(m_acquires->find(p)); 
+    } else {
 			m_mutex.lock();
+    }
 		acquire();
-#if IMETHOD != INONE
 		if (get_mode() == RECORD) record_acquire(p);
-#endif
 	}
 
-	bool mutex::try_lock()
-	{
-		bool result;
-		pedigree_t p;
+	// bool mutex::try_lock()
+	// {
+	// 	bool result;
+	// 	pedigree_t p;
 		
-		if (get_mode() != NONE) p = get_pedigree();
-		if (get_mode() == REPLAY)
-			result = replay_try_lock(p);
-		else
-			result = m_mutex.try_lock();
+	// 	if (get_mode() != NONE) p = get_pedigree();
+	// 	if (get_mode() == REPLAY)
+	// 		result = replay_try_lock(p);
+	// 	else
+	// 		result = m_mutex.try_lock();
 		
-		if (result) {
-			acquire();
-			if (get_mode() == RECORD) record_acquire(p);
-		} else
-			__cilkrts_bump_worker_rank();
+	// 	if (result) {
+	// 		acquire();
+	// 		if (get_mode() == RECORD) record_acquire(p);
+	// 	} else
+	// 		__cilkrts_bump_worker_rank();
 				
-		return result;
-	}
+	// 	return result;
+	// }
 
 	void mutex::unlock()
 	{
@@ -89,38 +89,38 @@ namespace cilkrr {
 
 	void mutex::record_acquire(pedigree_t& p) { m_acquires->add(p); }
 
-	void mutex::replay_lock(pedigree_t& p)
+	void mutex::replay_lock(acquire_info* a)
 	{
-		if (!(p == m_acquires->current()->ped))
-			suspend(p); // returns locked, but not acquired
+		if (!(a == m_acquires->current()))
+			suspend(a); // returns locked, but not acquired
 		else // may need to wait constant time as owner decides to release lock
 			m_mutex.lock();
 		// Invariant: Upon return, the lock is locked by this worker
 	}
 
-	bool mutex::replay_try_lock(pedigree_t& p)
-	{
-		acquire_info *a = m_acquires->find(p);
-		if (!a) { // this try_lock never succeeded
-			// Since we're assuming no determinacy races, this is ok.
-			return false;
-		}
+	// bool mutex::replay_try_lock(pedigree_t& p)
+	// {
+	// 	acquire_info *a = m_acquires->find(p);
+	// 	if (!a) { // this try_lock never succeeded
+	// 		// Since we're assuming no determinacy races, this is ok.
+	// 		return false;
+	// 	}
 
-		if (a == m_acquires->current()) {
-			assert(m_owner == nullptr);
-			bool res = m_mutex.try_lock();
-			assert(res == true);
-		} else {
+	// 	if (a == m_acquires->current()) {
+	// 		assert(m_owner == nullptr);
+	// 		bool res = m_mutex.try_lock();
+	// 		assert(res == true);
+	// 	} else {
 
-			// This is a bit weird for try_lock to wait, but it must in this
-			// case. We always increment the pedigree on try_locks, and this
-			// pedigree should be getting the lock, but we need to wait for
-			// other locks to complete.
-			suspend(p);
-		}
+	// 		// This is a bit weird for try_lock to wait, but it must in this
+	// 		// case. We always increment the pedigree on try_locks, and this
+	// 		// pedigree should be getting the lock, but we need to wait for
+	// 		// other locks to complete.
+	// 		suspend(p);
+	// 	}
 		
-		return true;
-	}
+	// 	return true;
+	// }
 
 	void mutex::replay_unlock()
 	{
@@ -138,9 +138,11 @@ namespace cilkrr {
 			
 			__cilkrts_resume_suspended(d, 1);
 
-			// fprintf(stderr, "(w: %d) resuming in replay_unlock (p: %s)\n",
-			// 				__cilkrts_get_internal_worker_number(),
-			// 				get_pedigree().c_str());
+      pedigree_t p = get_pedigree();
+      acquire_info *a = m_acquires->find(p);
+			fprintf(stderr, "(w: %d) resuming in replay_unlock (p: %s)\n",
+							__cilkrts_get_internal_worker_number(),
+							a->str().c_str());
 			
 		} else { // Like a real release
 			release();
@@ -149,24 +151,17 @@ namespace cilkrr {
 
 	}
 
-	void mutex::suspend(pedigree_t& p)
+	void mutex::suspend(acquire_info *a)
 	{
-		acquire_info *a = m_acquires->find(p);
-		if (!a) {
-			fprintf(stderr, "Error: can't find pedigree\n");
-			//fprintf(stderr, "Error: can't find %s\n", p.c_str());
-			//fprintf(stderr, "Error: can't find %lu\n", p);
-			std::abort();
-		}
 		void *deque = __cilkrts_get_deque();
 
 		a->suspended_deque = deque;
 		__sync_synchronize();
 
 		acquire_info *front = m_acquires->current();
-		// fprintf(stderr, "(w: %d) suspending deque %p at: %s (waiting on %s)\n",
-		// 				__cilkrts_get_internal_worker_number(), a->suspended_deque,
-		// 				p.c_str(), front->ped.c_str());
+		fprintf(stderr, "(w: %d) suspending deque %p at: %s (waiting on %s)\n",
+						__cilkrts_get_internal_worker_number(), a->suspended_deque,
+						a->str().c_str(), front->str().c_str());
 
 		if (front == a && m_mutex.try_lock()) {
 			// Have lock, MUST resume
@@ -181,9 +176,9 @@ namespace cilkrr {
 		// When this fiber is resumed, the mutex is locked!
 		std::atomic_thread_fence(std::memory_order_seq_cst);
 
-		// fprintf(stderr, "(w: %d) Resume at: %s\n",
-		// 				__cilkrts_get_internal_worker_number(),
-		// 				get_pedigree().c_str());
+		fprintf(stderr, "(w: %d) Resume at: %s\n",
+						__cilkrts_get_internal_worker_number(),
+						a->str().c_str());
 	}
 
 

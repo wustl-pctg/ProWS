@@ -4,11 +4,17 @@
 #include <string>
 #include <vector>
 #include <atomic>
+#include <limits>
 
 #include "util.h"
 #include "acquire.h"
 
 namespace cilkrr {
+  #if PTYPE != PPRE
+	// 2^64 - 59
+	static size_t big_prime = std::numeric_limits<size_t>::max() - 58;
+#endif
+
 	class state {
 	private:
 		std::vector< acquire_container * > m_all_acquires;
@@ -21,7 +27,7 @@ namespace cilkrr {
 		static constexpr size_t m_default_capacity = 32;
 
 	public:
-#if PTYPE == PDOT
+#if PTYPE != PPRE
 		uint64_t randvec[256];
 #endif
 		enum mode m_mode;

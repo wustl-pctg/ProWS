@@ -65,7 +65,7 @@ function runcmd() {
 		acquire_stacks=$(echo "((1.618 ^ $1 ) + 1 - 1) / 1 + 1" | bc)
 		normal_stacks=$(echo "$3 * $1 + 1" | bc)
 		let "max_stacks = acquire_stacks + normal_stacks"
-		cmd="CILK_NWORKERS=$3 CILKRR_MODE=replay timeout --signal=SIGABRT ${maxtime}s ./fib $1"
+		cmd="CILK_NWORKERS=$3 CILKRR_MODE=replay timeout --signal=SIGSTOP ${maxtime}s ./fib $1"
 		msg="fib($1) recorded with $2 workers, replayed with $3 workers"
 		suffix=""
 		if [[ "$verbose" -eq 0 ]]; then
@@ -78,7 +78,7 @@ function runcmd() {
 		if [[ $res -ne 0 ]]; then
 				printf "\n"
 				if [[ $res -eq 124 ]]; then
-						printf "Timeout: "
+						printf "Timeout (stopped): "
 				else
 						printf "Failed: "
 				fi

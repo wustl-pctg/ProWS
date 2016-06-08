@@ -821,7 +821,7 @@ __cilkrts_bump_loop_rank_internal(__cilkrts_worker* w)
 	((__cilkrts_pedigree*) w->pedigree.parent)->rank++;
 
 #ifdef PRECOMPUTE_PEDIGREES
-	__cilkrts_pedigree *ped = ((_cilkrts_pedigree*) w->pedigree.parent);
+	__cilkrts_pedigree *ped = ((__cilkrts_pedigree*) w->pedigree.parent);
 	ped->actual += w->g->ped_compression_vec[w->pedigree.length-1];
 	if (ped->actual >= w->g->big_prime)
 			ped->actual %= w->g->big_prime;

@@ -228,8 +228,8 @@ __cilkrts_pedigree *__cilkrts_get_tls_pedigree_leaf(int create_new)
 		pedigree_tls[0].length = 2;
 		pedigree_tls[0].actual =
 			t_worker->g->ped_compression_vec[0] + t_worker->g->ped_compression_vec[1];
-		if (pedigree_tls[0].actual >= w->g->big_prime)
-			pedigree_tls[0].actual %= w->g->big_prime;
+		if (pedigree_tls[0].actual >= t_worker->g->big_prime)
+			pedigree_tls[0].actual %= t_worker->g->big_prime;
 
 #endif
 
@@ -580,7 +580,7 @@ static void __attribute__((constructor)) init_once()
 #define PAGE 4096
 #define CILK_MIN_STACK_SIZE (4*PAGE)
 // Default size for the stacks that we create in Cilk for Unix.
-//#define CILK_DEFAULT_STACK_SIZE 0x100000
+/* #define CILK_DEFAULT_STACK_SIZE 0x100000 */
 #define CILK_DEFAULT_STACK_SIZE 0xF000
 
 /*

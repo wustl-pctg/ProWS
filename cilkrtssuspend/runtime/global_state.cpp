@@ -593,7 +593,7 @@ global_state_t* cilkg_init_global_state()
 	g->system_workers = g->P - 1; // system_workers is here for the debugger.
 	g->work_done = 0;
 	g->workers_running = 0;
-	g->ltqsize = 128; /* FIXME */
+	g->ltqsize = 128; /* FIXME */ // Originally 1024
 
 	g->stack_size = cilkos_validate_stack_size(g->stack_size);
 	g->failure_to_allocate_stack = 0;

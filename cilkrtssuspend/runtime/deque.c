@@ -362,6 +362,7 @@ void deque_switch(__cilkrts_worker *w, deque *d)
 	w->ltq_limit = &d->ltq_limit;
 	w->l->current_ltq = &d->ltq;
 	w->l->frame_ff = &d->frame_ff;
+  w->pedigree = d->saved_ped;
 	w->current_stack_frame = d->call_stack;
 	
 	// This deque is now active, so remove that saved pedigree information

@@ -40,6 +40,7 @@ namespace cilkrr {
 	inline void mutex::release()
 	{
 		m_owner = nullptr;
+    m_active = nullptr;
 		m_mutex.unlock();
 	}
 
@@ -59,8 +60,10 @@ namespace cilkrr {
 		if (get_mode() == RECORD) record_acquire(p);
 	}
 
-	// bool mutex::try_lock()
-	// {
+	bool mutex::try_lock()
+	{
+    fprintf(stderr, "try_lock not implemented for CILKRR\n");
+    std::abort();
 	// 	bool result;
 	// 	pedigree_t p;
 		
@@ -77,7 +80,7 @@ namespace cilkrr {
 	// 		__cilkrts_bump_worker_rank();
 				
 	// 	return result;
-	// }
+	}
 
 	void mutex::unlock()
 	{
@@ -87,7 +90,7 @@ namespace cilkrr {
 			__cilkrts_bump_worker_rank();
 	}
 
-	void mutex::record_acquire(pedigree_t& p) { m_acquires->add(p); }
+	void mutex::record_acquire(pedigree_t& p){ m_active = m_acquires->add(p); }
 
 	void mutex::replay_lock(acquire_info* a)
 	{
@@ -124,6 +127,7 @@ namespace cilkrr {
 
 	void mutex::replay_unlock()
 	{
+    //acquire_info *a = m_active;
 		m_acquires->next();
 		
 		//		To resume a suspended deque, we retain the lock, so we don't release
@@ -133,16 +137,15 @@ namespace cilkrr {
 	
 		if (!(current == m_acquires->end()) && current->suspended_deque) {
 			void *d = current->suspended_deque;
-			fprintf(stderr, "(w: %d) about to resume suspended deque in replay_unlock\n",
-							__cilkrts_get_internal_worker_number());
+			// fprintf(stderr, "(w: %d) about to resume suspended deque in replay_unlock\n",
+			// 				__cilkrts_get_internal_worker_number());
 			
 			__cilkrts_resume_suspended(d, 1);
 
-      pedigree_t p = get_pedigree();
-      acquire_info *a = m_acquires->find(p);
-			fprintf(stderr, "(w: %d) resuming in replay_unlock (p: %s)\n",
-							__cilkrts_get_internal_worker_number(),
-							a->str().c_str());
+      //acquire_info *a = m_acquires->find(get_pedigree());
+			// fprintf(stderr, "(w: %d) resuming in replay_unlock (p: %s)\n",
+			// 				__cilkrts_get_internal_worker_number(),
+			// 				a->str().c_str());
 			
 		} else { // Like a real release
 			release();
@@ -159,26 +162,26 @@ namespace cilkrr {
 		__sync_synchronize();
 
 		acquire_info *front = m_acquires->current();
-		fprintf(stderr, "(w: %d) suspending deque %p at: %s (waiting on %s)\n",
-						__cilkrts_get_internal_worker_number(), a->suspended_deque,
-						a->str().c_str(), front->str().c_str());
+		// fprintf(stderr, "(w: %d) suspending deque %p at: %s (waiting on %s)\n",
+		// 				__cilkrts_get_internal_worker_number(), a->suspended_deque,
+		// 				a->str().c_str(), front->str().c_str());
 
 		if (front == a && m_mutex.try_lock()) {
 			// Have lock, MUST resume
 			//acquire();
 
 		} else {
-			fprintf(stderr, "(w: %d) about to resume stealing in mutex::suspend\n",
-							__cilkrts_get_internal_worker_number());
+			// fprintf(stderr, "(w: %d) about to resume stealing in mutex::suspend\n",
+			// 				__cilkrts_get_internal_worker_number());
 			__cilkrts_suspend_deque();
 		}
 
 		// When this fiber is resumed, the mutex is locked!
 		std::atomic_thread_fence(std::memory_order_seq_cst);
 
-		fprintf(stderr, "(w: %d) Resume at: %s\n",
-						__cilkrts_get_internal_worker_number(),
-						a->str().c_str());
+		// fprintf(stderr, "(w: %d) Resume at: %s\n",
+		// 				__cilkrts_get_internal_worker_number(),
+		// 				a->str().c_str());
 	}
 
 

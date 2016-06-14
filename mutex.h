@@ -11,7 +11,8 @@ namespace cilkrr {
 	class mutex {
 	private:
 		std::mutex m_mutex;
-		__cilkrts_worker *m_owner = nullptr;
+		__cilkrts_worker *m_owner = nullptr; // just for debugging
+    acquire_info volatile *m_active = nullptr; // just for debugging??
 
 		// Info for both recording and replaying
 		uint64_t m_id; // index into global container of cilkrr_mutexes
@@ -36,7 +37,7 @@ namespace cilkrr {
 
 		// Must be called deterministically! No determinacy races!
 		// i.e. races only within critical sections!
-		/* bool try_lock(); */
+		bool try_lock();
 
 	};
 

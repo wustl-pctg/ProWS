@@ -110,11 +110,13 @@ for n in `seq $STARTN $ENDN`; do
 								exit 1
 						fi
 						for replayp in `seq 1 8`; do
-								status="fib($n), recordp=${recordp}-${i}, replayp=$replayp"
-								showstatus
 								for j in `seq 1 $ITER_PER_RECORD`; do
+                    status="\rfib($n), recordp=${recordp}-${i}, replayp=$replayp, iter=$j / $ITER_PER_RECORD"
+								    showstatus
 										runcmd $n $recordp $replayp
 								done
+                status="fib($n), recordp=${recordp}-${i}, replayp=$replayp"
+								showstatus
 						done
 				done
 		done

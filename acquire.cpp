@@ -77,7 +77,7 @@ namespace cilkrr {
   /// add_acquire} Note that this will require synchronizing access to
   /// the container, since multiple workers will try to allocate
   /// acquire_info structs at the same time.
-  acquire_info* acquire_container::find(pedigree_t& p)
+  acquire_info* acquire_container::find(const pedigree_t& p)
   {
     assert(m_mode == REPLAY);
     acquire_info *a = m_buckets[hash(p)];

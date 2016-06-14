@@ -52,7 +52,7 @@ namespace cilkrr {
 			acquire_info *array;
 			struct chunk *next;
 		};
-		size_t m_index;
+		size_t m_index = 0;
 		size_t m_chunk_size = RESERVE_SIZE;
 		struct chunk* m_first_chunk;
 		struct chunk* m_current_chunk;
@@ -81,7 +81,7 @@ namespace cilkrr {
 #if PTYPE != PARRAY
     acquire_info* add(pedigree_t p, full_pedigree_t full);
 #endif
-		acquire_info* find(pedigree_t& p);
+		acquire_info* find(const pedigree_t& p);
 
 	};
 

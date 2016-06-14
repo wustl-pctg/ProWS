@@ -169,7 +169,10 @@ namespace cilkrr {
 
   state::~state()
   {
-    assert(m_active_size == 0);
+
+    // This should be true, but some pbbs benchmarks (dictionary) don't call the lock destructors
+    // I think they do this so avoid the slowdown, so I don't want to mess with that
+    // assert(m_active_size == 0);
 #ifdef CONFLICT_CHECK
     if (m_mode == RECORD)
       fprintf(stderr, "Conflicts: %zu\n", m_all_acquires[0]->m_num_conflicts);

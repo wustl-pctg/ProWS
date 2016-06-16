@@ -105,17 +105,17 @@
 #ifdef __VXWORKS__
 // redeclare longjmp() with noreturn to stop warnings
 extern __attribute__((noreturn)) 
-		void longjmp(jmp_buf, int);
+void longjmp(jmp_buf, int);
 #endif
 
 //#define DEBUG_LOCKS 1
 #ifdef DEBUG_LOCKS
 // The currently executing worker must own this worker's lock
-#   define ASSERT_WORKER_LOCK_OWNED(w) \
-        { \
-            __cilkrts_worker *tls_worker = __cilkrts_get_tls_worker(); \
-            CILK_ASSERT((w)->l->lock.owner == tls_worker); \
-        }
+#   define ASSERT_WORKER_LOCK_OWNED(w)                              \
+    {                                                               \
+        __cilkrts_worker *tls_worker = __cilkrts_get_tls_worker();  \
+        CILK_ASSERT((w)->l->lock.owner == tls_worker);              \
+    }
 #else
 #   define ASSERT_WORKER_LOCK_OWNED(w)
 #endif // DEBUG_LOCKS
@@ -164,7 +164,7 @@ static void do_sync (__cilkrts_worker *w,
 
 // max is defined on Windows and VxWorks
 #if (! defined(_WIN32)) && (! defined(__VXWORKS__))
-    // TBD: definition of max() for Linux.
+// TBD: definition of max() for Linux.
 #   define max(a, b) ((a) < (b) ? (b) : (a))
 #endif
 
@@ -347,15 +347,15 @@ static void worker_unlock_other(__cilkrts_worker *w,
 
 
 /* Lock macro Usage:
-    BEGIN_WITH_WORKER_LOCK(w) {
-        statement;
-        statement;
-        BEGIN_WITH_FRAME_LOCK(w, ff) {
-            statement;
-            statement;
-        } END_WITH_FRAME_LOCK(w, ff);
-    } END_WITH_WORKER_LOCK(w);
- */
+   BEGIN_WITH_WORKER_LOCK(w) {
+   statement;
+   statement;
+   BEGIN_WITH_FRAME_LOCK(w, ff) {
+   statement;
+   statement;
+   } END_WITH_FRAME_LOCK(w, ff);
+   } END_WITH_WORKER_LOCK(w);
+*/
 #define BEGIN_WITH_WORKER_LOCK(w) __cilkrts_worker_lock(w); do
 #define END_WITH_WORKER_LOCK(w)   while (__cilkrts_worker_unlock(w), 0)
 
@@ -369,18 +369,18 @@ static void worker_unlock_other(__cilkrts_worker *w,
 //
 // #define REMOVE_POSSIBLY_OPTIONAL_LOCKS
 #ifdef REMOVE_POSSIBLY_OPTIONAL_LOCKS
-    #define BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) do
-    #define END_WITH_WORKER_LOCK_OPTIONAL(w)   while (0)
+#define BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) do
+#define END_WITH_WORKER_LOCK_OPTIONAL(w)   while (0)
 #else
-    #define BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) __cilkrts_worker_lock(w); do
-    #define END_WITH_WORKER_LOCK_OPTIONAL(w)   while (__cilkrts_worker_unlock(w), 0)
+#define BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) __cilkrts_worker_lock(w); do
+#define END_WITH_WORKER_LOCK_OPTIONAL(w)   while (__cilkrts_worker_unlock(w), 0)
 #endif
 
 
-#define BEGIN_WITH_FRAME_LOCK(w, ff)                                     \
+#define BEGIN_WITH_FRAME_LOCK(w, ff)                                    \
     do { full_frame *_locked_ff = ff; __cilkrts_frame_lock(w, _locked_ff); do
 
-#define END_WITH_FRAME_LOCK(w, ff)                       \
+#define END_WITH_FRAME_LOCK(w, ff)                                \
     while (__cilkrts_frame_unlock(w, _locked_ff), 0); } while (0)
 
 /* W becomes the owner of F and F can be stolen from W */
@@ -702,8 +702,8 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
                                     __cilkrts_worker *victim, deque *d)
 {
 
-    fprintf(stderr, "(w: %i) actually resuming a suspended fiber/deque (%p) from %i\n",
-            w->self, d, victim->self);
+    /* fprintf(stderr, "(w: %i) actually resuming a suspended fiber/deque (%p) from %i\n", */
+    /*         w->self, d, victim->self); */
     CILK_ASSERT(d->worker == victim);
     CILK_ASSERT(d->fiber);
     CILK_ASSERT(d->resumable == 1);
@@ -711,8 +711,6 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
 
     cilk_fiber *fiber = d->fiber;
     deque_mug(w, d);
-//    victim->l->mugged--;
-//    CILK_ASSERT(victim->l->mugged >= 0);
     __cilkrts_mutex_unlock(w, &victim->l->lock);
 
     // The deque has definitely been suspended, but its owner might
@@ -740,6 +738,8 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     w->l->steal_failure_count = 0;
     cilk_fiber_suspend_self_and_resume_other(w->l->scheduling_fiber, fiber);
 
+    // Might be non-null for, e.g., provably-good steal
+    //CILK_ASSERT(w->l->next_frame_ff == NULL);
 }
 
 static deque* choose_deque(__cilkrts_worker *w, __cilkrts_worker *victim)
@@ -851,8 +851,8 @@ static void random_steal(__cilkrts_worker *w)
         goto done;
 
     if (!can_steal_from(victim, d)) {
-        if (d->self >= 0)
-            deque_mug(w, d);
+        /* if (d->self >= 0) */
+        /*     deque_mug(w, d); */
         goto done;
     }
 
@@ -862,7 +862,7 @@ static void random_steal(__cilkrts_worker *w)
     } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
 
     if (NULL == fiber) { // we can't steal, so let's try to find a deque to resume
-
+        goto done;
         // Since we already hold the victim's lock, try that first
         d = victim->l->resumable_deques.array[0];
         if (d) return jump_to_suspended_fiber(w, victim, d);
@@ -902,79 +902,79 @@ static void random_steal(__cilkrts_worker *w)
     /* Attempt to steal work from the victim */
     /// @todo get deque locks, not worker locks
     //  if (worker_trylock_other(w, victim)) {
-        if (w->l->type == WORKER_USER && d->team != w) {
+    if (w->l->type == WORKER_USER && d->team != w) {
 
-            // Fail to steal if this is a user worker and the victim is not
-            // on this team.  If a user worker were allowed to steal work
-            // descended from another user worker, the former might not be
-            // done with its work by the time it was needed to resume and
-            // unbind.  Therefore, user workers are not permitted to change
-            // teams.
+        // Fail to steal if this is a user worker and the victim is not
+        // on this team.  If a user worker were allowed to steal work
+        // descended from another user worker, the former might not be
+        // done with its work by the time it was needed to resume and
+        // unbind.  Therefore, user workers are not permitted to change
+        // teams.
 
-            // There is no race on the victim's team because the victim cannot
-            // change its team until it runs out of work to do, at which point
-            // it will try to take out its own lock, and this worker already
-            // holds it.
-            NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_USER_WORKER);
+        // There is no race on the victim's team because the victim cannot
+        // change its team until it runs out of work to do, at which point
+        // it will try to take out its own lock, and this worker already
+        // holds it.
+        NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_USER_WORKER);
 
-        } else if (d->frame_ff) {
-            // A successful steal will change victim->frame_ff, even
-            // though the victim may be executing.  Thus, the lock on
-            // the victim's deque is also protecting victim->frame_ff.
-            if (dekker_protocol(victim, d)) {
-                int proceed_with_steal = 1; // optimistic
+    } else if (d->frame_ff) {
+        // A successful steal will change victim->frame_ff, even
+        // though the victim may be executing.  Thus, the lock on
+        // the victim's deque is also protecting victim->frame_ff.
+        if (dekker_protocol(victim, d)) {
+            int proceed_with_steal = 1; // optimistic
 
-                // If we're replaying a log, verify that this the correct frame
-                // to steal from the victim
-                if (! replay_match_victim_pedigree(w, victim))
-                {
-                    // Abort the steal attempt. decrement_E(victim) to
-                    // counter the increment_E(victim) done by the
-                    // dekker protocol
-                    decrement_E(victim, d);
-                    proceed_with_steal = 0;
-                }
+            // If we're replaying a log, verify that this the correct frame
+            // to steal from the victim
+            if (! replay_match_victim_pedigree(w, victim))
+            {
+                // Abort the steal attempt. decrement_E(victim) to
+                // counter the increment_E(victim) done by the
+                // dekker protocol
+                decrement_E(victim, d);
+                proceed_with_steal = 0;
+            }
 
-                if (proceed_with_steal)
-                {
-                    START_INTERVAL(w, INTERVAL_STEAL_SUCCESS) {
-                        success = 1;
-                        detach_for_steal(w, victim, d, fiber);
-                        victim_id = victim->self;
+            if (proceed_with_steal)
+            {
+                START_INTERVAL(w, INTERVAL_STEAL_SUCCESS) {
+                    success = 1;
+                    detach_for_steal(w, victim, d, fiber);
+                    victim_id = victim->self;
 
-                        #if REDPAR_DEBUG >= 1
-                        fprintf(stderr, "Wkr %d stole from victim %d, fiber = %p\n",
-                                w->self, victim->self, fiber);
-                        #endif
+#if REDPAR_DEBUG >= 1
+                    fprintf(stderr, "Wkr %d stole from victim %d, fiber = %p\n",
+                            w->self, victim->self, fiber);
+#endif
 //                        fprintf(stderr, msg, w->self, victim->self);
 
-                        // The use of victim->self contradicts our
-                        // classification of the "self" field as 
-                        // local.  But since this code is only for
-                        // debugging, it is ok.
-                        DBGPRINTF ("%d-%p: Stealing work from worker %d\n"
-                            "            sf: %p, call parent: %p\n",
-                            w->self, GetCurrentFiber(), victim->self,
-                            w->l->next_frame_ff->call_stack,
-                            w->l->next_frame_ff->call_stack->call_parent);
-                    } STOP_INTERVAL(w, INTERVAL_STEAL_SUCCESS);
-                }  // end if(proceed_with_steal)
-            } else {
-                NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_DEKKER);
-            }
+                    // The use of victim->self contradicts our
+                    // classification of the "self" field as 
+                    // local.  But since this code is only for
+                    // debugging, it is ok.
+                    DBGPRINTF ("%d-%p: Stealing work from worker %d\n"
+                               "            sf: %p, call parent: %p\n",
+                               w->self, GetCurrentFiber(), victim->self,
+                               w->l->next_frame_ff->call_stack,
+                               w->l->next_frame_ff->call_stack->call_parent);
+                } STOP_INTERVAL(w, INTERVAL_STEAL_SUCCESS);
+            }  // end if(proceed_with_steal)
         } else {
-            NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_EMPTYQ);
+            NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_DEKKER);
         }
-        //worker_unlock_other(w, victim);
+    } else {
+        NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_EMPTYQ);
+    }
+    //worker_unlock_other(w, victim);
     /* } else { */
     /*     NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_LOCK); */
     /* } */
 
 done:
-        if (victim->l->lock.owner == w)
-            worker_unlock_other(w, victim);
-        else
-            NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_LOCK);
+    if (victim->l->lock.owner == w)
+        worker_unlock_other(w, victim);
+    else
+        NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_LOCK);
 //    __cilkrts_mutex_unlock(w, &d->lock);
 
     // Record whether work was stolen.  When true, this will flag
@@ -1519,13 +1519,14 @@ user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
     sf = w->current_stack_frame;
     ff = *sf->worker->l->frame_ff;
 
-#if FIBER_DEBUG >= 1    
+/* #if FIBER_DEBUG >= 1     */
     CILK_ASSERT(ff->fiber_self == fiber);
     cilk_fiber_data *fdata = cilk_fiber_get_data(fiber);
     DBGPRINTF ("%d-%p: resume_after_switch_into_runtime, fiber=%p\n",
                w->self, w, fiber);
     CILK_ASSERT(sf == fdata->resume_sf);
-#endif
+/* #endif */
+    fdata->resume_sf = NULL;
 
     // Notify the Intel tools that we're stealing code
     ITT_SYNC_ACQUIRED(sf->worker);
@@ -1534,7 +1535,7 @@ user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
 
     // Actually jump to user code.
     cilkrts_resume(sf, ff);
- }
+}
 
 
 /* The current stack is about to either be suspended or destroyed.  This
@@ -2297,7 +2298,7 @@ static void do_sync(__cilkrts_worker *w, full_frame *ff,
    This function takes in a "returning_sf" argument which corresponds
    to the __cilkrts_stack_frame that we are finishing (i.e., the
    argument to __cilkrts_leave_frame).
-   */
+*/
 void __attribute__((noinline))
 __cilkrts_c_THE_exception_check(__cilkrts_worker *w, 
                                 __cilkrts_stack_frame *returning_sf)
@@ -2323,9 +2324,9 @@ __cilkrts_c_THE_exception_check(__cilkrts_worker *w,
 
         reset_THE_exception(w);
         stolen_p = !(*w->head < (*w->tail + 1)); /* +1 because tail was
-                                                  speculatively
-                                                  decremented by the
-                                                  compiled code */
+                                                    speculatively
+                                                    decremented by the
+                                                    compiled code */
 
         if (stolen_p) {
             /* XXX This will be charged to THE for accounting purposes */
@@ -2645,10 +2646,10 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     /* This is only called on a user thread worker. */
     CILK_ASSERT(w->l->type == WORKER_USER);
 
-    #if REDPAR_DEBUG >= 3
+#if REDPAR_DEBUG >= 3
     fprintf(stderr, "[W=%d, desc=cilkrts_c_return_from_initial, ff=%p]\n",
             w->self, *w->l->frame_ff);
-    #endif
+#endif
     
     BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) {
         full_frame *ff = *w->l->frame_ff;
@@ -3805,9 +3806,9 @@ slow_path_reductions_for_sync(__cilkrts_worker *w,
             // Deposit left and return.
             if (!middle_map) {
                 *(left_ptrs).map_ptr = left_map;
-                #if (REDPAR_DEBUG > 0)
+#if (REDPAR_DEBUG > 0)
                 CILK_ASSERT(NULL == w->reducer_map);
-                #endif
+#endif
                 // Sanity check upon leaving the loop.
                 verify_current_wkr(w);
                 // Make sure to unlock before we return!

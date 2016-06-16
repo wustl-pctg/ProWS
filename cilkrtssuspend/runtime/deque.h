@@ -18,6 +18,13 @@
 __CILKRTS_BEGIN_EXTERN_C
 
 #define SUSDEQUE_DEBUG 0
+#define DEQUE_DEBUG 0
+
+#if DEQUE_DEBUG > 0
+#define DEQUE_LOG(args...) fprintf(stderr, args)
+#else
+#define DEQUE_LOG(args...)
+#endif
 
 typedef struct deque deque;
 
@@ -31,26 +38,26 @@ struct deque
   __cilkrts_stack_frame *volatile *volatile exc;
   __cilkrts_stack_frame *volatile *volatile protected_tail;
   __cilkrts_stack_frame *volatile *ltq_limit;
-	__cilkrts_stack_frame ** ltq;
-	
+  __cilkrts_stack_frame ** ltq;
+  
   struct full_frame *frame_ff;
-	struct mutex lock;
-	struct mutex steal_lock;
-	int do_not_steal;
-	int resumable;
-	__cilkrts_worker *team;
-	
-	cilk_fiber *fiber;
-	__cilkrts_pedigree saved_ped;
-	__cilkrts_stack_frame *call_stack;
+  struct mutex lock;
+  struct mutex steal_lock;
+  int do_not_steal;
+  int resumable;
+  __cilkrts_worker *team;
+  
+  cilk_fiber *fiber;
+  __cilkrts_pedigree saved_ped;
+  __cilkrts_stack_frame *call_stack;
 
-	// As long as we allow suspended deques to change which deque_pool
-	// they are in, I don't see how to get away with not having these
-	// pointers back to a deque's location in a deque pool. This is
-	// rather error-prone and inelegant...
-	// If we don't allow entire suspended deques to be stolen, then I think we can do without this...
-	__cilkrts_worker volatile* worker;
-	int self; // index into worker's deque pool
+  // As long as we allow suspended deques to change which deque_pool
+  // they are in, I don't see how to get away with not having these
+  // pointers back to a deque's location in a deque pool. This is
+  // rather error-prone and inelegant...
+  // If we don't allow entire suspended deques to be stolen, then I think we can do without this...
+  __cilkrts_worker volatile* worker;
+  int self; // index into worker's deque pool
 };
 
 void increment_E(__cilkrts_worker *victim, deque* d);
@@ -59,8 +66,8 @@ void reset_THE_exception(__cilkrts_worker *w);
 int can_steal_from(__cilkrts_worker *victim, deque *d);
 int dekker_protocol(__cilkrts_worker *victim, deque *d);
 void detach_for_steal(__cilkrts_worker *w,
-											__cilkrts_worker *victim,
-											deque *d, cilk_fiber* fiber);
+                      __cilkrts_worker *victim,
+                      deque *d, cilk_fiber* fiber);
 void __cilkrts_promote_own_deque(__cilkrts_worker *w);
 
 int deque_init(deque *d, size_t ltqsize);

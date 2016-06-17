@@ -57,6 +57,7 @@
 #include "internal/abi.h"
 #include "metacall_impl.h"
 #include "global_state.h"
+#include <stdio.h>
 
 // Icky macros to determine if we're compiled with optimization.  Based on
 // the declaration of __CILKRTS_ASSERT in common.h
@@ -168,18 +169,18 @@ void call_cilk_for_loop_body(count_t low, count_t high,
 
 #ifdef PRECOMPUTE_PEDIGREES
 		loop_leaf_pedigree.length = loop_root_pedigree->length + 1;
-		loop_leaf_pedigree.actual = loop_root_pedigree->actual +
-			w->g->ped_compression_vec[loop_leaf_pedigree.length - 1];
+		loop_leaf_pedigree.actual = loop_root_pedigree->actual
+			+ loop_leaf_pedigree.rank
+			* w->g->ped_compression_vec[loop_leaf_pedigree.length - 1];
+		
 		if (loop_leaf_pedigree.actual >= w->g->big_prime)
 			loop_leaf_pedigree.actual %= w->g->big_prime;
-
 
 		w->pedigree.length = loop_leaf_pedigree.length + 1;
 		w->pedigree.actual = loop_leaf_pedigree.actual +
 			w->g->ped_compression_vec[w->pedigree.length];
 		if (w->pedigree.actual >= w->g->big_prime)
 			w->pedigree.actual %= w->g->big_prime;
-		CILK_ASSERT(w->pedigree.length < 256);
 #endif
 
     // Call the compiler generated cilk_for loop body lambda function
@@ -352,17 +353,17 @@ static void cilk_for_root(F body, void *data, count_t count, int grain)
     __cilkrts_worker *w = __cilkrts_get_tls_worker();
     __cilkrts_stack_frame *sf = w->current_stack_frame;
 
-    // Decrement the rank by one to undo the pedigree change from the
-    // _Cilk_spawn
-		// @todo{ I don't quite understand this case...}
-    --w->pedigree.rank;
+    // Undo changes from _Cilk_spawn
+		// But udpate_pedigree_on_leave_frame does this...
+//     --w->pedigree.rank;
 
-#ifdef PRECOMPUTE_PEDIGREES
-		//w->pedigree.length = ??;
-		w->pedigree.actual -= w->g->ped_compression_vec[w->pedigree.length - 1];
-		if (w->pedigree.actual >= w->g->big_prime)
-			w->pedigree.actual %= w->g->big_prime;
-#endif
+// #ifdef PRECOMPUTE_PEDIGREES
+// 		CILK_ASSERT(w->pedigree.length > 1);
+// 		--w->pedigree.length;
+// 		w->pedigree.actual -= w->g->ped_compression_vec[w->pedigree.length - 1];
+// 		if (w->pedigree.actual >= w->g->big_prime)
+// 			w->pedigree.actual %= w->g->big_prime;
+// #endif
 
     // Save the current worker pedigree into loop_root_pedigree, which will be
     // the root node for our flattened pedigree.

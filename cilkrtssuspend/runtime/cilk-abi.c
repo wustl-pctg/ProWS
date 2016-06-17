@@ -819,17 +819,23 @@ __cilkrts_bump_loop_rank_internal(__cilkrts_worker* w)
 	// Normally, we'd just write "w->pedigree.parent->rank++"
 	// But we need to cast away the "const".
 	((__cilkrts_pedigree*) w->pedigree.parent)->rank++;
+	// Zero the worker's pedigree rank since this is the start of a new
+	// pedigree domain.
+	w->pedigree.rank = 1;
 
 #ifdef PRECOMPUTE_PEDIGREES
 	__cilkrts_pedigree *ped = ((__cilkrts_pedigree*) w->pedigree.parent);
-	ped->actual += w->g->ped_compression_vec[w->pedigree.length-1];
+	CILK_ASSERT(w->pedigree.length == ped->length + 1);
+
+	ped->actual += w->g->ped_compression_vec[ped->length-1];
 	if (ped->actual >= w->g->big_prime)
 			ped->actual %= w->g->big_prime;
-#endif
 
-	// Zero the worker's pedigree rank since this is the start of a new
-	// pedigree domain.
-	w->pedigree.rank = 1; // for precomputation
+	w->pedigree.actual = ped->actual +
+		w->g->ped_compression_vec[w->pedigree.length - 1];
+	if (w->pedigree.actual >= w->g->big_prime)
+			w->pedigree.actual %= w->g->big_prime;
+#endif
 
 	return 0;
 }

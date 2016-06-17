@@ -9,6 +9,14 @@ namespace cilkrr {
   acquire_info::acquire_info(pedigree_t p)
     : ped(p), next(nullptr), suspended_deque(nullptr) {}
 
+#if PTYPE != PARRAY
+	acquire_info::acquire_info(pedigree_t p, full_pedigree_t full)
+		: ped(p), next(nullptr), suspended_deque(nullptr)
+	{
+		actual = full;
+	}
+#endif
+
   std::string acquire_info::array_str() // length must be > 0
   {
 #if PTYPE == PARRAY
@@ -29,8 +37,9 @@ namespace cilkrr {
 #if PTYPE == PARRAY
     return array_str();
 #else
-    if (actual.length > 0) return array_str();
-    return std::to_string(ped);
+		std::string s = std::to_string(ped);
+    if (actual.length > 0) s += array_str();
+    return s;
 #endif
   }
   
@@ -55,7 +64,7 @@ namespace cilkrr {
     assert(m_buckets);
   }
 
-#if PTYPE != PPRE
+#if PTYPE == PARRAY
   size_t acquire_container::hash(pedigree_t k)
   {
     size_t h = 0;
@@ -91,11 +100,7 @@ namespace cilkrr {
       if (a->ped == p) return a;
       a = a->chain_next;
     }
-    // Should have been found...
-    a = new acquire_info(p);
-    fprintf(stderr, "Cilkrecord error: can't find pedigree %s\n",
-            a->str().c_str());
-    std::abort();
+		goto not_found;
 #else
     while (a) {
       if (a->ped == p) {
@@ -125,14 +130,17 @@ namespace cilkrr {
       }
       if (!match) goto not_found;
     }
+#endif
     return match;
   not_found:
     a = new acquire_info(p);
+#if PTYPE != PARRAY
     a->actual = full;
-    fprintf(stderr, "Cilkrecord error: can't find pedigree %s\n",
-            a->c_str());
-    std::abort();
 #endif
+    fprintf(stderr, "Cilkrecord error: can't find pedigree %s\n",
+            a->str().c_str());
+    std::abort();
+
   }
 
   void acquire_container::print(std::ofstream& output)
@@ -206,6 +214,7 @@ namespace cilkrr {
     a->ped = p;
     a->next = nullptr;
     a->suspended_deque = nullptr;
+
     if (m_index >= m_chunk_size) {
       m_index = 0;
       m_chunk_size *= 2;
@@ -246,14 +255,19 @@ namespace cilkrr {
     acquire_info **bucket = &m_buckets[hash(p)];
     size_t check = bucket_add(bucket, a);
 
+
 #if PTYPE != PARRAY
-    if (check == 0) {
-      a->actual = get_full_pedigree();
-      m_num_conflicts++;
-    } else {
-      a->actual.length = 0;
-      a->actual.array = nullptr;
-    }
+
+		// for debugging
+		a->actual = get_full_pedigree();
+
+    // if (check == 0) {
+    //   a->actual = get_full_pedigree();
+    //   m_num_conflicts++;
+    // } else {
+    //   a->actual.length = 0;
+    //   a->actual.array = nullptr;
+    // }
 #endif
 
     m_unique += check;

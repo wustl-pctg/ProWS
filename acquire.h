@@ -20,6 +20,12 @@ namespace cilkrr {
 		void *suspended_deque;
 		acquire_info();
 		acquire_info(pedigree_t p);
+
+		// for debugging
+#if PTYPE != PARRAY
+		acquire_info(pedigree_t p, full_pedigree_t f);
+#endif
+		
     std::string str();
   private:
     std::string array_str();
@@ -29,14 +35,14 @@ namespace cilkrr {
 	class acquire_container {
 	private:
 
-#define RESERVE_SIZE 1024
+#define RESERVE_SIZE 4
 
     // Hash table
 		size_t m_unique = 0;
 		size_t m_num_buckets = RESERVE_SIZE;
 		acquire_info** m_buckets;
 		size_t bucket_add(acquire_info** bucket, acquire_info* item);
-    #if PTYPE == PARRAY
+#if PTYPE == PARRAY
     size_t hash(pedigree_t k);
 #else
     inline size_t hash(pedigree_t k) { return k % m_num_buckets; }

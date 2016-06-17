@@ -45,8 +45,10 @@ namespace cilkrr {
   {
 
     m_first_chunk = m_current_chunk = new chunk();
+		assert(m_first_chunk);
     m_current_chunk->size = m_chunk_size;
     m_current_chunk->array = (acquire_info*) malloc(m_chunk_size * sizeof(acquire_info));
+		assert(m_current_chunk->array);
     m_current_chunk->next = nullptr;
 
     m_buckets = (acquire_info**) calloc(m_num_buckets, sizeof(acquire_info*));
@@ -233,9 +235,11 @@ namespace cilkrr {
       m_index = 0;
       m_chunk_size *= 2;
       m_current_chunk = m_current_chunk->next = new chunk();
+			assert(m_current_chunk);
       m_current_chunk->size = m_chunk_size;
       m_current_chunk->next = nullptr;
       m_current_chunk->array = (acquire_info*) malloc(m_chunk_size * sizeof(acquire_info));
+			assert(m_current_chunk->array);
     }
     m_size++;
 

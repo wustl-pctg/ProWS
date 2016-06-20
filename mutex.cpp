@@ -52,7 +52,7 @@ namespace cilkrr {
     
 		if (get_mode() == REPLAY) {
       // returns locked, but not acquired
-			replay_lock(m_acquires->find(p)); 
+			replay_lock(m_acquires->find((const pedigree_t)p)); 
     } else {
 			m_mutex.lock();
     }

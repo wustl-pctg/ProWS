@@ -29,7 +29,7 @@ namespace cilkrr {
 	class acquire_container {
 	private:
 
-#define RESERVE_SIZE 1024
+#define RESERVE_SIZE 4
 
     // Hash table
 		size_t m_unique = 0;
@@ -44,6 +44,10 @@ namespace cilkrr {
 
 		void rehash(size_t new_cap);
 
+    /// @todo{ It is a bit silly to have an allocator inside each
+    // acquire_container. Instead, just have each thread use its own
+    // allocator, that way it is shared between locks }
+    
     // Chunked linked list that stores the actual acquire_info structs
 		size_t m_size = 0;
 		// chunked Linked list
@@ -69,6 +73,9 @@ namespace cilkrr {
 
 		acquire_container() = delete;
 		acquire_container(enum mode m);
+
+    // Approximate memory allocated
+    size_t memsize();
 
 		acquire_info* begin();
 		acquire_info* end();

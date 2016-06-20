@@ -29,8 +29,10 @@ namespace cilkrr {
 #if PTYPE == PARRAY
     return array_str();
 #else
-    if (actual.length > 0) return array_str();
-    return std::to_string(ped);
+    std::string s = std::to_string(ped);
+    if (actual.length > 0)
+      s += array_str();
+    return s;
 #endif
   }
   
@@ -128,7 +130,7 @@ namespace cilkrr {
     a = new acquire_info(p);
     a->actual = full;
     fprintf(stderr, "Cilkrecord error: can't find pedigree %s\n",
-            a->c_str());
+            a->str().c_str());
     std::abort();
 #endif
   }
@@ -173,6 +175,7 @@ namespace cilkrr {
   void acquire_container::rehash(size_t new_cap)
   {
     if (new_cap <= m_num_buckets) return;
+    fprintf(stderr, "rehashing to %zu\n", new_cap);
 
     acquire_info** new_buckets = (acquire_info**) calloc(new_cap, sizeof(acquire_info*));
     size_t new_size = 0;
@@ -206,7 +209,8 @@ namespace cilkrr {
     a->suspended_deque = nullptr;
     if (m_index >= m_chunk_size) {
       m_index = 0;
-      m_chunk_size *= 2;
+      //m_chunk_size *= 2;
+      if (m_chunk_size < 1024) m_chunk_size *= 2;
       m_current_chunk = m_current_chunk->next = new chunk();
       m_current_chunk->size = m_chunk_size;
       m_current_chunk->next = nullptr;
@@ -261,6 +265,18 @@ namespace cilkrr {
     else m_it = m_it->next = a;
 
     return a;
+  }
+
+  size_t acquire_container::memsize()
+  {
+    struct chunk *c = m_first_chunk;
+    size_t acquire_info_size = 0;
+
+    while (c) {
+      acquire_info_size += c->size;
+      c = c->next;
+    }
+    return acquire_info_size + m_num_buckets;
   }
 
 }

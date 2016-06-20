@@ -131,9 +131,9 @@ namespace cilkrr {
             getline(input, line);
             size_t ind = line.find('[');
 #if PTYPE != PARRAY
-            if (ind == std::string::npos) // read in full pedigree
+            if (ind == std::string::npos) // read in compressed pedigree
               p = std::stoul(line);
-            else {
+            else { // read in full pedigree
               p = std::stoul(line.substr(0,ind));
               full.length = std::count(line.begin(), line.end(), ',');
               full.array = (uint64_t*) malloc(full.length * sizeof(uint64_t));
@@ -189,14 +189,18 @@ namespace cilkrr {
     // to punch through the damn monitor, so I won't waste the time to
     // try to figure it out.
     output << std::to_string(m_size) << std::endl;
+    size_t mem_allocated = 0;
     for (int i = 0; i < m_size; ++i) {
       output << "{" << i << ":" << std::endl;
       
       cont = m_all_acquires[i];
       cont->print(output);
+      mem_allocated += cont->memsize();
       output << "}" << std::endl;
     }
     output.close();
+
+    fprintf(stderr, "%zu bytes allocated for %zu locks\n", mem_allocated, m_size);
   }
 
   // This may be called multiple times, but it is not thread-safe!

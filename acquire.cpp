@@ -184,7 +184,6 @@ namespace cilkrr {
   void acquire_container::rehash(size_t new_cap)
   {
     if (new_cap <= m_num_buckets) return;
-    fprintf(stderr, "rehashing to %zu\n", new_cap);
 
     acquire_info** new_buckets = (acquire_info**) calloc(new_cap, sizeof(acquire_info*));
     size_t new_size = 0;

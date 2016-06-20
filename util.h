@@ -13,9 +13,9 @@
 #define PTYPE PARRAY
 #endif
 
-/* #if PTYPE == PPRE */
+#if PTYPE == PPRE
 #define PRECOMPUTE_PEDIGREES 1
-/* #endif */
+#endif
 
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>

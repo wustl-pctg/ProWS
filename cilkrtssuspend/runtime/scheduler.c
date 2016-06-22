@@ -760,7 +760,11 @@ static deque* choose_deque(__cilkrts_worker *w, __cilkrts_worker *victim)
         //index = 1;
     } else {
         pool = &victim->l->suspended_deques;
-        index = myrand(w) % (pool->size + 1);
+        if (w == victim) // don't choose 0 (active_deque)
+            index = (myrand(w) % (pool->size)) + 1;
+        else
+            index = myrand(w) % (pool->size + 1);
+        
     }
     
     if (w == victim && pool->size == 0) { // someone mugged us
@@ -851,8 +855,8 @@ static void random_steal(__cilkrts_worker *w)
         goto done;
 
     if (!can_steal_from(victim, d)) {
-        /* if (d->self >= 0) */
-        /*     deque_mug(w, d); */
+        if (d->self >= 0)
+            deque_mug(w, d);
         goto done;
     }
 
@@ -1333,14 +1337,16 @@ static void setup_for_execution_pedigree(__cilkrts_worker *w)
         if (w->l->work_stolen) {
             w->pedigree.rank = sf->parent_pedigree.rank + 1;
 #ifdef PRECOMPUTE_PEDIGREES
+            w->pedigree.length = sf->parent_pedigree.length;
             w->pedigree.actual = sf->parent_pedigree.actual +
-                w->g->ped_compression_vec[sf->parent_pedigree.length-1];
+                w->g->ped_compression_vec[w->pedigree.length-1];
             if (w->pedigree.actual >= w->g->big_prime)
                 w->pedigree.actual %= w->g->big_prime;
 #endif
         } else { 
             w->pedigree.rank = sf->parent_pedigree.rank;
 #ifdef PRECOMPUTE_PEDIGREES
+            w->pedigree.length = sf->parent_pedigree.length;
             w->pedigree.actual = sf->parent_pedigree.actual;
 #endif
         }
@@ -2656,6 +2662,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         CILK_ASSERT(ff);
         CILK_ASSERT(ff->join_counter == 1);
         *w->l->frame_ff = 0;
+        w->l->original_deque = w->l->active_deque;
         
         CILK_ASSERT(ff->fiber_self);
         // Save any TBB interop data for the next time this thread enters Cilk
@@ -2829,6 +2836,7 @@ __cilkrts_worker *make_worker(global_state_t *g,
     w->l->last_full_frame = NULL;
 
     w->l->active_deque = __cilkrts_malloc(sizeof(deque));
+    w->l->original_deque = w->l->active_deque;
     deque_init(w->l->active_deque, w->g->ltqsize);
     deque_pool_init(&w->l->suspended_deques, w->g->ltqsize);
     deque_pool_init(&w->l->resumable_deques, w->g->ltqsize);

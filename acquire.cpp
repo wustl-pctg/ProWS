@@ -215,6 +215,7 @@ namespace cilkrr {
     a->ped = p;
     a->next = nullptr;
     a->suspended_deque = nullptr;
+		a->actual = full;
 
     if (m_index >= m_chunk_size) {
       m_index = 0;
@@ -228,8 +229,11 @@ namespace cilkrr {
     m_size++;
 
     acquire_info **bucket = &m_buckets[hash(p)];
-    bucket_add(bucket, a);
-    a->actual = full;
+    m_unique += bucket_add(bucket, a);
+
+    if (m_unique / ((double) m_num_buckets) > 1.0)
+      rehash(2*m_num_buckets);
+
     if (m_first == nullptr) m_first = m_it = a;
     else m_it = m_it->next = a;
     return a;

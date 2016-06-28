@@ -760,7 +760,7 @@ static deque* choose_deque(__cilkrts_worker *w, __cilkrts_worker *victim)
         //index = 1;
     } else {
         pool = &victim->l->suspended_deques;
-        if (w == victim) // don't choose 0 (active_deque)
+        if (w == victim && pool->size > 0) // don't choose 0 (active_deque)
             index = (myrand(w) % (pool->size)) + 1;
         else
             index = myrand(w) % (pool->size + 1);
@@ -804,10 +804,10 @@ static void random_steal(__cilkrts_worker *w)
     //CILK_ASSERT(w->g->total_workers > 1); // not true for suspendable deques
 
     // First let's check that our deque_pool is valid
-    __cilkrts_worker_lock(w);
-    deque_pool_validate(&w->l->suspended_deques, w);
-    deque_pool_validate(&w->l->resumable_deques, w);
-    __cilkrts_worker_unlock(w);
+    /* __cilkrts_worker_lock(w); */
+    /* deque_pool_validate(&w->l->suspended_deques, w); */
+    /* deque_pool_validate(&w->l->resumable_deques, w); */
+    /* __cilkrts_worker_unlock(w); */
 
     // If we have suspended deques, we should be able to choose ourself.
     if (w->g->P == 1) {
@@ -820,8 +820,10 @@ static void random_steal(__cilkrts_worker *w)
         /*     + w->l->mugged + w->l->waiting_stacks; */
         /* CILK_ASSERT((s1 == s2) || ((s1+1) == s2) || (s1 == (s2+1))); */
     } else {
-        // No one else could add suspended deques, so its fine to read
-        // this without a lock.
+
+        // We don't hold the lock here, so we may read a stale
+        // value. But that's okay -- we just won't steal from
+        // ourselves. In the worst case we just loop around again.
         if ((w->l->suspended_deques.size + w->l->resumable_deques.size) == 0) {
             n = myrand(w) % (w->g->total_workers - 1);
             /* pick random *other* victim */
@@ -855,8 +857,11 @@ static void random_steal(__cilkrts_worker *w)
         goto done;
 
     if (!can_steal_from(victim, d)) {
-        if (d->self >= 0)
+        if (d->self >= 0) { // not an active deque
+            CILK_ASSERT(d != victim->l->active_deque);
             deque_mug(w, d);
+            CILK_ASSERT(!d->resumable);
+        }
         goto done;
     }
 
@@ -1095,6 +1100,7 @@ enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w,
                     result = CONTINUE_EXECUTION;
             } else {
                 __cilkrts_push_next_frame(w, ff);
+
                 result = CONTINUE_EXECUTION;  // Continue working on this thread
             }
 
@@ -2650,6 +2656,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
 
     /* This is only called on a user thread worker. */
+    // Disabled for CilkRR replay
     CILK_ASSERT(w->l->type == WORKER_USER);
 
 #if REDPAR_DEBUG >= 3

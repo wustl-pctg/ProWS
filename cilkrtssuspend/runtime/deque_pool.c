@@ -98,6 +98,8 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 
   // At this point, no one else can resume the deque.
   // Wait for the deque to be fully suspended.
+	fprintf(stderr, "(w: %d) trying to resume %p\n",
+					w->self, deque_to_resume);
   while (!deque_to_resume->fiber
          || !cilk_fiber_is_resumable(deque_to_resume->fiber));
 

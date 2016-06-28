@@ -221,8 +221,9 @@ void detach_for_steal(__cilkrts_worker *w,
 
     if (WORKER_USER == victim->l->type &&
         NULL == victim->l->last_full_frame &&
-        d == victim->l->active_deque) {
-        /* d == victim->l->original_deque) { */
+        /* d == victim->l->active_deque) { */
+				// @todo{ Make a global original deque, not per worker}
+        d == victim->l->original_deque) {
       
       // Mark this looted frame as special: only the original user worker
       // may cross the sync.
@@ -245,8 +246,9 @@ void detach_for_steal(__cilkrts_worker *w,
       /* Pretend that frame has been stolen */
       loot_ff->call_stack->flags |= CILK_FRAME_UNSYNCHED;
       loot_ff->simulated_stolen = 1;
-    } else
+    } else {
       __cilkrts_push_next_frame(w, loot_ff);
+		}
 
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
@@ -426,7 +428,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     CILK_ASSERT(new_deque->team == w);
 
   __cilkrts_worker *victim = w->g->workers[myrand(w) % w->g->total_workers];
-	 victim = w;
+	/* victim = w; */
 
   cilk_fiber *fiber;
   BEGIN_WITH_WORKER_LOCK(w) { // I'm not entirely sure this is necessary
@@ -446,7 +448,8 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
       CILK_ASSERT(!data->resume_sf);
 
       if (WORKER_USER == w->l->type &&
-          NULL == w->l->last_full_frame) {
+          NULL == w->l->last_full_frame &&
+					d == w->l->original_deque) {
         //set_sync_master(w, d->frame_ff);
         
         /* This is big hack. I want to set the sync master for a
@@ -460,7 +463,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
         /// wrong loot frame?! If something is wrong and I don't know
         /// where to look, here is a good place to start.}
       
-        /* victim = w; */
+        victim = w;
       }
 
     }
@@ -477,14 +480,26 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   // Might be nice to use trylock here, but I'm not sure what is the
   // right thing to do if it fails.
   __cilkrts_mutex_lock(w, &victim->l->lock); {
-    if (d->resumable)
+    if (d->resumable) {
       deque_pool_add(victim, &victim->l->resumable_deques, d);
-    else if (d->head != d->tail) // not resumable, but stealable!
+			fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n",
+							w->self, d, victim->self);
+
+		} else if (d->head != d->tail) { // not resumable, but stealable!
       deque_pool_add(victim, &victim->l->suspended_deques, d);
-    else { // empty: no need to add, will be resumed later
+			fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n",
+										w->self, d, victim->self);
+
+		} else { // empty: no need to add, will be resumed later
+
+
       d->self = INVALID_DEQUE_INDEX;
       d->worker = NULL;
       //      w->l->mugged++;
+
+			fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n",
+							w->self, d, victim->self);
+
     }
   } __cilkrts_mutex_unlock(w, &victim->l->lock);
   //} END_WITH_WORKER_LOCK(w);
@@ -500,15 +515,21 @@ void deque_mug(__cilkrts_worker *w, deque *d)
   CILK_ASSERT(d->worker->l->lock.owner == w);
   CILK_ASSERT(d->fiber);
 
+	
+
   deque_pool *p = (d->resumable) ?
     &d->worker->l->resumable_deques : &d->worker->l->suspended_deques;
   deque_pool_validate(p, d->worker);
 
-  DEQUE_LOG("(w: %i) mugging %p from %i\n",
-            w->self, d, d->worker->self);
+	DEQUE_LOG("(w: %i) mugged %p from %i\n",
+						w->self, d, d->worker->self);
 
   //  d->worker->l->mugged++;
   deque_pool_remove(p, d);
+
+	// Temporary, place after deque_pool_remove to try to replicate race condition
+	fprintf(stderr, "(w: %i) mugged %p from %i\n",
+					w->self, d, d->worker->self);
 }
 
 /* Assuming we have exclusive access to this deque, i.e. either

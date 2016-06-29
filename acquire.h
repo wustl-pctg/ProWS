@@ -17,7 +17,7 @@ namespace cilkrr {
 #endif
 		acquire_info *chain_next;
 		acquire_info *next; // Needed for replay only
-		void *suspended_deque;
+		void * volatile suspended_deque;
 		acquire_info();
 		acquire_info(pedigree_t p);
 

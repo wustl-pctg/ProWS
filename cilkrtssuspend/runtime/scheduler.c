@@ -2657,7 +2657,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay
-    CILK_ASSERT(w->l->type == WORKER_USER);
+    //CILK_ASSERT(w->l->type == WORKER_USER);
 
 #if REDPAR_DEBUG >= 3
     fprintf(stderr, "[W=%d, desc=cilkrts_c_return_from_initial, ff=%p]\n",

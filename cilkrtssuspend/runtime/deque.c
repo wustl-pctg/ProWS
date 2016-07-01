@@ -482,13 +482,13 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   __cilkrts_mutex_lock(w, &victim->l->lock); {
     if (d->resumable) {
       deque_pool_add(victim, &victim->l->resumable_deques, d);
-			fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n",
-							w->self, d, victim->self);
+			/* fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n", */
+			/* 				w->self, d, victim->self); */
 
 		} else if (d->head != d->tail) { // not resumable, but stealable!
       deque_pool_add(victim, &victim->l->suspended_deques, d);
-			fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n",
-										w->self, d, victim->self);
+			/* fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n", */
+			/* 							w->self, d, victim->self); */
 
 		} else { // empty: no need to add, will be resumed later
 
@@ -497,8 +497,8 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
       d->worker = NULL;
       //      w->l->mugged++;
 
-			fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n",
-							w->self, d, victim->self);
+			/* fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n", */
+			/* 				w->self, d, victim->self); */
 
     }
   } __cilkrts_mutex_unlock(w, &victim->l->lock);
@@ -526,10 +526,6 @@ void deque_mug(__cilkrts_worker *w, deque *d)
 
   //  d->worker->l->mugged++;
   deque_pool_remove(p, d);
-
-	// Temporary, place after deque_pool_remove to try to replicate race condition
-	fprintf(stderr, "(w: %i) mugged %p from %i\n",
-					w->self, d, d->worker->self);
 }
 
 /* Assuming we have exclusive access to this deque, i.e. either

@@ -128,30 +128,12 @@ namespace cilkrr {
 
 	void mutex::replay_unlock()
 	{
-    // Original protocol:
-    //  if suspended_deque:
-    //    resume suspended
-    //  else
-    //    release
-
 		acquire_info *front = m_acquires->current()->next;
 
 		m_acquires->next();
     __sync_synchronize();
     release();		
-	
-		// if (!(front == m_acquires->end()) 
-    //     && front->suspended_deque
-    //     && m_mutex.try_lock()) {
 
-
-    //   if (front->suspended_deque)
-    //     __cilkrts_resume_suspended(front->suspended_deque, 1);
-    //     void* deque = front->suspended_deque;
-    //     //if (deque && __sync_bool_compare_and_swap(&front->suspended_deque, deque, NULL))
-    //     //__cilkrts_resume_suspended(deque, 1);
-
-		// } 
 #define CAS(l,o,n) __sync_bool_compare_and_swap(l,o,n)
     if (!front) return;
     void* deque = front->suspended_deque;
@@ -171,15 +153,11 @@ namespace cilkrr {
 
 		acquire_info *front = m_acquires->current();
 
-    //if (front == a && m_mutex.try_lock()) {
     if (front == a && __sync_bool_compare_and_swap(&front->suspended_deque, deque, NULL)) {
 			// Have lock, MUST resume
 		} else {
 			__cilkrts_suspend_deque();
 		}
-    //a->suspended_deque = NULL;
-    // int locked = m_mutex.try_lock();
-    // assert(locked);
     m_mutex.lock();
     
 		// When this fiber is resumed, the mutex is locked!

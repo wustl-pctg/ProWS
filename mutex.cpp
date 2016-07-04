@@ -2,7 +2,14 @@
 #include <cstdio>
 #include <cassert>
 #include <memory>
+
 #include <atomic>
+#define MEM_FENCE std::atomic_thread_fence(std::memory_order_seq_cst)
+#define LOAD_FENCE std::atomic_thread_fence(std::memory_order_acquire)
+#define STORE_FENCE std::atomic_thread_fence(std::memory_order_release)
+// #define MEM_FENCE __sync_synchronize()p
+// #define LOAD_FENCE __sync_synchronize()
+// #define STORE_FENCE __sync_synchronize()
 
 #include <internal/abi.h>
 #include "cilk/cilk_api.h"
@@ -129,16 +136,22 @@ namespace cilkrr {
 	void mutex::replay_unlock()
 	{
 		acquire_info *front = m_acquires->current()->next;
-
+    if (!front) { release(); return; }
+    front->checking = 1;
+    
 		m_acquires->next();
-    __sync_synchronize();
-    release();		
-
-#define CAS(l,o,n) __sync_bool_compare_and_swap(l,o,n)
-    if (!front) return;
+    MEM_FENCE;
+    
     void* deque = front->suspended_deque;
-    if (deque && CAS(&front->suspended_deque, deque, NULL))
+    if (deque) {
+      front->suspended_deque = nullptr;
+      STORE_FENCE;
+      front->checking = 0;
       __cilkrts_resume_suspended(deque, 1);
+    } else {
+      front->checking = 0;
+      release();
+    }
 
 
 
@@ -146,22 +159,22 @@ namespace cilkrr {
 
 	void mutex::suspend(acquire_info *a)
 	{
-		void *deque = __cilkrts_get_deque();
-
-		a->suspended_deque = deque;
-		__sync_synchronize();
+		a->suspended_deque = __cilkrts_get_deque();
+    MEM_FENCE;
 
 		acquire_info *front = m_acquires->current();
+    if (front == a) {
 
-    if (front == a && __sync_bool_compare_and_swap(&front->suspended_deque, deque, NULL)) {
-			// Have lock, MUST resume
-		} else {
-			__cilkrts_suspend_deque();
+      while (a->checking) ;
+      LOAD_FENCE;
+      if (front->suspended_deque) {
+        front->suspended_deque = nullptr;
+        m_mutex.lock();
+        return; // continue
+      }
 		}
-    m_mutex.lock();
-    
+     __cilkrts_suspend_deque();
 		// When this fiber is resumed, the mutex is locked!
-		std::atomic_thread_fence(std::memory_order_seq_cst);
 	}
 
 

@@ -18,6 +18,8 @@ namespace cilkrr {
 		acquire_info *chain_next;
 		acquire_info *next; // Needed for replay only
 		void * volatile suspended_deque;
+    int checking = 0; // I think this can be per-lock instead
+    
 		acquire_info();
 		acquire_info(pedigree_t p);
 

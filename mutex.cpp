@@ -135,21 +135,19 @@ namespace cilkrr {
 
 	void mutex::replay_unlock()
 	{
-		acquire_info *front = m_acquires->current()->next;
-    if (!front) { release(); return; }
-    front->checking = 1;
-    
+    m_checking = 1;
 		m_acquires->next();
+    acquire_info *front = m_acquires->current();
     MEM_FENCE;
-    
-    void* deque = front->suspended_deque;
-    if (deque) {
+
+    if (front && front->suspended_deque) {
+      void* deque = front->suspended_deque;
       front->suspended_deque = nullptr;
       STORE_FENCE;
-      front->checking = 0;
+      m_checking = 0;
       __cilkrts_resume_suspended(deque, 1);
     } else {
-      front->checking = 0;
+      m_checking = 0;
       release();
     }
 
@@ -165,7 +163,7 @@ namespace cilkrr {
 		acquire_info *front = m_acquires->current();
     if (front == a) {
 
-      while (a->checking) ;
+      while (m_checking) ;
       LOAD_FENCE;
       if (front->suspended_deque) {
         front->suspended_deque = nullptr;
@@ -174,7 +172,6 @@ namespace cilkrr {
       }
 		}
      __cilkrts_suspend_deque();
-		// When this fiber is resumed, the mutex is locked!
 	}
 
 

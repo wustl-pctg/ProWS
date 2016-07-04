@@ -144,23 +144,22 @@ namespace cilkrr {
 
 	void mutex::replay_unlock()
 	{
-    m_checking = 1;
+    void *deque = nullptr;
+    m_checking = true;
 		m_acquires->next();
     acquire_info *front = m_acquires->current();
     MEM_FENCE;
 
     if (front && front->suspended_deque) {
-      void* deque = front->suspended_deque;
+      deque = front->suspended_deque;
       front->suspended_deque = nullptr;
       STORE_FENCE;
-      m_checking = 0;
-      __cilkrts_resume_suspended(deque, 1);
-    } else {
-      m_checking = 0;
-      release();
     }
-
-
+    m_checking = false;
+    if (deque)
+      __cilkrts_resume_suspended(deque, 1);
+    else
+      release();
 
 	}
 

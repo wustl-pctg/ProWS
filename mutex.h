@@ -17,7 +17,7 @@ namespace cilkrr {
 		// Info for both recording and replaying
 		uint64_t m_id; // index into global container of cilkrr_mutexes
 		acquire_container* m_acquires = nullptr;
-    int m_checking = 0;
+    bool m_checking = false;
 
 		void record_acquire(pedigree_t& p);
 		void replay_lock(acquire_info *a);

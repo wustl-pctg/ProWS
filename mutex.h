@@ -26,8 +26,6 @@ namespace cilkrr {
 
 		inline void acquire();
 		inline void release();
-
-		void suspend(acquire_info* a);
 		
 	public:
 		mutex();

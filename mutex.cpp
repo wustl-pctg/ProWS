@@ -101,14 +101,23 @@ namespace cilkrr {
 
 	void mutex::replay_lock(acquire_info* a)
 	{
-		// if (!(a == m_acquires->current()))
-		// 	suspend(a); // returns locked, but not acquired
-		// else // may need to wait constant time as owner decides to release lock
-		// 	m_mutex.lock();
-    suspend(a);
-		// Invariant: Upon return, the lock is locked by this worker
-	}
+    a->suspended_deque = __cilkrts_get_deque();
+    MEM_FENCE;
 
+		acquire_info *front = m_acquires->current();
+    if (front == a) {
+
+      while (m_checking) ;
+      LOAD_FENCE;
+      if (front->suspended_deque) {
+        front->suspended_deque = nullptr;
+        m_mutex.lock();
+        return; // continue
+      }
+		}
+     __cilkrts_suspend_deque();
+  }
+  
 	// bool mutex::replay_try_lock(pedigree_t& p)
 	// {
 	// 	acquire_info *a = m_acquires->find(p);
@@ -154,26 +163,5 @@ namespace cilkrr {
 
 
 	}
-
-	void mutex::suspend(acquire_info *a)
-	{
-		a->suspended_deque = __cilkrts_get_deque();
-    MEM_FENCE;
-
-		acquire_info *front = m_acquires->current();
-    if (front == a) {
-
-      while (m_checking) ;
-      LOAD_FENCE;
-      if (front->suspended_deque) {
-        front->suspended_deque = nullptr;
-        m_mutex.lock();
-        return; // continue
-      }
-		}
-     __cilkrts_suspend_deque();
-	}
-
-
 
 }

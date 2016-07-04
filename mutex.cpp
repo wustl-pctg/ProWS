@@ -40,14 +40,17 @@ namespace cilkrr {
 	// nondeterministic conditions.
 	inline void mutex::acquire()
 	{
+#ifdef DEBUG_ACQUIRE
 		m_owner = __cilkrts_get_tls_worker();
-		//__cilkrts_bump_worker_rank();
+#endif
 	}
 	
 	inline void mutex::release()
 	{
+#ifdef DEBUG_ACQUIRE
 		m_owner = nullptr;
     m_active = nullptr;
+#endif
 		m_mutex.unlock();
 	}
 
@@ -97,7 +100,13 @@ namespace cilkrr {
 			__cilkrts_bump_worker_rank();
 	}
 
-	void mutex::record_acquire(pedigree_t& p){ m_active = m_acquires->add(p); }
+	void mutex::record_acquire(pedigree_t& p)
+  {
+    acquire_info *a = m_acquires->add(p);
+#ifdef DEBUG_ACQUIRE
+    m_active = a;
+#endif
+  }
 
 	void mutex::replay_lock(acquire_info* a)
 	{

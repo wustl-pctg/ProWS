@@ -11,13 +11,16 @@ namespace cilkrr {
 	class mutex {
 	private:
 		std::mutex m_mutex;
+
+#ifdef DEBUG_ACQUIRE
 		__cilkrts_worker *m_owner = nullptr; // just for debugging
     acquire_info volatile *m_active = nullptr; // just for debugging??
+#endif
 
-		// Info for both recording and replaying
-		uint64_t m_id; // index into global container of cilkrr_mutexes
-		acquire_container* m_acquires = nullptr;
-    bool m_checking = false;
+		// Record/Replay fields
+		uint64_t m_id; /// index into global container of mutexes
+		acquire_container* m_acquires = nullptr; /// container of recorded acquires
+    bool m_checking = false; /// For handoff between acquires
 
 		void record_acquire(pedigree_t& p);
 		void replay_lock(acquire_info *a);

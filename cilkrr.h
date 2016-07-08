@@ -12,7 +12,8 @@
 namespace cilkrr {
   #if PTYPE != PPRE
 	// 2^64 - 59
-	static size_t big_prime = std::numeric_limits<size_t>::max() - 58;
+	//static size_t big_prime = std::numeric_limits<size_t>::max() - 58;
+	static size_t big_prime = (1L << 63) - 58;
 #endif
 
 	class state {

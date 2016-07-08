@@ -2,6 +2,7 @@
 #include <fstream>
 #include <cstdlib> // getenv
 #include <algorithm> // count
+#include <csignal> // raise
 
 #include "cilkrr.h"
 
@@ -56,13 +57,30 @@ namespace cilkrr {
       current = current->parent;
     }
 #elif PTYPE == PDOT
-    p = 0;
-    size_t ind = 0;
+		pedigree_t actual = current->actual;
+		size_t len = 0;
+		const __cilkrts_pedigree* curr = current;
+		while (curr) {
+			len++;
+			curr = curr->parent;
+		}
+
+    p = 1;
+    //size_t ind = 0;
+		size_t ind = len - 1;
     while (current) {
-      p += g_rr_state->randvec[ind++] * current->rank;
+      //p += g_rr_state->randvec[ind++] * current->rank;
+			p += g_rr_state->randvec[ind--] * current->rank;
       current = current->parent;
     }
     p %= big_prime;
+
+		if (actual != p) {
+			fprintf(stderr, "Pre: %zu, Dot: %zu\n", actual, p);
+			raise(SIGSTOP);
+			//assert(0);
+		}
+
 #else
 #error "Invalid PMETHOD"
 #endif
@@ -78,7 +96,8 @@ namespace cilkrr {
 #if PTYPE != PPRE
     srand(0);
     for (int i = 0; i < 256; ++i)
-      randvec[i] = rand() % big_prime;
+			randvec[i] = i+1;
+      //randvec[i] = rand() % big_prime;
 #endif
 
     // Seed Cilk's pedigree seed

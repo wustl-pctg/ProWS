@@ -9,6 +9,8 @@
 
 namespace cilkrr {
 
+	std::string get_pedigree_str();
+
 	class acquire_info {
 	public:
 		pedigree_t ped;

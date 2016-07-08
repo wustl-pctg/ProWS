@@ -1,29 +1,31 @@
 #include <cstdio>
+#include <cassert>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
 #include "mutex.h"
+#include "acquire.h"
 
 cilkrr::mutex g_mutex;
 
 int main(int argc, char *argv[])
 {
-	int n = (argc > 1) ? atoi(argv[1]) : 5;
+	int niter = (argc > 1) ? atoi(argv[1]) : 1000;
+	int nloops = 10;
 	int count = 0;
-	//fprintf(stderr, "Begin: %s\n", cilkrr::get_pedigree().c_str());
 
-#pragma cilk grainsize=1
-	cilk_for(int i = 0; i < n; ++i) {
-
-		// fprintf(stderr, "i(%i): %zu\n", i,
-		// 				cilkrr::get_pedigree());
-		// fprintf(stderr, "i(%i): %s\n", i,
-		// 				cilkrr::get_full_pedigree().c_str());
-
+	for (int i = 0; i < nloops; ++i) {
+#pragma cilk grainsize = 1
+	cilk_for(int j = 0; j < niter; ++j) {
 		g_mutex.lock();
-		count++;
+		if (i % 2 == 0) count++;
+		else count--;
 		g_mutex.unlock();
 	}
-	//fprintf(stderr, "End: %s\n", cilkrr::get_pedigree().c_str());
+	fprintf(stderr, "After loop %i: %s\n", i, cilkrr::get_pedigree_str().c_str());
+	//__cilkrts_verify_synced();
+	}
+
+	assert(count == 0);
 	return 0;
 }

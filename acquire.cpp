@@ -4,6 +4,11 @@
 #include <fstream>
 
 namespace cilkrr {
+	std::string get_pedigree_str()
+	{
+		acquire_info tmp = acquire_info(cilkrr::get_pedigree());
+		return tmp.str();
+	}
   acquire_info::acquire_info() {}
 
   acquire_info::acquire_info(pedigree_t p)
@@ -164,19 +169,20 @@ namespace cilkrr {
       return 1;
     }
 
-    acquire_info *current = *bucket;
-    while (current) {
-      if (current->ped == item->ped) {
-        // We DON'T increment size here, since we don't need to keep track of item
-        return 0;
-        break;
-      }
-      current = current->chain_next;
-    }
-
-    assert(current == nullptr);
-    item->chain_next = (*bucket)->chain_next;
-    (*bucket)->chain_next = item;
+		// Just don't check for duplicates...would only matter during recording, anyway
+    // acquire_info *current = *bucket;
+    // while (current) {
+    //   if (current->ped == item->ped) {
+    //     // We DON'T increment size here, since we don't need to keep track of item
+		// 		return 0;
+    //     break;
+    //   }
+    //   current = current->chain_next;
+    // }
+		// assert(current == nullptr);
+		
+		item->chain_next = (*bucket)->chain_next;
+		(*bucket)->chain_next = item;
     return 1;
 
   }

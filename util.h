@@ -50,7 +50,7 @@ namespace cilkrr {
     bool operator==(const struct full_pedigree_s &other) const
 		{
 			if (this->length != other.length) return false;
-			for (int i = 0; i < other.length; ++i) {
+			for (size_t i = 0; i < other.length; ++i) {
 				if (this->array[i] != other.array[i])
 					return false;
 			}

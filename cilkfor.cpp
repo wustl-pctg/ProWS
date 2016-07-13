@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 		else count--;
 		g_mutex.unlock();
 	}
-	fprintf(stderr, "After loop %i: %s\n", i, cilkrr::get_pedigree_str().c_str());
+	//fprintf(stderr, "After loop %i: %s\n", i, cilkrr::get_pedigree_str().c_str());
 	//__cilkrts_verify_synced();
 	}
 

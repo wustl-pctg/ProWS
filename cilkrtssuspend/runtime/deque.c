@@ -219,23 +219,17 @@ void detach_for_steal(__cilkrts_worker *w,
             parent_ff, loot_ff);
 #endif
 
-    if (WORKER_USER == victim->l->type &&
-        NULL == victim->l->last_full_frame &&
-        /* d == victim->l->active_deque) { */
-				// @todo{ Make a global original deque, not per worker}
-        d == victim->l->original_deque) {
+    /* if (WORKER_USER == victim->l->type && */
+    /*     NULL == victim->l->last_full_frame && */
+    if (w->g->original_deque == d
+        && d->team->l->last_full_frame == NULL) {
       
       // Mark this looted frame as special: only the original user worker
       // may cross the sync.
       // 
       // This call is a shared access to
       // victim->l->last_full_frame.
-      set_sync_master(victim, loot_ff);
-      /* if (d == victim->l->original_deque) { */
-      /*  fprintf(stderr, "(w: %d) set sync master to %d for %p\n", w->self, victim->self, loot_ff); */
-      /* } else { */
-      /*  fprintf(stderr, "(w: %d) set sync master to %d for %p for the wrong deque!\n", w->self, victim->self, loot_ff); */
-      /* } */
+      set_sync_master(d->team, loot_ff);
     }
 
     /* LOOT is the next frame that the thief W is supposed to
@@ -412,7 +406,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     } else {
       __cilkrts_free(new_deque);
       new_deque = NULL;
-      //__cilkrts_bug("Cilk: out of memory for new deques!\n");
+      __cilkrts_bug("Cilk: out of memory for new deques!\n");
     }
   } else {
     // This deque should be mugged
@@ -447,24 +441,11 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
       cilk_fiber_data* data = cilk_fiber_get_data(fiber);
       CILK_ASSERT(!data->resume_sf);
 
-      if (WORKER_USER == w->l->type &&
-          NULL == w->l->last_full_frame &&
-					d == w->l->original_deque) {
-        //set_sync_master(w, d->frame_ff);
-        
-        /* This is big hack. I want to set the sync master for a
-         * stolen frame from this deque, but only the thief will
-         * create the stolen frame. So just don't push to other
-         * workers until someone has stolen from us.
-         */
-      
-        /// @todo{ What if a thief doesn't steal from the original
-        /// deque? Does it matter that they set the sync master of the
-        /// wrong loot frame?! If something is wrong and I don't know
-        /// where to look, here is a good place to start.}
-      
-        victim = w;
-      }
+      /* if (WORKER_USER == w->l->type && */
+      /*     NULL == w->l->last_full_frame && */
+			/* 		d == w->l->original_deque) { */
+      /*   victim = w; */
+      /* } */
 
     }
 

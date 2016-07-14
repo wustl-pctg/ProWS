@@ -226,7 +226,6 @@ struct local_state  /* COMMON_PORTABLE */
   // struct full_frame *core_frame_ff;
 
 	deque *active_deque;
-	deque *original_deque;
 	deque_pool suspended_deques;
 	deque_pool resumable_deques;
 

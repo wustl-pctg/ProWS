@@ -479,6 +479,9 @@ void set_sync_master(__cilkrts_worker *w, full_frame *ff)
 {
     w->l->last_full_frame = ff;
     ff->sync_master = w;
+    /* CILK_ASSERT(d->team); */
+    /* d->last_full_frame = ff; */
+    /* ff->sync_master = d->team; */
 }
 
 /*
@@ -496,6 +499,8 @@ static void unset_sync_master(__cilkrts_worker *w, full_frame *ff)
     CILK_ASSERT(ff->sync_master == w);
     ff->sync_master = NULL;
     w->l->last_full_frame = NULL;
+    /* ff->sync_master = NULL; */
+    /* d->last_full_frame = NULL; */
 }
 
 /* Link PARENT and CHILD in the spawn tree */
@@ -727,7 +732,9 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     } END_WITH_WORKER_LOCK(w);
 
     // No one can see this now
-    __cilkrts_free(old_deque);
+    if (w->g->original_deque != old_deque) {
+        __cilkrts_free(old_deque);
+    }
 
     CILK_ASSERT(*w->l->frame_ff);
 
@@ -1092,7 +1099,13 @@ enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w,
                 // the frame is if the original user worker is spinning without
                 // work.
 
-                unset_sync_master(w->l->active_deque->team, ff);
+                __cilkrts_worker *original = w->l->active_deque->team;
+//                CILK_ASSERT(original == w->g->original_deque->team);
+                CILK_ASSERT(original->l->suspended_deques.size == 0);
+                CILK_ASSERT(original->l->resumable_deques.size == 0);
+                /* unset_sync_master(w->l->active_deque->team, ff); */
+                unset_sync_master(original, ff);
+                
                 __cilkrts_push_next_frame(w->l->active_deque->team, ff);
 
                 // If this is the team leader we're not abandoning the work
@@ -2657,7 +2670,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay
-    //CILK_ASSERT(w->l->type == WORKER_USER);
+    CILK_ASSERT(w->l->type == WORKER_USER);
 
 #if REDPAR_DEBUG >= 3
     fprintf(stderr, "[W=%d, desc=cilkrts_c_return_from_initial, ff=%p]\n",
@@ -2669,7 +2682,10 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         CILK_ASSERT(ff);
         CILK_ASSERT(ff->join_counter == 1);
         *w->l->frame_ff = 0;
-        w->l->original_deque = w->l->active_deque;
+        if (w->g->original_deque != w->l->active_deque) {
+            __cilkrts_free(w->g->original_deque);
+        }
+        w->g->original_deque = w->l->active_deque;
         
         CILK_ASSERT(ff->fiber_self);
         // Save any TBB interop data for the next time this thread enters Cilk
@@ -2843,12 +2859,10 @@ __cilkrts_worker *make_worker(global_state_t *g,
     w->l->last_full_frame = NULL;
 
     w->l->active_deque = __cilkrts_malloc(sizeof(deque));
-    w->l->original_deque = w->l->active_deque;
     deque_init(w->l->active_deque, w->g->ltqsize);
     deque_pool_init(&w->l->suspended_deques, w->g->ltqsize);
     deque_pool_init(&w->l->resumable_deques, w->g->ltqsize);
     deque_switch(w, w->l->active_deque);
-//    w->l->mugged = w->l->waiting_stacks = 0;
         
     cilk_fiber_pool_init(&w->l->fiber_pool,
                          &g->fiber_pool,

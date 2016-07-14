@@ -64,6 +64,8 @@
 #include "bug.h"
 #include "cilk_fiber.h"
 
+typedef struct deque deque; /// @todo{fix redefinition of deque in global_state.h}
+
 __CILKRTS_BEGIN_EXTERN_C
 
 /**
@@ -214,6 +216,8 @@ struct global_state_t { /* COMMON_PORTABLE */
 
 	/// Global fiber pool
 	cilk_fiber_pool fiber_pool;
+
+  deque *original_deque;
 
 	/**
 	 * @brief Track whether the runtime has failed to allocate a

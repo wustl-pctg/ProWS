@@ -735,7 +735,8 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     /// @todo{What about the ltq pointer inside this?!}
     /// @todo{Use deque_delete() to free deque, not __cilkrts_free}
     if (w->g->original_deque != old_deque) {
-        __cilkrts_free(old_deque);
+        //__cilkrts_free(old_deque);
+        deque_destroy(old_deque);
     }
 
     CILK_ASSERT(*w->l->frame_ff);
@@ -2691,7 +2692,8 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         // is still using it
         if (w->g->original_deque != w->l->active_deque
             && w->g->original_deque->worker == NULL) {
-            __cilkrts_free(w->g->original_deque);
+            //__cilkrts_free(w->g->original_deque);
+            deque_destroy(w->g->original_deque);
         }
         w->g->original_deque = w->l->active_deque;
         

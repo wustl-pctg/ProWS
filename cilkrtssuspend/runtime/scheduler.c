@@ -732,6 +732,8 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     } END_WITH_WORKER_LOCK(w);
 
     // No one can see this now
+    /// @todo{What about the ltq pointer inside this?!}
+    /// @todo{Use deque_delete() to free deque, not __cilkrts_free}
     if (w->g->original_deque != old_deque) {
         __cilkrts_free(old_deque);
     }
@@ -2671,6 +2673,8 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay
     CILK_ASSERT(w->l->type == WORKER_USER);
+    CILK_ASSERT(w->l->suspended_deques.size == 0);
+    CILK_ASSERT(w->l->resumable_deques.size == 0);
 
 #if REDPAR_DEBUG >= 3
     fprintf(stderr, "[W=%d, desc=cilkrts_c_return_from_initial, ff=%p]\n",
@@ -2682,7 +2686,11 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         CILK_ASSERT(ff);
         CILK_ASSERT(ff->join_counter == 1);
         *w->l->frame_ff = 0;
-        if (w->g->original_deque != w->l->active_deque) {
+
+        // We can free the original deque unless someone mugged it and
+        // is still using it
+        if (w->g->original_deque != w->l->active_deque
+            && w->g->original_deque->worker == NULL) {
             __cilkrts_free(w->g->original_deque);
         }
         w->g->original_deque = w->l->active_deque;

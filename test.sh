@@ -1,5 +1,7 @@
 #!/bin/bash
 
+trap "kill -- -$$" SIGINT
+
 # Defaults
 STARTN=1
 ENDN=15

@@ -328,6 +328,17 @@ int deque_init(deque *d, size_t ltqsize)
   return 0;
 }
 
+void deque_destroy(deque *d)
+{
+	//CILK_ASSERT(d->worker == NULL);
+	CILK_ASSERT(d->head == d->tail);
+
+	// if/when we use d->lock or d->steal_lock
+	//__cilkrts_mutex_destroy
+	__cilkrts_free(d->ltq);
+	__cilkrts_free(d);
+}
+
 void deque_switch(__cilkrts_worker *w, deque *d)
 {
   CILK_ASSERT(d == w->l->active_deque);

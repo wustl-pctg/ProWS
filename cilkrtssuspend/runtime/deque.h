@@ -71,6 +71,7 @@ void detach_for_steal(__cilkrts_worker *w,
 void __cilkrts_promote_own_deque(__cilkrts_worker *w);
 
 int deque_init(deque *d, size_t ltqsize);
+void deque_destroy(deque *d);
 void deque_switch(__cilkrts_worker *w, deque *d);
 cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque);
 void deque_mug(__cilkrts_worker *w, deque *d);

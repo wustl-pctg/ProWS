@@ -20,7 +20,7 @@ namespace cilkrr {
 		// Record/Replay fields
 		uint64_t m_id; /// index into global container of mutexes
 		acquire_container* m_acquires = nullptr; /// container of recorded acquires
-    bool m_checking = false; /// For handoff between acquires
+    volatile bool m_checking = false; /// For handoff between acquires
 
 		void record_acquire(pedigree_t& p);
 		void replay_lock(acquire_info *a);

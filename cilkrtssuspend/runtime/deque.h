@@ -47,7 +47,7 @@ struct deque
   int resumable;
   __cilkrts_worker *team;
   
-  cilk_fiber *fiber;
+  cilk_fiber *volatile fiber;
   __cilkrts_pedigree saved_ped;
   __cilkrts_stack_frame *call_stack;
 

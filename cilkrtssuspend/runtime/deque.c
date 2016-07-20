@@ -220,7 +220,7 @@ void detach_for_steal(__cilkrts_worker *w,
 #endif
 
     /* if (WORKER_USER == victim->l->type && */
-    /*     NULL == victim->l->last_full_frame && */
+    /*     NULL == victim->l->last_full_frame) { */
     if (w->g->original_deque == d
         && d->team->l->last_full_frame == NULL) {
       
@@ -242,7 +242,7 @@ void detach_for_steal(__cilkrts_worker *w,
       loot_ff->simulated_stolen = 1;
     } else {
       __cilkrts_push_next_frame(w, loot_ff);
-		}
+    } 
 
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
@@ -330,13 +330,13 @@ int deque_init(deque *d, size_t ltqsize)
 
 void deque_destroy(deque *d)
 {
-	//CILK_ASSERT(d->worker == NULL);
-	CILK_ASSERT(d->head == d->tail);
+  //CILK_ASSERT(d->worker == NULL);
+  CILK_ASSERT(d->head == d->tail);
 
-	// if/when we use d->lock or d->steal_lock
-	//__cilkrts_mutex_destroy
-	__cilkrts_free(d->ltq);
-	__cilkrts_free(d);
+  // if/when we use d->lock or d->steal_lock
+  //__cilkrts_mutex_destroy
+  __cilkrts_free(d->ltq);
+  __cilkrts_free(d);
 }
 
 void deque_switch(__cilkrts_worker *w, deque *d)
@@ -433,7 +433,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     CILK_ASSERT(new_deque->team == w);
 
   __cilkrts_worker *victim = w->g->workers[myrand(w) % w->g->total_workers];
-	/* victim = w; */
+  /* victim = w; */
 
   cilk_fiber *fiber;
   BEGIN_WITH_WORKER_LOCK(w) { // I'm not entirely sure this is necessary
@@ -453,8 +453,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
       CILK_ASSERT(!data->resume_sf);
 
       /* if (WORKER_USER == w->l->type && */
-      /*     NULL == w->l->last_full_frame && */
-			/* 		d == w->l->original_deque) { */
+      /*     NULL == w->l->last_full_frame) { */
       /*   victim = w; */
       /* } */
 
@@ -474,23 +473,23 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   __cilkrts_mutex_lock(w, &victim->l->lock); {
     if (d->resumable) {
       deque_pool_add(victim, &victim->l->resumable_deques, d);
-			/* fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n", */
-			/* 				w->self, d, victim->self); */
+      /* fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n", */
+      /*        w->self, d, victim->self); */
 
-		} else if (d->head != d->tail) { // not resumable, but stealable!
+    } else if (d->head != d->tail) { // not resumable, but stealable!
       deque_pool_add(victim, &victim->l->suspended_deques, d);
-			/* fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n", */
-			/* 							w->self, d, victim->self); */
+      /* fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n", */
+      /*              w->self, d, victim->self); */
 
-		} else { // empty: no need to add, will be resumed later
+    } else { // empty: no need to add, will be resumed later
 
 
       d->self = INVALID_DEQUE_INDEX;
       d->worker = NULL;
       //      w->l->mugged++;
 
-			/* fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n", */
-			/* 				w->self, d, victim->self); */
+      /* fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n", */
+      /*        w->self, d, victim->self); */
 
     }
   } __cilkrts_mutex_unlock(w, &victim->l->lock);
@@ -507,14 +506,14 @@ void deque_mug(__cilkrts_worker *w, deque *d)
   CILK_ASSERT(d->worker->l->lock.owner == w);
   CILK_ASSERT(d->fiber);
 
-	
+  
 
   deque_pool *p = (d->resumable) ?
     &d->worker->l->resumable_deques : &d->worker->l->suspended_deques;
   deque_pool_validate(p, d->worker);
 
-	DEQUE_LOG("(w: %i) mugged %p from %i\n",
-						w->self, d, d->worker->self);
+  DEQUE_LOG("(w: %i) mugged %p from %i\n",
+            w->self, d, d->worker->self);
 
   //  d->worker->l->mugged++;
   deque_pool_remove(p, d);

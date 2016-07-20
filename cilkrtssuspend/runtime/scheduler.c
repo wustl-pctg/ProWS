@@ -479,9 +479,6 @@ void set_sync_master(__cilkrts_worker *w, full_frame *ff)
 {
     w->l->last_full_frame = ff;
     ff->sync_master = w;
-    /* CILK_ASSERT(d->team); */
-    /* d->last_full_frame = ff; */
-    /* ff->sync_master = d->team; */
 }
 
 /*
@@ -499,8 +496,7 @@ static void unset_sync_master(__cilkrts_worker *w, full_frame *ff)
     CILK_ASSERT(ff->sync_master == w);
     ff->sync_master = NULL;
     w->l->last_full_frame = NULL;
-    /* ff->sync_master = NULL; */
-    /* d->last_full_frame = NULL; */
+    w->g->original_deque = w->l->active_deque->team->l->active_deque;
 }
 
 /* Link PARENT and CHILD in the spawn tree */
@@ -725,6 +721,10 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     d->fiber = NULL;
     d->resumable = 0;
 
+    /* if (w->g->original_deque == d) */
+    /*     fprintf(stderr, "(w: %d) resuming original deque %p!\n", */
+    /*             w->self, w->g->original_deque); */
+
     deque *old_deque = w->l->active_deque;
     BEGIN_WITH_WORKER_LOCK(w) {
         w->l->active_deque = d;
@@ -732,12 +732,7 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
     } END_WITH_WORKER_LOCK(w);
 
     // No one can see this now
-    /// @todo{What about the ltq pointer inside this?!}
-    /// @todo{Use deque_delete() to free deque, not __cilkrts_free}
-    if (w->g->original_deque != old_deque) {
-        //__cilkrts_free(old_deque);
-        deque_destroy(old_deque);
-    }
+    deque_destroy(old_deque);
 
     CILK_ASSERT(*w->l->frame_ff);
 
@@ -2673,6 +2668,10 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay
+    //fprintf(stderr, "Returning from initial: %p\n", (*w->l->frame_ff));
+    if (w->l->type != WORKER_USER)
+        fprintf(stderr, "Error: A system worker returned on initial frame %p\n",
+                (*w->l->frame_ff));
     CILK_ASSERT(w->l->type == WORKER_USER);
     CILK_ASSERT(w->l->suspended_deques.size == 0);
     CILK_ASSERT(w->l->resumable_deques.size == 0);
@@ -2687,14 +2686,6 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         CILK_ASSERT(ff);
         CILK_ASSERT(ff->join_counter == 1);
         *w->l->frame_ff = 0;
-
-        // We can free the original deque unless someone mugged it and
-        // is still using it
-        if (w->g->original_deque != w->l->active_deque
-            && w->g->original_deque->worker == NULL) {
-            //__cilkrts_free(w->g->original_deque);
-            deque_destroy(w->g->original_deque);
-        }
         w->g->original_deque = w->l->active_deque;
         
         CILK_ASSERT(ff->fiber_self);

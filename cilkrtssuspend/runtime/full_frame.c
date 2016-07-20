@@ -93,6 +93,7 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
         /*__cilkrts_init_full_frame_sysdep(w, ff);*/
         ff->full_frame_magic_1 = FULL_FRAME_MAGIC_1;
     } STOP_INTERVAL(w, INTERVAL_ALLOC_FULL_FRAME);
+
     return ff;
 }
 

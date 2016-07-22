@@ -33,11 +33,11 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
-#include <cilk/reducer_ostream.h>
+#include "bench-util.h"
 
-/* static FILE *fout; */
-static std::ostream *fout;
-static cilk::reducer_ostream *fout_reducer;
+
+static FILE *fout;
+static lock_t fout_lock; 
 
 static int top_K = 10;
 static const char *extra_params = "-L 8 - T 20";
@@ -47,6 +47,14 @@ static cass_table_t *query_table;
 
 static int vec_dist_id = 0;
 static int vecset_dist_id = 0;
+
+/* ------ Data structure only necessary if reducer not used ------ */
+struct rank_data {
+    char *name;
+    cass_dataset_t *ds;
+    cass_result_t result;
+};
+
 
 
 /* ------- The Helper Functions ------- */
@@ -76,24 +84,25 @@ static int dir_helper(char *dir) {
         ent = readdir(pd);
         if (ent == NULL) break;
         // if (scan_dir(ent->d_name, head) != 0) return -1;
-                
-                size_t local_path_len = strlen(dir);
-                char *local_path = (char*)malloc(sizeof(char)*BUFSIZ);
-                strncpy(local_path, dir, local_path_len);
-                local_path[local_path_len] = '\0';
-                char *local_head = local_path + local_path_len;
 
-                // fprintf(stderr, "%s %s\n", ent->d_name, head);
+        size_t local_path_len = strlen(dir);
+        char *local_path = (char*)malloc(sizeof(char)*BUFSIZ);
+        strncpy(local_path, dir, local_path_len);
+        local_path[local_path_len] = '\0';
+        char *local_head = local_path + local_path_len;
 
-                size_t entry_name_len = strlen(ent->d_name);
-                char *local_entry_name = (char*)malloc(sizeof(char)*(entry_name_len+1));
-                strncpy(local_entry_name, ent->d_name, entry_name_len);
-                local_entry_name[entry_name_len] = '\0';
+        // fprintf(stderr, "%s %s\n", ent->d_name, head);
 
-                cilk_spawn scan_dir(local_entry_name, local_path, local_head);
+        size_t entry_name_len = strlen(ent->d_name);
+        char *local_entry_name = (char*)malloc(sizeof(char)*(entry_name_len+1));
+        strncpy(local_entry_name, ent->d_name, entry_name_len);
+        local_entry_name[entry_name_len] = '\0';
+
+        cilk_spawn scan_dir(local_entry_name, local_path, local_head);
     }
-        cilk_sync;
+    cilk_sync;
     goto final;
+
 except:
     result = -1;
     perror("Error:");
@@ -111,35 +120,35 @@ final:
  **/
 static int scan_dir(const char *entry_name, char *path, char *head) {
 
-  struct stat st;
-  int ret;
-  /* test for . and .. */
-  if (entry_name[0] == '.') {
-    if (entry_name[1] == 0) return 0;
-    else if (entry_name[1] == '.') {
-      if (entry_name[2] == 0) return 0;
+    struct stat st;
+    int ret;
+    /* test for . and .. */
+    if (entry_name[0] == '.') {
+        if (entry_name[1] == 0) return 0;
+        else if (entry_name[1] == '.') {
+            if (entry_name[2] == 0) return 0;
+        }
     }
-  }
-  
-  /* append the name to the path */
-  strcat(head, entry_name);
-  ret = stat(path, &st);
-  if (ret != 0) {
-    perror("Error:");
-    return -1;
-  }
-  // S_ISREG -- check if this is a regular file 
 
-  if(S_ISREG(st.st_mode)) {
-    do_query(path);
- } else if(S_ISDIR(st.st_mode)) {
-    strcat(head, "/");
-    // dir_helper(path, head + strlen(head));
-    dir_helper(path);
-  }
-  /* removed the appended part */
-  head[0] = 0;
-  return 0;
+    /* append the name to the path */
+    strcat(head, entry_name);
+    ret = stat(path, &st);
+    if (ret != 0) {
+        perror("Error:");
+        return -1;
+    }
+    // S_ISREG -- check if this is a regular file 
+
+    if(S_ISREG(st.st_mode)) {
+        do_query(path);
+    } else if(S_ISDIR(st.st_mode)) {
+        strcat(head, "/");
+        // dir_helper(path, head + strlen(head));
+        dir_helper(path);
+    }
+    /* removed the appended part */
+    head[0] = 0;
+    return 0;
 }
 
 
@@ -168,8 +177,11 @@ static void do_query(const char *name) {
     unsigned char *mask;
     int width, height, nrgn;
     int r;
+    char *output;
 
-        *fout_reducer << name;
+    // lock(&fout_lock);
+    // fprintf(fout, "%s\n", name);
+    // unlock(&fout_lock);
 
     // this is the first (serial) stage in TBB
     r = image_read_rgb_hsv(name, &width, &height, &RGB, &HSV);
@@ -230,20 +242,22 @@ static void do_query(const char *name) {
     free(candidate);
     cass_dataset_release(&ds);
 
+    lock(&fout_lock);
+    fprintf(fout, "%s", name);
+    
     // this is the the last (serial) stage in TBB
     // print out the results
-    // fprintf(fout, "%s", name);
-        // *fout_reducer << name;
     ARRAY_BEGIN_FOREACH(result.u.list, cass_list_entry_t p) {
         char *obj = NULL;
         if (p.dist == HUGE) continue;
         cass_map_id_to_dataobj(query_table->map, p.id, &obj);
         assert(obj != NULL);
-        // fprintf(fout, "\t%s:%g", obj, p.dist);
-                *fout_reducer << "\t" << obj << ":" << p.dist;
+
+        fprintf(fout, "\t%s:%g", obj, p.dist);
     } ARRAY_END_FOREACH;
-        // fprintf(fout, "\n");
-        *fout_reducer << std::endl;
+
+    fprintf(fout, "\n");
+    unlock(&fout_lock);
 
     cass_result_free(&result);
 }
@@ -271,13 +285,10 @@ int main(int argc, char *argv[]) {
     top_K = atoi(argv[4]);
 
     output_path = argv[5];
-    /* fout = fopen(output_path, "w"); */
-    /* assert(fout != NULL); */
+    fout = fopen(output_path, "w");
+    assert(fout != NULL);
 
-    std::filebuf fb;
-    fb.open(output_path, std::ios::out);
-    fout = new std::ostream(&fb);
-    // fout_reducer = new cilk::reducer_ostream>(*fout);
+    lock_init(&fout_lock, 0);
     
     cass_init();
 
@@ -305,12 +316,7 @@ int main(int argc, char *argv[]) {
     image_init(argv[0]);
 
     stimer_tick(&tmr);
-    fout_reducer = cilk::aligned_new<cilk::reducer_ostream>(*fout);
     scan(query_dir);
-
-    fb.close();
-    cilk::aligned_delete(fout_reducer);
-
     stimer_tuck(&tmr, "Processing time");
 
     ret = cass_env_close(env, 0);
@@ -318,9 +324,11 @@ int main(int argc, char *argv[]) {
         printf("ERROR: %s\n", cass_strerror(ret)); return 0; 
     }
 
+    lock_destroy(&fout_lock);
+    fclose(fout);
+
     cass_cleanup();
     image_cleanup();
-    // fclose(fout);
 
     return 0;
 }

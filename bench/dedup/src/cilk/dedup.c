@@ -1,11 +1,6 @@
 #include <unistd.h>
 #include <string.h>
 
-#if CILKSAN
-#include <cilksan.h>
-#endif
-
-
 #include "debug.h"
 #include "dedupdef.h"
 #include "encoder.h"
@@ -41,10 +36,6 @@ int main(int argc, char** argv) {
     config_t conf;
     int32 compress = TRUE;
 
-#if CILKSAN
-    argc = __cilksan_parse_input(argc, argv);
-#endif
-   
     // We force the sha1 sum to be integer-aligned, check that the length 
     // of a sha1 sum is a multiple of unsigned int
     assert(SHA1_LEN % sizeof(unsigned int) == 0);
@@ -136,9 +127,6 @@ int main(int argc, char** argv) {
         Decode(&conf);
     }
 
-#if CILKSAN
-    __cilksan_deinit();
-#endif
     return 0;
 }
 

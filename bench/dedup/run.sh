@@ -4,8 +4,8 @@ rundir=$curr/src
 datadir=$curr/data
 
 if [ $# -le 2 ]; then
-echo "Usage ./run.sh <prog> <data size> <output file> [nproc] [depth] where"
-echo "      prog includes: serial, cilk, reducer, pthreads, tbb"
+echo "Usage ./run.sh <prog> <data size> <output file> [nproc] where"
+echo "      prog includes: serial, lock, reducer"
 echo "      data size includes dev, small, medium, large, and native."
 exit 0
 fi
@@ -16,49 +16,21 @@ dsize=$1
 shift
 outfile=$1
 shift;
+nproc=$1
+shift;
 
-if [ "$prog" != 'reducer' ]; then
-    nproc=$1
-    shift;
-    depth=$1
-fi
-
-if [ "$nproc" = "" ]; then
-    nproc=1
-fi
-
-if [[ "$dsize" = 'dev' || "$dsize" = 'small' || "$dsize" = 'medium' || "$dsize" = 'large' ]]; then
+if [[ "$dsize" != 'native' ]]; then
     dsize="sim$dsize"
 fi
 
-# For P=1, set maxP to be small.
-if [[ $1 = 'serial' ]]; then
-    nproc=1
-fi
-
-if [ "$prog" = 'serial' ]; then
-    cmd="$rundir/cilk/dedup-serial "  
-elif [ "$prog" = 'parsec-serial' ]; then
-    cmd="$rundir/parsec3/dedup-serial "
-elif [ "$prog" = 'cilk' ]; then
-    cmd="$rundir/cilk/dedup-cilk --nproc $nproc "  
-elif [ "$prog" = 'reducer' ]; then
-    cmd="$rundir/cilk/dedup-reducer "
-elif [ "$prog" = 'null' ]; then
-    export CILK_NWORKERS=1
-    cmd="$rundir/cilk/dedup "
-elif [ "$prog" = 'pthreads' ]; then
-    cmd="$rundir/parsec3/dedup-pthreads -t $nproc "  
-    if [[ "$depth" != "" ]]; then
-         cmd+=" -q $depth "
-    fi
-elif [ "$prog" = 'tbb' ]; then
-    cmd="$rundir/cilk/dedup-tbb -t $nproc "  
-fi
-
+cmd="$rundir/cilk/dedup-$prog "
 cmd+="-c -i $datadir/$dsize/media.dat -o $outfile"
 
+if [[ "$nproc" != '' ]]; then
+    echo "export CILK_NWORKERS=$nproc"
+    export CILK_NWORKERS=$nproc
+fi
 echo "$cmd $*"
 $cmd $*
 
-rm -f $outfile
+# rm -f $outfile

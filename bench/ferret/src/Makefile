@@ -2,7 +2,7 @@ include ../../bench.mk
 
 PROG = serial lock reducer
 
-LDLIBS += $(LIBS) -lpthread -lrt -lm -lcass -lgsl -lgslcblas -ljpeg -lstdc++
+LDLIBS += $(LIBS) -lrt -lm -lcass -lgsl -lgslcblas -ljpeg -lstdc++
 
 .PHONY:	all clean dirs full_clean lib tools serial lock reducer
 # image server 
@@ -107,16 +107,16 @@ $(tools_tgt): $(BINDIR)/% : $(OBJDIR)/%.o $(LIBDIR)/libcass.a
 	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BINDIR)/ferret-reducer: $(OBJDIR)/ferret-reducer.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
-	@echo "   '$(CC) $(CXXFLAGS) $(LDLIBS) $<' ==> '$@'"
-	@$(CC) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BINDIR)/ferret-serial: $(OBJDIR)/ferret-serial.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
-	@echo "   '$(CC) $(CXXFLAGS) $(LDLIBS) $<' ==> '$@'"
-	@$(CC) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BINDIR)/ferret-lock: $(OBJDIR)/ferret-lock.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
-	@echo "   '$(CC) $(CXXFLAGS) $(LDLIBS) $<' ==> '$@'"
-	@$(CC) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(image_tgt): $(BINDIR)/% : $(OBJDIR)/%.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   '$(CXX) $<' ==> '$@'"

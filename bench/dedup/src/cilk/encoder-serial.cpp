@@ -28,13 +28,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <iostream>
-#include <fstream>
-
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h>
-#include <cilk/reducer_ostream.h>
-
 #include "config.h"
 #include "debug.h"
 #include "dedupdef.h"
@@ -43,31 +36,6 @@
 #include "util/util.h"
 #include "util/hashtable.h"
 #include "util/rabin.h"
-
-ssize_t xostream(std::ofstream &os, const void *buf, ssize_t len);
-int ostream_header(std::ostream &os, byte compress_type);
-
-ssize_t xostream(std::ostream &os, const void *buf, ssize_t len) {
-
-    os.write((const char *)buf, len);
-    bool good = os.good();
-    if (!good) {
-        return -1;
-    }
-    return len;
-}
-
-int ostream_header(std::ostream &os, byte compress_type) {
-  int checkbit = CHECKBIT;
-  if (xostream(os, &checkbit, sizeof(int)) < 0) {
-    return -1;
-  }
-
-  if (xostream(os, &compress_type, sizeof(byte)) < 0) {
-    return -1;
-  }
-  return 0;
-}
 
 #define TIMING 0
 #if TIMING
@@ -111,8 +79,6 @@ typedef struct file_info {
     int fd_in;
     // output file descriptor, first pipeline stage only
     int fd_out;
-    // output file stream
-    cilk::reducer_ostream *f_out_reducer;
     // input file buffer, first pipeline stage & preloading only
     unsigned char *buffer; // holds the content from input file
     size_t buf_seek;  // where we are reading in the buffer
@@ -122,18 +88,16 @@ typedef struct file_info {
 } file_info_t;
 
 // Simple write utility function
-// static int write_file(int fd, u_char type, size_t len, u_char * content) {
-static int write_file(std::ostream &f_out,
-                      u_char type, size_t len, u_char * content) {
-    if (xostream(f_out, &type, sizeof(type)) < 0) {
+static int write_file(int fd, u_char type, size_t len, u_char * content) {
+    if (xwrite(fd, &type, sizeof(type)) < 0){
         perror("xwrite:");
         EXIT_TRACE("xwrite type fails\n");
         return -1;
     }
-    if (xostream(f_out, &len, sizeof(len)) < 0) {
+    if (xwrite(fd, &len, sizeof(len)) < 0){
         EXIT_TRACE("xwrite content fails\n");
     }
-    if (xostream(f_out, content, len) < 0) {
+    if (xwrite(fd, content, len) < 0){
         EXIT_TRACE("xwrite content fails\n");
     }
     return 0;
@@ -191,16 +155,15 @@ static int create_output_file(char *outfile) {
 // NOTE: The serial version relies on the fact that chunks are processed 
 // in-order, which means if it reaches the function it is guaranteed all 
 // data is ready.
-// static void write_chunk_to_file(int fd, chunk_t *chunk) {
-static void write_chunk_to_file(std::ostream &f_out, chunk_t *chunk) {
+static void write_chunk_to_file(int fd, chunk_t *chunk) {
     assert(chunk!=NULL);
 
     if(!chunk->isDuplicate) {
         // Unique chunk, data has not been written yet, do so now
-        write_file(f_out, TYPE_COMPRESS, chunk->len, chunk->data);
+        write_file(fd, TYPE_COMPRESS, chunk->len, chunk->data);
     } else {
         // Duplicate chunk, data has been written to file; just write SHA1
-        write_file( f_out, TYPE_FINGERPRINT, SHA1_LEN, 
+        write_file( fd, TYPE_FINGERPRINT, SHA1_LEN, 
                     (unsigned char *)(chunk->sha1) );
     }
 }
@@ -255,7 +218,7 @@ static void sub_Compress(chunk_t *const chunk) {
             // Bzip compression buffer must be at least 1% larger than 
             // the source buffer plus 600 bytes
             size_t len = chunk->len + (chunk->len >> 6) + 600;
-            void *comp_data = malloc(len); 
+            unsigned char *comp_data = (unsigned char*)malloc(len); 
             if(comp_data == NULL) {
                 EXIT_TRACE("Malloc for space of compression data failed.\n");
             }
@@ -268,7 +231,8 @@ static void sub_Compress(chunk_t *const chunk) {
             }
             // Shrink buffer to actual size
             if(len < old_len) {
-                void *new_mem = realloc(comp_data, len);
+                unsigned char *new_mem = 
+                        (unsigned char*)realloc(comp_data, len);
                 assert(new_mem != NULL);
                 comp_data = new_mem;
             }
@@ -453,27 +417,27 @@ get_next_chunk(file_info_t *const args, chunk_t *const chunk,
  */
 void *SerialIntegratedPipeline(file_info_t *const args) {
 
-    /* WHEN_TIMING( uint64_t write_time = 0.0f, dedup_time = 0.0f; ) */
-    /* WHEN_TIMING( float preproc_time = 0.0f, comp_time = 0.0f; ) */
-    /* WHEN_TIMING( float read_time = 0.0f, total_time = 0.0f; ) */
-    /* WHEN_TIMING( clockmark_t first, last; ) */
-    /* WHEN_TIMING( clockmark_t begin, end; ) */
+    WHEN_TIMING( uint64_t write_time = 0.0f, dedup_time = 0.0f; )
+    WHEN_TIMING( float preproc_time = 0.0f, comp_time = 0.0f; )
+    WHEN_TIMING( float read_time = 0.0f, total_time = 0.0f; )
+    WHEN_TIMING( clockmark_t first, last; )
+    WHEN_TIMING( clockmark_t begin, end; )
 
-    /* WHEN_TIMING( first = begin = ktiming_getmark(); ) */
+    WHEN_TIMING( first = begin = ktiming_getmark(); )
 
     // int fd_out = create_output_file(conf->outfile);
     // XXX
-    // if (write_header(args->fd_out, conf->compress_type)) {
-    //     EXIT_TRACE("Cannot write output file header.\n");
-    // }
-    if (ostream_header(args->f_out_reducer->get_reference(), conf->compress_type)) {
+    if (write_header(args->fd_out, conf->compress_type)) {
         EXIT_TRACE("Cannot write output file header.\n");
     }
+    WHEN_TIMING({
+        end = ktiming_getmark(); 
+        preproc_time = ktiming_diff_nsec(&begin, &end);
+    })
 
-    /* WHEN_TIMING({ */
-    /*     end = ktiming_getmark();  */
-    /*     preproc_time = ktiming_diff_nsec(&begin, &end); */
-    /* }) */
+    chunk_t *chunk = (chunk_t *) malloc(sizeof(chunk_t)); 
+    if(chunk == NULL) EXIT_TRACE("Memory allocation failed.\n"); 
+    chunk->buffer_to_free = (unsigned char *) NULL;
 
     u32int *const rabintab = (u32int *) malloc(256*sizeof rabintab[0]);
     u32int *const rabinwintab = (u32int *) malloc(256*sizeof rabintab[0]);
@@ -483,28 +447,25 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
     }
     rabininit(rf_win_dataprocess, rabintab, rabinwintab);
 
-    /* WHEN_TIMING( begin = ktiming_getmark(); ) */
+    WHEN_TIMING( begin = ktiming_getmark(); )
     setup_initial_buffer(args, rabintab, rabinwintab);
-    /* WHEN_TIMING({ */
-    /*     end = ktiming_getmark();  */
-    /*     begin = end; */
-    /*     read_time += ktiming_diff_nsec(&begin, &end); */
-    /* }) */
+    WHEN_TIMING({
+        end = ktiming_getmark(); 
+        begin = end;
+        read_time += ktiming_diff_nsec(&begin, &end);
+    })
 
     while(args->next_offset > 0) {
-        chunk_t *chunk = (chunk_t *) malloc(sizeof(chunk_t)); 
-        if(chunk == NULL) EXIT_TRACE("Memory allocation failed.\n"); 
-        chunk->buffer_to_free = (unsigned char *) NULL;
 
         // get the next chunk from input file / buffer
-        /* WHEN_TIMING( begin = ktiming_getmark(); ) */
+        WHEN_TIMING( begin = ktiming_getmark(); )
         get_next_chunk(args, chunk, rabintab, rabinwintab);
         assert(chunk->len > 0);
-        /* WHEN_TIMING({ */
-        /*     end = ktiming_getmark();  */
-        /*     begin = end; */
-        /*     read_time += ktiming_diff_nsec(&begin, &end); */
-        /* }) */
+        WHEN_TIMING({
+            end = ktiming_getmark(); 
+            begin = end;
+            read_time += ktiming_diff_nsec(&begin, &end);
+        })
 
         // keep of the stats on the sizes of the uncompressed chunks seen
         #ifdef ENABLE_STATISTICS
@@ -515,73 +476,66 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
         // Deduplicate: check if in the hashtable; if so, get the 
         // pointer to the chunk that contains the compressed data
         int isDuplicate = sub_Deduplicate(chunk);
-        /* WHEN_TIMING({ */
-        /*     end = ktiming_getmark();  */
-        /*     dedup_time += ktiming_diff_nsec(&begin, &end); */
-        /*     begin = end; */
-        /* }) */
+        WHEN_TIMING({
+            end = ktiming_getmark(); 
+            dedup_time += ktiming_diff_nsec(&begin, &end);
+            begin = end;
+        })
 
-        cilk_spawn [](file_info_t *const args, chunk_t *chunk, int isDuplicate) -> void {
-          // If chunk is unique compress & archive it.
-          if(isDuplicate == 0) {
+        // If chunk is unique compress & archive it.
+        if(isDuplicate == 0) {
             sub_Compress(chunk); // compress the entire chunk
             // chunk.data will point to a newly-malloc-ed memory
-          }
-          /* WHEN_TIMING({ */
-          /*     end = ktiming_getmark();  */
-          /*     comp_time += ktiming_diff_nsec(&begin, &end); */
-          /*     begin = end; */
-          /* }) */
-          // write_chunk_to_file(args->fd_out, chunk);
-          write_chunk_to_file(args->f_out_reducer->get_reference(), chunk);
-          /* WHEN_TIMING({ */
-          /*     end = ktiming_getmark();  */
-          /*     write_time += ktiming_diff_nsec(&begin, &end); */
-          /*     begin = end; */
-          /* }) */
-          
-          // since we have written out the chunk, now we can free the buffer
-          // if this was the last chunk pointing into the buffer
-          if(chunk->buffer_to_free) {
+        }
+        WHEN_TIMING({
+            end = ktiming_getmark(); 
+            comp_time += ktiming_diff_nsec(&begin, &end);
+            begin = end;
+        })
+        write_chunk_to_file(args->fd_out, chunk);
+        WHEN_TIMING({
+            end = ktiming_getmark(); 
+            write_time += ktiming_diff_nsec(&begin, &end);
+            begin = end;
+        })
+
+        // since we have written out the chunk, now we can free the buffer
+        // if this was the last chunk pointing into the buffer
+        if(chunk->buffer_to_free) {
             free(chunk->buffer_to_free);
             chunk->buffer_to_free = (unsigned char *) NULL;
-          }
-          // the SHA1 is in the hashtable, so we can't free the chunk yet
-          if(chunk->isDuplicate == 0) { 
+        }
+        // the SHA1 is in the hashtable, so we can't free the chunk yet
+        if(chunk->isDuplicate == 0) { 
             // the compressed data has been written out, so we can free it
             free(chunk->data);
-            /* // get new memory for the next chunk so we don't overwrite the SHA1 */
-            /* // anything in the hashtable will be freed at the end of the program */
-            /* chunk = (chunk_t *) malloc(sizeof(chunk_t));  */
-            /* if(chunk == NULL) EXIT_TRACE("Memory allocation failed.\n");  */
-            /* chunk->buffer_to_free = (unsigned char *) NULL; */
-          } else {  // otherwise, we can free it
-            free(chunk);
-          } 
-        } (args, chunk, isDuplicate);
+            // get new memory for the next chunk so we don't overwrite the SHA1
+            // anything in the hashtable will be freed at the end of the program
+            chunk = (chunk_t *) malloc(sizeof(chunk_t)); 
+            if(chunk == NULL) EXIT_TRACE("Memory allocation failed.\n"); 
+            chunk->buffer_to_free = (unsigned char *) NULL;
+        } 
     }
-
-    cilk_sync;
 
     free(rabintab);
     free(rabinwintab);
-    // free(chunk);  // free the last one allocated
+    free(chunk);  // free the last one allocated
 
-    /* WHEN_TIMING({ */
-    /*     last = ktiming_getmark();  */
-    /*     total_time = ktiming_diff_nsec(&first, &last); */
-    /* }) */
+    WHEN_TIMING({
+        last = ktiming_getmark(); 
+        total_time = ktiming_diff_nsec(&first, &last);
+    })
 
-    /* WHEN_TIMING({ */
-    /*     printf("Preproc time   = %.4f seconds\n", (double)preproc_time*1.0e-9);  */
-    /*     printf("Reading time   = %.4f seconds\n", (double)read_time*1.0e-9);  */
-    /*     printf("Dedup time     = %.4f seconds\n", (double)dedup_time*1.0e-9);  */
-    /*     printf("Compress time  = %.4f seconds\n", (double)comp_time*1.0e-9);  */
-    /*     printf("Writing time   = %.4f seconds\n", (double)write_time*1.0e-9);  */
-    /*     printf("Mist. time     = %.4f seconds\n",  */
-    /*            (double)(total_time - preproc_time - read_time */
-    /*                     - dedup_time - comp_time - write_time)*1.0e-9);  */
-    /* }) */
+    WHEN_TIMING({
+        printf("Preproc time   = %.4f seconds\n", (double)preproc_time*1.0e-9); 
+        printf("Reading time   = %.4f seconds\n", (double)read_time*1.0e-9); 
+        printf("Dedup time     = %.4f seconds\n", (double)dedup_time*1.0e-9); 
+        printf("Compress time  = %.4f seconds\n", (double)comp_time*1.0e-9); 
+        printf("Writing time   = %.4f seconds\n", (double)write_time*1.0e-9); 
+        printf("Mist. time     = %.4f seconds\n", 
+               (double)(total_time - preproc_time - read_time
+                        - dedup_time - comp_time - write_time)*1.0e-9); 
+    })
 
     // XXX
     // close(fd_out);
@@ -637,21 +591,15 @@ void Encode(config_t * _conf) {
         EXIT_TRACE("%s file open error %s\n", conf->infile, strerror(errno));
     }
     /* output file open */
-    // if((args.fd_out = open(conf->outfile, 
-    //                        O_CREAT | O_TRUNC | O_WRONLY | O_TRUNC, 
-    //                        S_IRGRP | S_IWUSR | S_IRUSR | S_IROTH)) < 0) {
-    //     EXIT_TRACE("%s output file open error %s\n", conf->outfile, 
-    //                strerror(errno));
-    // }
-    std::filebuf fb;
-    if(NULL == (fb.open(conf->outfile, 
-                        std::ios::out | std::ios::trunc))) {
+    if((args.fd_out = open(conf->outfile, 
+                           O_CREAT | O_TRUNC | O_WRONLY | O_TRUNC, 
+                           S_IRGRP | S_IWUSR | S_IRUSR | S_IROTH)) < 0) {
         EXIT_TRACE("%s output file open error %s\n", conf->outfile, 
                    strerror(errno));
     }
-    args.f_out_reducer = new cilk::reducer_ostream(std::ostream(&fb));
-    
+
     begin = ktiming_getmark();
+
     // Sanity check
     if(MAXBUF < 8 * ANCHOR_JUMP) {
         printf("WARNING: I/O buffer size is small. Performance degraded.\n");
@@ -664,12 +612,12 @@ void Encode(config_t * _conf) {
         if(file_buffer == NULL)
             EXIT_TRACE("Error allocating memory for input buffer.\n");
 
-        size_t bytes_read=0U;
+        size_t bytes_read=0;
 
         // Read data until buffer full
-        while(bytes_read < (size_t)filestat.st_size) {
+        while(bytes_read < filestat.st_size) {
             ssize_t r = read(args.fd_in, file_buffer + bytes_read, 
-                             filestat.st_size - bytes_read);
+                            filestat.st_size - bytes_read);
             if(r < 0) {
                 perror("I/O error: ");
             } else if(r == 0) {
@@ -699,13 +647,11 @@ void Encode(config_t * _conf) {
 
     // clean up 
     free(args.buffer);
-    delete args.f_out_reducer;
 
     /* clean up with the src file */
     if(conf->infile != NULL)
         close(args.fd_in);
-    // close(args.fd_out);
-    fb.close();
+    close(args.fd_out);
 
     hashtable_destroy(cache, TRUE);
 

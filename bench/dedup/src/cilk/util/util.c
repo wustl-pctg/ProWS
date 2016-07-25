@@ -4,10 +4,10 @@
 
 #include "util.h"
 
-size_t xread(int sd, void *buf, size_t len) {
+ssize_t xread(int sd, void *buf, size_t len) {
     char *p = (char *)buf;
-    size_t nrecv = 0;
-    size_t rv;
+    ssize_t nrecv = 0;
+    ssize_t rv;
 
     while (nrecv < len) {
         rv = read(sd, p, len - nrecv);
@@ -23,9 +23,9 @@ size_t xread(int sd, void *buf, size_t len) {
     return nrecv;
 }
 
-size_t xwrite(int sd, const void *buf, size_t len) {
+ssize_t xwrite(int sd, const void *buf, size_t len) {
     char *p = (char *)buf;
-    size_t nsent = 0;
+    ssize_t nsent = 0;
     ssize_t rv;
 
     while (nsent < len) {

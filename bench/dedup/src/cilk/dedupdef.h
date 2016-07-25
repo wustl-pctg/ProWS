@@ -74,6 +74,7 @@ typedef int64_t  int64;
 // The data type of a chunk, the basic work unit of dedup
 // A chunk will flow through all the pipeline stages 
 typedef struct _chunk_t {
+    int id; // ID in the order in which the chunks are read from the
     int isDuplicate; // whether this is an original chunk or a duplicate
     // The SHA1 sum of the chunk, computed by SHA1/Routing stage from the 
     // uncompressed chunk data

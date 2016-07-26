@@ -19,12 +19,13 @@ serial: dedup-serial
 lock: dedup-lock
 
 ifeq ($(PROF),1)
-CFLAGS += -g
+  FLAGS += -g
 endif
 
 export UTIL_OBJ LIBS CFLAGS
 
-CFLAGS += -Wall -D_XOPEN_SOURCE=600 $(INCLUDES) -O3 -DNDEBUG -g 
+#CFLAGS += -Wall -D_XOPEN_SOURCE=600 $(INCLUDES) -O3 -DNDEBUG -g
+FLAGS = $(BASIC_FLAGS) -D_XOPEN_SOURCE=600 $(INCLUDES) $(TOOL_FLAGS)
 LIBS += -lpthread -lm -lrt
 
 DEDUP_OBJ = decoder.o
@@ -33,17 +34,17 @@ UTIL_OBJ = $(addprefix util/, $(OTHER_OBJ))
 
 # Uncomment the following to enable bzip2 compression
 # Don't seem to have bzlib.h installed on the system
-# CFLAGS += -DENABLE_BZIP2_COMPRESSION
+# FLAGS += -DENABLE_BZIP2_COMPRESSION
 # LIBS += -lbz2
 
-CFLAGS += -DENABLE_GZIP_COMPRESSION
+FLAGS += -DENABLE_GZIP_COMPRESSION
 LIBS += -lz
 
 # in comiling dedup. use the TOOL related flags for everything
-CFLAGS += $(BASIC_CFLAGS) $(TOOL_FLAGS)
+CFLAGS += $(BASIC_CFLAGS) $(FLAGS)
 LIBS += $(LDLIBS)
 LDFLAGS += $(TOOL_LDFLAGS)
-CPPFLAGS := -std=c++0x $(CFLAGS)
+CPPFLAGS += $(BASIC_CXXFLAGS) $(FLAGS)
 # $(warning "CPPFLAGS is $(CPPFLAGS),  CFLAGS is $(CFLAGS)")
 
 

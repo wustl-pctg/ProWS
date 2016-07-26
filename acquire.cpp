@@ -4,31 +4,24 @@
 #include <fstream>
 
 namespace cilkrr {
-	std::string get_pedigree_str()
-	{
-		acquire_info tmp = acquire_info(cilkrr::get_pedigree());
-		return tmp.str();
-	}
-  acquire_info::acquire_info() {}
+  std::string get_pedigree_str()
+  {
+    acquire_info tmp = acquire_info(cilkrr::get_pedigree());
+    return tmp.str();
+  }
 
   acquire_info::acquire_info(pedigree_t p)
     : ped(p), next(nullptr), suspended_deque(nullptr) {}
 
-#if PTYPE != PARRAY
-	acquire_info::acquire_info(pedigree_t p, full_pedigree_t full)
-		: ped(p), next(nullptr), suspended_deque(nullptr)
-	{
-		actual = full;
-	}
-#endif
+  acquire_info::acquire_info(pedigree_t p, full_pedigree_t _full)
+    : acquire_info(p)
+  {
+    full = _full;
+  }
 
   std::string acquire_info::array_str() // length must be > 0
   {
-#if PTYPE == PARRAY
-    pedigree_t p = ped;
-#else
-    full_pedigree_t p = actual;
-#endif
+    full_pedigree_t p = full;
     std::string s = "[";
     for (int i = 0; i < p.length; ++i)
       s += std::to_string(p.array[i]) + ",";
@@ -39,14 +32,10 @@ namespace cilkrr {
   // We don't really care about speed here, maybe reeval later.
   std::string acquire_info::str()
   {
-#if PTYPE == PARRAY
-    return array_str();
-#else
     std::string s = std::to_string(ped);
-    if (actual.length > 0)
+    if (full.length > 0)
       s += array_str();
     return s;
-#endif
   }
   
   std::ostream& operator<< (std::ostream &out, acquire_info s)
@@ -55,15 +44,15 @@ namespace cilkrr {
     return out;
   }
 
-  acquire_container::acquire_container(enum mode m)
-    : m_mode(m)
+  acquire_container::acquire_container(size_t size)
+    : m_chunk_size(size)
   {
-
     m_first_chunk = m_current_chunk = new chunk();
-		assert(m_first_chunk);
+    assert(m_first_chunk);
+    
     m_current_chunk->size = m_chunk_size;
     m_current_chunk->array = (acquire_info*) malloc(m_chunk_size * sizeof(acquire_info));
-		assert(m_current_chunk->array);
+    assert(m_current_chunk->array);
     m_current_chunk->next = nullptr;
 
     m_buckets = (acquire_info**) calloc(m_num_buckets, sizeof(acquire_info*));
@@ -71,7 +60,7 @@ namespace cilkrr {
   }
 
 #if PTYPE == PARRAY
-  size_t acquire_container::hash(pedigree_t k)
+  size_t acquire_container::hash(full_pedigree_t k)
   {
     size_t h = 0;
     for (int i = 0; i < k.length; ++i)
@@ -90,63 +79,72 @@ namespace cilkrr {
   acquire_info* acquire_container::begin() { return m_first; }
   acquire_info* acquire_container::end() { return nullptr; }
 
-  /// @todo{Refactor so that this is also used in RECORD, in place of
-  /// add_acquire} Note that this will require synchronizing access to
-  /// the container, since multiple workers will try to allocate
-  /// acquire_info structs at the same time.
   acquire_info* acquire_container::find(const pedigree_t& p)
   {
-    assert(m_mode == REPLAY);
-    acquire_info *a = m_buckets[hash(p)];
+    acquire_info *current, *base, *match;
+    size_t found = 0;
 
-    int found = 0;
-    acquire_info *match = nullptr;
-#if PTYPE == PARRAY
-    while (a) {
-      if (a->ped == p) return a;
-      a = a->chain_next;
+    match = m_it;
+    return match;
+
+    match = current = base = find_first(p);
+    while (current) {
+      if (current->ped == p) found++;
+      if (found > 1) break;
+      current = current->chain_next;
     }
-		goto not_found;
-#else
-    while (a) {
-      if (a->ped == p) {
-        if (++found > 1) break;
-        else match = a;
-      }
-      a = a->chain_next;
-    }
-    full_pedigree_t full;
 
     if (found == 0) {
-      full = get_full_pedigree();
-      goto not_found;
-    }
+      fprintf(stderr, "Cilkrecord error: can't find pedigree %zu\n", p);
+      std::abort();
+    } else if (found > 1) {
+      
+      const full_pedigree_t& full = get_full_pedigree();
+      current = base;
 
-    if (found > 1) { // check conflicts
-      match = nullptr;
-      full = get_full_pedigree();
-      a = m_buckets[hash(p)];
-
-      while (a) {
-        if (a->ped == p && a->actual == full) {
-          match = a;
+      while (current) {
+        if (current->full == full) {
+          match = current;
           break;
         }
-        a = a->chain_next;
+        current = current->chain_next;
       }
-      if (!match) goto not_found;
     }
-#endif
+    assert(match != nullptr);
+    if (match->next)
+      __builtin_prefetch(&m_buckets[hash(match->next->ped)]);
     return match;
-  not_found:
-    a = new acquire_info(p);
-#if PTYPE != PARRAY
-    a->actual = full;
-#endif
-    fprintf(stderr, "Cilkrecord error: can't find pedigree %s\n",
-            a->str().c_str());
-    std::abort();
+  }
 
+  acquire_info* acquire_container::find_first(const pedigree_t& p)
+  {
+    size_t ind = hash(p);
+    acquire_info *current = m_buckets[hash(p)];
+
+    while (current) {
+      if (current->ped == p)
+        return current;
+      current = current->chain_next;
+    }
+    return nullptr;
+  }
+  
+  acquire_info* acquire_container::find(const pedigree_t& p,
+                                        const full_pedigree_t &full)
+  {
+    acquire_info *current = find_first(p);
+
+    while (current) {
+      if (current->ped == p && current->full == full)
+        return current;
+      current = current->chain_next;
+    }
+
+    // Not found!!
+    current = new acquire_info(p, full);
+    fprintf(stderr, "Cilkrecord error: can't find pedigree %s\n",
+            current->str().c_str());
+    std::abort();
   }
 
   void acquire_container::print(std::ofstream& output)
@@ -160,30 +158,13 @@ namespace cilkrr {
     }
   }
   
-  size_t acquire_container::bucket_add(acquire_info** bucket, acquire_info* item)
+  void acquire_container::bucket_add(acquire_info** bucket, acquire_info* item)
   {
-    item->chain_next = nullptr;
-
-    if (*bucket == nullptr) {
-      *bucket = item;
-      return 1;
-    }
-
-		// Just don't check for duplicates...would only matter during recording, anyway
-    // acquire_info *current = *bucket;
-    // while (current) {
-    //   if (current->ped == item->ped) {
-    //     // We DON'T increment size here, since we don't need to keep track of item
-		// 		return 0;
-    //     break;
-    //   }
-    //   current = current->chain_next;
-    // }
-		// assert(current == nullptr);
-		
-		item->chain_next = (*bucket)->chain_next;
-		(*bucket)->chain_next = item;
-    return 1;
+    item->chain_next = *bucket;
+    *bucket = item;
+    
+    if (++m_size / ((double) m_num_buckets) > 1.0)
+      rehash(2*m_num_buckets);
 
   }
 
@@ -192,105 +173,77 @@ namespace cilkrr {
     if (new_cap <= m_num_buckets) return;
 
     acquire_info** new_buckets = (acquire_info**) calloc(new_cap, sizeof(acquire_info*));
-    size_t new_size = 0;
     size_t num_old_buckets = m_num_buckets;
     m_num_buckets = new_cap; // I change this so the hash will work
+    m_mask = ((m_mask + 1) << 1) - 1;
 
     for (int i = 0; i < num_old_buckets; ++i) {
       acquire_info *current = m_buckets[i];
       acquire_info *next;
       while (current) {
         next = current->chain_next;
-        size_t check = bucket_add(&new_buckets[hash(current->ped)], current);
-        new_size += check;
-        assert(check == 1);
+        
+        //        size_t check = bucket_add(&new_buckets[hash(current->ped)], current);
+        // essentially bucket_add, but we don't need to check for duplicates
+        acquire_info** bucket = &new_buckets[hash(current->ped)];
+
+        if (*bucket == nullptr) {
+          *bucket = current;
+          current->chain_next = nullptr;
+        } else {
+          current->chain_next = (*bucket)->chain_next;
+          (*bucket)->chain_next = current;
+        }
+
         current = next;
       }
     }
 
-    assert(new_size == m_unique);
-    m_num_buckets = new_cap;
     free(m_buckets);
     m_buckets = new_buckets;
   }
 
-#if PTYPE != PARRAY  
-  acquire_info* acquire_container::add(pedigree_t p, full_pedigree_t full)
+  acquire_info* acquire_container::new_acquire_info()
   {
     acquire_info *a = &m_current_chunk->array[m_index++];
-    a->ped = p;
     a->next = nullptr;
     a->suspended_deque = nullptr;
-		a->actual = full;
 
     if (m_index >= m_chunk_size) {
       m_index = 0;
-      //m_chunk_size *= 2;
-      if (m_chunk_size < 1024) m_chunk_size *= 2;
+      if (m_chunk_size < 8192) m_chunk_size *= 2;
       m_current_chunk = m_current_chunk->next = new chunk();
       m_current_chunk->size = m_chunk_size;
       m_current_chunk->next = nullptr;
       m_current_chunk->array = (acquire_info*) malloc(m_chunk_size * sizeof(acquire_info));
     }
-    m_size++;
 
+    return a;
+  }
+
+  acquire_info* acquire_container::add(pedigree_t p, full_pedigree_t full)
+  {
+    acquire_info *a = new(new_acquire_info()) acquire_info(p, full);
+    
     acquire_info **bucket = &m_buckets[hash(p)];
-    m_unique += bucket_add(bucket, a);
+    bucket_add(bucket, a);
 
-    if (m_unique / ((double) m_num_buckets) > 1.0)
-      rehash(2*m_num_buckets);
+    if (full.length == 0)
+      m_unique++;
+    else
+      m_num_conflicts++;
 
     if (m_first == nullptr) m_first = m_it = a;
     else m_it = m_it->next = a;
     return a;
   }
-#endif
 
   acquire_info* acquire_container::add(pedigree_t p)
   {
-    acquire_info *a = &m_current_chunk->array[m_index++];
-    a->ped = p;
-    a->next = nullptr;
-    a->suspended_deque = nullptr;
-    if (m_index >= m_chunk_size) {
-      m_index = 0;
-      m_chunk_size *= 2;
-      m_current_chunk = m_current_chunk->next = new chunk();
-			assert(m_current_chunk);
-      m_current_chunk->size = m_chunk_size;
-      m_current_chunk->next = nullptr;
-      m_current_chunk->array = (acquire_info*) malloc(m_chunk_size * sizeof(acquire_info));
-			assert(m_current_chunk->array);
-    }
-    m_size++;
-
-    acquire_info **bucket = &m_buckets[hash(p)];
-    size_t check = bucket_add(bucket, a);
-
-
-#if PTYPE != PARRAY
-
-		// for debugging
-		a->actual = get_full_pedigree();
-
-    // if (check == 0) {
-    //   a->actual = get_full_pedigree();
-    //   m_num_conflicts++;
-    // } else {
-    //   a->actual.length = 0;
-    //   a->actual.array = nullptr;
-    // }
-#endif
-
-    m_unique += check;
-
-    if (m_unique / ((double) m_num_buckets) > 1.0)
-      rehash(2*m_num_buckets);
-
-    if (m_first == nullptr) m_first = m_it = a;
-    else m_it = m_it->next = a;
-
-    return a;
+    full_pedigree_t full = {0, nullptr};
+    if (find_first(p) != nullptr)
+      full = get_full_pedigree();
+    return add(p, full);
   }
 
   size_t acquire_container::memsize()
@@ -303,6 +256,13 @@ namespace cilkrr {
       c = c->next;
     }
     return acquire_info_size + m_num_buckets;
+  }
+
+  void acquire_container::stats()
+  {
+    fprintf(stderr, "Avg chain length: %lf\n",
+            ((double)m_size) / ((double)m_num_buckets));
+    fprintf(stderr, "Num conflicts: %zu\n", m_num_conflicts);
   }
 
 }

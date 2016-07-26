@@ -13,22 +13,17 @@ namespace cilkrr {
 
 	class acquire_info {
 	public:
-		pedigree_t ped;
-#if PTYPE != PARRAY
-		full_pedigree_t actual;
-#endif
+		const pedigree_t ped;
+		full_pedigree_t full;
+
 		acquire_info *chain_next;
 		acquire_info *next; // Needed for replay only
 		void * volatile suspended_deque;
     
-		acquire_info();
+		acquire_info() = delete;
 		acquire_info(pedigree_t p);
-
-		// for debugging
-#if PTYPE != PARRAY
 		acquire_info(pedigree_t p, full_pedigree_t f);
-#endif
-		
+
     std::string str();
   private:
     std::string array_str();
@@ -42,13 +37,27 @@ namespace cilkrr {
 
     // Hash table
 		size_t m_unique = 0;
+    size_t m_num_conflicts; /// @todo{ Remove either m_num_conflicts
+                            /// or m_unique}
+
+
 		size_t m_num_buckets = RESERVE_SIZE;
+    uint64_t m_mask = ((uint64_t)1 << 2) - 1;
 		acquire_info** m_buckets;
-		size_t bucket_add(acquire_info** bucket, acquire_info* item);
+		void bucket_add(acquire_info** bucket, acquire_info* item);
 #if PTYPE == PARRAY
     size_t hash(pedigree_t k);
 #else
-    inline size_t hash(pedigree_t k) { return k % m_num_buckets; }
+    inline size_t hash(pedigree_t k) {
+      // Alternatively, we can just take the low-order gits of k.
+      // Specifically,
+      return k & m_mask;
+      //   where mask is ((uint64_t)1 << log_2(m_num_buckets)) - 1
+      //   and we reset mask during each rehash
+      // This only works when m_num_buckets is a power of 2.
+      // But testing this only made an insignificant difference.
+      /* return k % m_num_buckets; */
+    }
 #endif
 
 		void rehash(size_t new_cap);
@@ -58,6 +67,7 @@ namespace cilkrr {
     // allocator, that way it is shared between locks }
     
     // Chunked linked list that stores the actual acquire_info structs
+    acquire_info* new_acquire_info();
 		size_t m_size = 0;
 		// chunked Linked list
 		struct chunk {
@@ -73,18 +83,12 @@ namespace cilkrr {
     acquire_info* m_it = nullptr;
     acquire_info* m_first = nullptr;
 
-		// This is not really necessary (cilkrr_mode()), but maybe is more
-		// efficient?
-		enum mode m_mode;
-
 	public:
-		size_t m_num_conflicts;
-
-		acquire_container() = delete;
-		acquire_container(enum mode m);
+    acquire_container(size_t size = RESERVE_SIZE);
 
     // Approximate memory allocated
     size_t memsize();
+    void stats();
 
 		acquire_info* begin();
 		acquire_info* end();
@@ -93,11 +97,13 @@ namespace cilkrr {
 		void reset();
 		void print(std::ofstream& output);
 		
-		acquire_info* add(pedigree_t p);
+		acquire_info* add(pedigree_t p); // for record
 #if PTYPE != PARRAY
-    acquire_info* add(pedigree_t p, full_pedigree_t full);
+    acquire_info* add(pedigree_t p, full_pedigree_t full); // for replay
 #endif
-		acquire_info* find(const pedigree_t& p);
+		acquire_info* find_first(const pedigree_t& p);
+    acquire_info* find(const pedigree_t& p);
+    acquire_info* find(const pedigree_t& p, const full_pedigree_t& full);
 
 	};
 

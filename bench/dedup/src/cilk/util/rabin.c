@@ -74,8 +74,7 @@ void rabininit(int winlen, u32int * rabintab, u32int * rabinwintab) {
     return;
 }
 
-int 
-rabinseg(uchar *p, int n, int winlen, u32int *rabintab, u32int *rabinwintab) {
+int rabinseg(uchar *p, int n, int winlen, u32int *rabintab, u32int *rabinwintab) {
     int i;
     u32int h;
     u32int x;

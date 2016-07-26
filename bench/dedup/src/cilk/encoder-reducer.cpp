@@ -38,11 +38,14 @@
 #include "config.h"
 #include "debug.h"
 #include "dedupdef.h"
+
+extern "C" {
 #include "encoder.h"
 #include "util/ktiming.h"
 #include "util/util.h"
 #include "util/hashtable.h"
 #include "util/rabin.h"
+}
 
 ssize_t xostream(std::ofstream &os, const void *buf, ssize_t len);
 int ostream_header(std::ostream &os, byte compress_type);
@@ -598,7 +601,7 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
  *   conf:    Configuration parameters
  *
  */
-void Encode(config_t * _conf) {
+extern "C" void Encode(config_t * _conf) {
 
     struct stat filestat;
 

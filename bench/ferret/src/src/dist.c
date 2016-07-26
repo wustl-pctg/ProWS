@@ -313,10 +313,11 @@ cass_dist_t sdist_emd (cass_dataset_t *ds1, cass_vecset_id_t p1, cass_dataset_t 
 	sig1.n = vecset1->num_regions;
 	sig2.n = vecset2->num_regions;
 
-	sig1.Features = alloca(sig1.n * sizeof *sig1.Features);
-	sig1.Weights = alloca(sig1.n * sizeof *sig1.Weights);
-	sig2.Features = alloca(sig2.n * sizeof *sig2.Features);
-	sig2.Weights = alloca(sig2.n * sizeof *sig2.Weights);
+  // Originally these were all "alloca" calls
+	sig1.Features = malloc(sig1.n * sizeof *sig1.Features);
+	sig1.Weights = malloc(sig1.n * sizeof *sig1.Weights);
+	sig2.Features = malloc(sig2.n * sizeof *sig2.Features);
+	sig2.Weights = malloc(sig2.n * sizeof *sig2.Weights);
 
 	vec = (void *)ds1->vec + ds1->vec_size * vecset1->start_vecid;
 	for (i = 0; i < sig1.n; i++)
@@ -334,7 +335,11 @@ cass_dist_t sdist_emd (cass_dataset_t *ds1, cass_vecset_id_t p1, cass_dataset_t 
 		vec = (void *)vec + ds2->vec_size;
 	}
 
-	return emd(&sig1, &sig2, vec_dist->__class->dist, ds1->vec_dim, vec_dist, NULL, NULL);
+  float result = emd(&sig1, &sig2, vec_dist->__class->dist, ds1->vec_dim,
+                     vec_dist, NULL, NULL);
+  free(sig1.Features); free(sig1.Weights);
+  free(sig2.Features); free(sig2.Weights);
+	return result;
 }
 
 cass_vecset_dist_class_t vecset_dist_emd =
@@ -372,8 +377,9 @@ cass_dist_t sdist_myemd (cass_dataset_t *ds1, cass_vecset_id_t p1, cass_dataset_
 	nrow = vecset1->num_regions;
 	ncol = vecset2->num_regions;
 
-	row = (float *)alloca((nrow + 1) * sizeof (float));
-	col = (float *)alloca((ncol + 1) * sizeof (float));
+  // Originally calls to "alloca"
+	row = (float *)malloc((nrow + 1) * sizeof (float));
+	col = (float *)malloc((ncol + 1) * sizeof (float));
 
 	srow = scol = 0;
 
@@ -426,7 +432,7 @@ cass_dist_t sdist_myemd (cass_dataset_t *ds1, cass_vecset_id_t p1, cass_dataset_
 	d = tp_solve(nrow, row, ncol, col, cost);
 
 	matrix_free(cost);
-
+  free(row); free(col);
 	return d / ss;
 }
 

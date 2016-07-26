@@ -60,6 +60,8 @@
 
 __CILKRTS_BEGIN_EXTERN_C
 
+void validate_pedigree(__cilkrts_worker *w);
+
 /**
  * @file pedigrees.h
  *

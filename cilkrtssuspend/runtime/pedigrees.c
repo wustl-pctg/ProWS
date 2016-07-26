@@ -61,7 +61,7 @@
  */
 COMMON_PORTABLE
 extern void update_pedigree_on_leave_frame(__cilkrts_worker *w,
-					   __cilkrts_stack_frame *sf);
+                                           __cilkrts_stack_frame *sf);
 
 void __cilkrts_set_pedigree_leaf(__cilkrts_pedigree *leaf)
 {
@@ -87,6 +87,7 @@ void load_pedigree_leaf_into_user_worker(__cilkrts_worker *w)
     CILK_ASSERT(w->pedigree.parent->parent == NULL);
 }
 
+/// @todo{ Why do we need {save,load}_pedigree_leaf_from_user_worker? }
 void save_pedigree_leaf_from_user_worker(__cilkrts_worker *w)
 {
     CILK_ASSERT(w->l->type == WORKER_USER);
@@ -105,6 +106,8 @@ void save_pedigree_leaf_from_user_worker(__cilkrts_worker *w)
     // fails because the pedigree chain not restored correctly. 
     // CILK_ASSERT(w->l->original_pedigree_leaf->next == w->pedigree.parent);
     w->l->original_pedigree_leaf->rank = w->pedigree.rank;
+    w->l->original_pedigree_leaf->length = w->pedigree.length;
+    w->l->original_pedigree_leaf->actual = w->pedigree.actual;
 
     // Save that leaf pointer back into tls.
     __cilkrts_set_tls_pedigree_leaf(w->l->original_pedigree_leaf);
@@ -116,19 +119,36 @@ void save_pedigree_leaf_from_user_worker(__cilkrts_worker *w)
 COMMON_PORTABLE
 void update_pedigree_after_sync(__cilkrts_stack_frame *sf)
 {
-	__cilkrts_worker *w = __cilkrts_get_tls_worker();
-	// Update the worker's pedigree information if this is an ABI 1 or later
-  // frame
-  if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1) {
-		++(w->pedigree.rank);
+    __cilkrts_worker *w = __cilkrts_get_tls_worker();
+    // Update the worker's pedigree information if this is an ABI 1 or later
+    // frame
+    if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1) {
+      ++(w->pedigree.rank);
 #ifdef PRECOMPUTE_PEDIGREES
-    w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
-    if (w->pedigree.actual >= w->g->big_prime)
-        w->pedigree.actual %= w->g->big_prime;
-
+      w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
+      if (w->pedigree.actual >= w->g->big_prime)
+          w->pedigree.actual %= w->g->big_prime;
+      
 #endif
-	}
+    }
+    
+}
 
+void validate_pedigree(__cilkrts_worker *w)
+{
+    CILK_ASSERT(0); // disabled
+    __cilkrts_pedigree* current = &w->pedigree;
+    uint64_t real = 0;
+
+    for (int i = w->pedigree.length; i > 0; --i) {
+      CILK_ASSERT(current);
+      CILK_ASSERT(current->length == i);
+      real += current->rank * w->g->ped_compression_vec[i-1];
+      real %= w->g->big_prime;
+      current = current->parent;
+    }
+
+    CILK_ASSERT(w->pedigree.actual == real);
 }
 
 void init_pedigree_compression_vec(global_state_t* g)
@@ -141,7 +161,6 @@ void init_pedigree_compression_vec(global_state_t* g)
 
     for (int i = 0; i < 256; ++i)
         g->ped_compression_vec[i] = rand() % g->big_prime;
-        //g->ped_compression_vec[i] = i+1;
 #endif
 }
 

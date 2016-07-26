@@ -50,13 +50,13 @@ cbt.o: cbt.cpp mutex.h cilkrr.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) $(APPFLAGS) -c cbt.cpp
 
 cbt: cbt.o libcilkrr.a mutex.h $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) cbt.o libcilkrr.a $(LIB) $(LDFLAGS) -o cbt
+	$(CXX) cbt.o libcilkrr.a $(LIB) $(LDFLAGS) -o cbt
 
 cilkfor: cilkfor.o libcilkrr.a mutex.h $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) cilkfor.o libcilkrr.a $(LIB) $(LDFLAGS) -o cilkfor
+	$(CXX) cilkfor.o libcilkrr.a $(LIB) $(LDFLAGS) -o cilkfor
 
 fib: fib.o libcilkrr.a mutex.h $(LIB)
-	$(CXX) $(CFLAGS) $(CILKFLAGS) fib.o libcilkrr.a $(LIB) $(LDFLAGS) -o fib
+	$(CXX) fib.o libcilkrr.a $(LIB) $(LDFLAGS) -o fib
 
 clean:
 	rm -f *.o *.a fib cilkfor cbt

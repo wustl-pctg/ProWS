@@ -9,7 +9,7 @@
 #include <internal/abi.h>
 
 namespace cilkrr {
-#if PTYPE != PARRAY
+
   full_pedigree_t get_full_pedigree()
   {
     const __cilkrts_pedigree tmp = __cilkrts_get_pedigree();
@@ -23,17 +23,16 @@ namespace cilkrr {
     }
 
     p.array = (uint64_t*) malloc(sizeof(uint64_t) * p.length);
-    size_t ind = 0;
+    size_t ind = p.length - 1;
     // Note that we get this backwards!
     current = &tmp;
     while (current) {
-      p.array[ind++] = current->rank;
+      p.array[ind--] = current->rank;
       current = current->parent;
     }
 
     return p;
   }
-#endif  
 
   pedigree_t get_pedigree()
   {
@@ -41,48 +40,31 @@ namespace cilkrr {
     const __cilkrts_pedigree* current = &tmp;
     pedigree_t p;
 
-#if PTYPE == PPRE
+#if PTYPE != PDOT
     p = current->actual;
-#elif PTYPE == PARRAY
-    p.length = 0;
-    while (current) {
-      p.length++;
-      current = current->parent;
+    
+#else // dot product
+    pedigree_t actual = current->actual;
+    size_t len = 0;
+    const __cilkrts_pedigree* curr = current;
+    while (curr) {
+      len++;
+      curr = curr->parent;
     }
-    p.array = (uint64_t*)malloc(sizeof(uint64_t) * p.length);
-    size_t ind = p.length - 1;
-    current = &tmp;
-    while (current) {
-      p.array[ind--] = current->rank;
-      current = current->parent;
-    }
-#elif PTYPE == PDOT
-		pedigree_t actual = current->actual;
-		size_t len = 0;
-		const __cilkrts_pedigree* curr = current;
-		while (curr) {
-			len++;
-			curr = curr->parent;
-		}
 
     p = 1;
-    //size_t ind = 0;
-		size_t ind = len - 1;
+    size_t ind = len - 1;
     while (current) {
-      //p += g_rr_state->randvec[ind++] * current->rank;
-			p += g_rr_state->randvec[ind--] * current->rank;
+      p += g_rr_state->randvec[ind--] * current->rank;
       current = current->parent;
     }
     p %= big_prime;
 
-		if (actual != p) {
-			fprintf(stderr, "Pre: %zu, Dot: %zu\n", actual, p);
-			raise(SIGSTOP);
-			//assert(0);
-		}
-
-#else
-#error "Invalid PMETHOD"
+    // if (actual != p) {
+    //  fprintf(stderr, "Pre: %zu, Dot: %zu\n", actual, p);
+    //  raise(SIGSTOP);
+    //  //assert(0);
+    // }
 #endif
     
     return p;
@@ -96,8 +78,8 @@ namespace cilkrr {
 #if PTYPE != PPRE
     srand(0);
     for (int i = 0; i < 256; ++i)
-			randvec[i] = i+1;
-      //randvec[i] = rand() % big_prime;
+      randvec[i] = i+1;
+    //randvec[i] = rand() % big_prime;
 #endif
 
     // Seed Cilk's pedigree seed
@@ -130,6 +112,10 @@ namespace cilkrr {
           assert(input.good());
           assert(input.peek() == '{');
           input.ignore(1, '{');
+
+          /// @todo{ Write out # acquires for each lock, then reserve
+          /// a hash table of that size when reading in }
+          
           size_t num; input >> num;
           assert(num == i);
           getline(input, line);
@@ -137,7 +123,7 @@ namespace cilkrr {
           m_all_acquires.push_back(new acquire_container(m_mode));
           acquire_container* cont = m_all_acquires[i];
           
-
+          int lineno = 0;
           while (input.peek() != '}') {
             pedigree_t p;
 #if PTYPE != PARRAY
@@ -163,6 +149,7 @@ namespace cilkrr {
                 ind = next_ind;
               }
             }
+            
             cont->add(p, full);
 #else
             p.length = std::count(line.begin(), line.end(), ',');
@@ -175,11 +162,14 @@ namespace cilkrr {
             }
             cont->add(p);
 #endif
+            lineno++;
           }
           cont->reset();
         }
         
         input.close();
+        
+        
       } else {
         m_mode = NONE;
       }
@@ -192,10 +182,6 @@ namespace cilkrr {
     // This should be true, but some pbbs benchmarks (dictionary) don't call the lock destructors
     // I think they do this so avoid the slowdown, so I don't want to mess with that
     // assert(m_active_size == 0);
-#ifdef CONFLICT_CHECK
-    if (m_mode == RECORD)
-      fprintf(stderr, "Conflicts: %zu\n", m_all_acquires[0]->m_num_conflicts);
-#endif
 
     //    return; // Only for measuring the overhead
     if (m_mode != RECORD) return;
@@ -213,13 +199,14 @@ namespace cilkrr {
       output << "{" << i << ":" << std::endl;
       
       cont = m_all_acquires[i];
+      cont->stats();
       cont->print(output);
       mem_allocated += cont->memsize();
       output << "}" << std::endl;
     }
     output.close();
 
-    fprintf(stderr, "%zu bytes allocated for %zu locks\n", mem_allocated, m_size);
+    //fprintf(stderr, "%zu bytes allocated for %zu locks\n", mem_allocated, m_size);
   }
 
   // This may be called multiple times, but it is not thread-safe!

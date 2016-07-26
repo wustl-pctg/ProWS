@@ -652,7 +652,8 @@ extern "C" void Encode(config_t * _conf) {
         EXIT_TRACE("%s output file open error %s\n", conf->outfile, 
                    strerror(errno));
     }
-    args.f_out_reducer = new cilk::reducer_ostream(std::ostream(&fb));
+    //args.f_out_reducer = new cilk::reducer_ostream(std::ostream(&fb));
+    args.f_out_reducer = cilk::aligned_new<cilk::reducer_ostream>(std::ostream(&fb));
     
     begin = ktiming_getmark();
     // Sanity check

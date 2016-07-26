@@ -59,7 +59,8 @@ namespace cilkrr {
     
     if (get_mode() == REPLAY) {
       // returns locked, but not acquired
-      replay_lock(m_acquires->find((const pedigree_t)p)); 
+      replay_lock(m_acquires->find((const pedigree_t)p));
+      //m_mutex.lock();
     } else {
       m_mutex.lock();
     }
@@ -71,22 +72,6 @@ namespace cilkrr {
   {
     fprintf(stderr, "try_lock not implemented for CILKRR\n");
     std::abort();
-    //  bool result;
-    //  pedigree_t p;
-    
-    //  if (get_mode() != NONE) p = get_pedigree();
-    //  if (get_mode() == REPLAY)
-    //    result = replay_try_lock(p);
-    //  else
-    //    result = m_mutex.try_lock();
-    
-    //  if (result) {
-    //    acquire();
-    //    if (get_mode() == RECORD) record_acquire(p);
-    //  } else
-    //    __cilkrts_bump_worker_rank();
-        
-    //  return result;
   }
 
   void mutex::unlock()
@@ -107,6 +92,11 @@ namespace cilkrr {
 
   void mutex::replay_lock(acquire_info* a)
   {
+    // perf debug
+    // m_mutex.lock();
+    // return;
+    // end perf debug
+    
     a->suspended_deque = __cilkrts_get_deque();
     MEM_FENCE;
 
@@ -123,33 +113,15 @@ namespace cilkrr {
     }
     __cilkrts_suspend_deque();
   }
-  
-  // bool mutex::replay_try_lock(pedigree_t& p)
-  // {
-  //  acquire_info *a = m_acquires->find(p);
-  //  if (!a) { // this try_lock never succeeded
-  //    // Since we're assuming no determinacy races, this is ok.
-  //    return false;
-  //  }
-
-  //  if (a == m_acquires->current()) {
-  //    assert(m_owner == nullptr);
-  //    bool res = m_mutex.try_lock();
-  //    assert(res == true);
-  //  } else {
-
-  //    // This is a bit weird for try_lock to wait, but it must in this
-  //    // case. We always increment the pedigree on try_locks, and this
-  //    // pedigree should be getting the lock, but we need to wait for
-  //    // other locks to complete.
-  //    suspend(p);
-  //  }
-    
-  //  return true;
-  // }
 
   void mutex::replay_unlock()
   {
+    // for performance debugging
+    // m_acquires->next();
+    // release();
+    // return;
+    // end perf
+    
     void *deque = nullptr;
     m_checking = true;
     m_acquires->next();

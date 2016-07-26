@@ -1,10 +1,10 @@
-include ../../reducer-bench.mk
+include ../../bench.mk
 
-PROG = reducer
+PROG = serial lock reducer
 
 LDLIBS += $(LIBS) -lrt -lm -lcass -lgsl -lgslcblas -ljpeg -lstdc++
 
-.PHONY:	all clean dirs full_clean lib tools reducer
+.PHONY:	all clean dirs full_clean lib tools serial lock reducer
 # image server 
 
 VPATH = $(CURDIR)/src:$(CURDIR)/src/lsh:$(CURDIR)/tools:$(CURDIR)/image:$(CURDIR)/benchmark
@@ -19,7 +19,7 @@ OBJDIR = $(ROOT)/build/obj
 
 CFLAGS += $(BASIC_CFLAGS) -I$(INCDIR)
 CXXFLAGS += $(CFLAGS)
-LDFLAGS += -L$(LIBDIR) $(TOOL_LDFLAGS)
+LDFLAGS += -L$(LIBDIR)
 
 TARGET_OBJ = $(addprefix $(OBJDIR)/ferret-, $(PROG).o)
 TARGET = $(addprefix $(BINDIR)/ferret-, $(PROG))
@@ -59,6 +59,14 @@ tools_tgt := $(addprefix $(BINDIR)/, $(tools_tgt:.c=))
 
 tools : $(tools_tgt)
 
+serial: dirs lib tools
+	@echo "Building the serial version."
+	make $(BINDIR)/ferret-serial
+
+lock: dirs lib tools
+	@echo "Building the locking version."
+	make $(BINDIR)/ferret-lock
+
 reducer: dirs lib tools
 	@echo "Building the reducer version."
 	make $(BINDIR)/ferret-reducer 
@@ -78,9 +86,17 @@ $(OBJDIR)/%.o: %.c
 	@echo "   '$(CC) $(CFLAGS) $<' ==> '$@'"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
+$(OBJDIR)/ferret-serial.o: ferret-serial.cpp
+	@echo "   '$(CXX) $(CXXFLAGS) $<' ==> '$@'"
+	@$(CC) $(CXXFLAGS) -c $< -o $@
+
+$(OBJDIR)/ferret-lock.o: ferret-lock.cpp
+	@echo "   '$(CXX) $(CXXFLAGS) $<' ==> '$@'"
+	@$(CC) $(CXXFLAGS) -c $< -o $@
+
 $(OBJDIR)/ferret-reducer.o: ferret-reducer.cpp
-	@echo "   '$(CXX) $(CXXFLAGS) $(TOOL_FLAGS) $<' ==> '$@'"
-	@$(CC) $(CXXFLAGS) $(TOOL_FLAGS) -c $< -o $@
+	@echo "   '$(CXX) $(CXXFLAGS) $<' ==> '$@'"
+	@$(CC) $(CXXFLAGS) -c $< -o $@
 
 $(OBJDIR)/%.o: %.cpp
 	@echo "   '$(CXX) $(CXXFLAGS) $<' ==> '$@'"
@@ -91,8 +107,16 @@ $(tools_tgt): $(BINDIR)/% : $(OBJDIR)/%.o $(LIBDIR)/libcass.a
 	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BINDIR)/ferret-reducer: $(OBJDIR)/ferret-reducer.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
-	@echo "   '$(CC) $(CXXFLAGS) $(TOOL_LDFLAGS) $(LDLIBS) $<' ==> '$@'"
-	@$(CC) $(CXXFLAGS) $(TOOL_LDFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BINDIR)/ferret-serial: $(OBJDIR)/ferret-serial.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
+	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BINDIR)/ferret-lock: $(OBJDIR)/ferret-lock.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
+	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(image_tgt): $(BINDIR)/% : $(OBJDIR)/%.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   '$(CXX) $<' ==> '$@'"

@@ -22,7 +22,7 @@ int image_read_hsv (const char *filename, int *width, int *height, unsigned char
 int image_read_rgb_hsv (const char *filename, int *width, int *height, unsigned char **rgb, unsigned char **hsv);
 
 int image_read_gray (const char *filename, int *width, int *height, float **data);
-int image_write_rgb (const char *filename, int width, int height, unsigned char *data);
+void image_write_rgb (const char *filename, int width, int height, unsigned char *data);
 
 /* dataset has only 1 vecset */
 int image_extract_helper (unsigned char *HSV, unsigned char *mask, int width, int height, int nrgn, cass_dataset_t *ds);

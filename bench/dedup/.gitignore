@@ -1,0 +1,6 @@
+data
+*.o
+*.out
+src/cilk/dedup-serial
+src/cilk/dedup-lock
+src/cilk/dedup-reducer

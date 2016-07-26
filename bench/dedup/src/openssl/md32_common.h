@@ -161,7 +161,7 @@
    * 					<appro@fy.chalmers.se>
    */
 #  if defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__)
-#   define ROTATE(a,n)	({ register unsigned int ret;	\
+#   define ROTATE(a,n)	({ unsigned int ret;	\
 				asm (			\
 				"roll %1,%0"		\
 				: "=r"(ret)		\
@@ -171,7 +171,7 @@
 			})
 #  elif defined(_ARCH_PPC) || defined(_ARCH_PPC64) || \
 	defined(__powerpc) || defined(__ppc__) || defined(__powerpc64__)
-#   define ROTATE(a,n)	({ register unsigned int ret;	\
+#   define ROTATE(a,n)	({ unsigned int ret;	\
 				asm (			\
 				"rlwinm %0,%1,%2,0,31"	\
 				: "=r"(ret)		\
@@ -179,7 +179,7 @@
 			   ret;				\
 			})
 #  elif defined(__s390x__)
-#   define ROTATE(a,n) ({ register unsigned int ret;	\
+#   define ROTATE(a,n) ({ unsigned int ret;	\
 				asm ("rll %0,%1,%2"	\
 				: "=r"(ret)		\
 				: "r"(a), "I"(n));	\
@@ -281,7 +281,7 @@
 
 int HASH_UPDATE (HASH_CTX *c, const void *data_, size_t len)
 	{
-          const unsigned char *data=(const unsigned char*)data_;
+	const unsigned char *data = (const unsigned char *)data_;
 	unsigned char *p;
 	HASH_LONG l;
 	size_t n;
@@ -383,7 +383,7 @@ int HASH_FINAL (unsigned char *md, HASH_CTX *c)
 	}
 
 #ifndef MD32_REG_T
-#define MD32_REG_T long
+#define MD32_REG_T int 
 /*
  * This comment was originaly written for MD5, which is why it
  * discusses A-D. But it basically applies to all 32-bit digests,

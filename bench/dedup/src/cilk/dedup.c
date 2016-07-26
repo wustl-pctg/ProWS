@@ -1,16 +1,11 @@
 #include <unistd.h>
 #include <string.h>
 
-#if CILKSAN
-#include <cilksan.h>
-#endif
-
-
+#include "config.h"
 #include "debug.h"
 #include "dedupdef.h"
-#include "encoder.h"
 #include "decoder.h"
-#include "config.h"
+#include "encoder.h"
 
 #include "util/util.h"
 
@@ -24,7 +19,7 @@
 /*--------------------------------------------------------------------------*/
 static void
 usage(char* prog) {
-    printf("usage: %s [-cusfvh] [-w gzip/bzip2/none] [-i file] [-o file] [-t number_of_threads]\n",prog);
+    printf("usage: %s [-cusfvh] [-w gzip/bzip2/none] [-i file] [-o file]\n",prog);
     printf("-c \t\t\tcompress\n");
     printf("-u \t\t\tuncompress\n");
     printf("-p \t\t\tpreloading (for benchmarking purposes)\n");
@@ -41,10 +36,6 @@ int main(int argc, char** argv) {
     config_t conf;
     int32 compress = TRUE;
 
-#if CILKSAN
-    argc = __cilksan_parse_input(argc, argv);
-#endif
-   
     // We force the sha1 sum to be integer-aligned, check that the length 
     // of a sha1 sum is a multiple of unsigned int
     assert(SHA1_LEN % sizeof(unsigned int) == 0);
@@ -53,7 +44,6 @@ int main(int argc, char** argv) {
     conf.compress_type = COMPRESS_GZIP;
     conf.preloading = 0;
     conf.verbose = 0;
-    conf.nthreads = 1;
 
     //parse the args
     int ch;
@@ -99,9 +89,6 @@ int main(int argc, char** argv) {
             case 'v':
                 conf.verbose = TRUE;
                 break;
-            case 't':
-                conf.nthreads = atoi(optarg);
-                break;
             case '?':
                 fprintf(stdout, "Unknown option `-%c'.\n", optopt);
                 usage(argv[0]);
@@ -136,9 +123,6 @@ int main(int argc, char** argv) {
         Decode(&conf);
     }
 
-#if CILKSAN
-    __cilksan_deinit();
-#endif
     return 0;
 }
 

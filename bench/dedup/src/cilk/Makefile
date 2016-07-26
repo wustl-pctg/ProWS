@@ -1,21 +1,22 @@
 # Makefile for dedup kernel
 TARGET = dedup
 
-CILKSAN=redrace
+.default: serial lock reducer
 
-.default: reducer
-
-.PHONY: all clean reducer check
+.PHONY: all clean serial lock reducer check
 
 # define BASIC_CFLAGS, BASIC_CXXFLAGS, LDFLAGS, LDLIBS, TOOL_FLAGS,
 # TOOL_LDFLAGS 
-include ../../../reducer-bench.mk
+include ../../../bench.mk
 
 # let's use cpp compiler for everything
-CC = $(CXX) 
+# CC = $(CXX) 
 
-PROG = dedup-reducer
-reducer: $(PROG)
+PROG = dedup-reducer dedup-serial dedup-lock 
+all: $(PROG)
+reducer: dedup-reducer
+serial: dedup-serial
+lock: dedup-lock
 
 ifeq ($(PROF),1)
 CFLAGS += -g
@@ -24,7 +25,7 @@ endif
 export UTIL_OBJ LIBS CFLAGS
 
 CFLAGS += -Wall -D_XOPEN_SOURCE=600 $(INCLUDES) -O3 -DNDEBUG -g 
-LIBS += -lm -lrt
+LIBS += -lpthread -lm -lrt
 
 DEDUP_OBJ = decoder.o
 OTHER_OBJ = hashtable.o util.o rabin.o sha.o ktiming.o
@@ -39,21 +40,21 @@ CFLAGS += -DENABLE_GZIP_COMPRESSION
 LIBS += -lz
 
 # in comiling dedup. use the TOOL related flags for everything
-CFLAGS += -std=c++0x $(BASIC_CFLAGS) $(TOOL_FLAGS)
+CFLAGS += $(BASIC_CFLAGS) $(TOOL_FLAGS)
 LIBS += $(LDLIBS)
 LDFLAGS += $(TOOL_LDFLAGS)
-CPPFLAGS := $(CFLAGS)
+CPPFLAGS := -std=c++0x $(CFLAGS)
 # $(warning "CPPFLAGS is $(CPPFLAGS),  CFLAGS is $(CFLAGS)")
 
 
 all: $(PROG)
 
-dedup-reducer.o: dedup.c
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+dedup-%.o: dedup.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-%-reducer.o: %-reducer.cpp
-	$(warning "calling rule %-reducer.cpp")
-	$(CXX) $(CPPFLAGS) -c $< -o $@ 
+# %-reducer.o: %-reducer.cpp
+# 	$(warning "calling rule %-reducer.cpp")
+# 	$(CXX) $(CPPFLAGS) -c $< -o $@ 
 
 %.o: %.c
 	$(warning "calling rule %.c")
@@ -67,12 +68,17 @@ util/%.o: util/%.c
 	$(warning "calling rule util/%.c")
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Specialize rule for Cilk.  Cilk requires extra flags.
-$(TARGET)-reducer: encoder-reducer.o $(DEDUP_OBJ) $(UTIL_OBJ) dedup-reducer.o
+dedup-serial: encoder-serial.o $(DEDUP_OBJ) $(UTIL_OBJ) dedup-serial.o
+	$(warning "Compiling dedup-serial")
+	$(CC) $^ -o $@  $(LDFLAGS) $(LIBS)
+
+dedup-lock: encoder-lock.o $(DEDUP_OBJ) $(UTIL_OBJ) dedup-lock.o
+	$(warning "Compiling dedup-lock")
 	$(CXX) $^ -o $@  $(LDFLAGS) $(LIBS)
 
-$(TARGET)-%: encoder-%.o $(DEDUP_OBJ) $(UTIL_OBJ) dedup-serial.o
-	$(CC) $^ -o $@ $(LDFLAGS) $(LIBS)  
+dedup-reducer: encoder-reducer.o $(DEDUP_OBJ) $(UTIL_OBJ) dedup-reducer.o
+	$(warning "Compiling dedup-reducer")
+	$(CXX) $^ -o $@  $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f *~ *.o util/*.o $(PROG) *.tmp

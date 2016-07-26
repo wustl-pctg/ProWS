@@ -47,20 +47,21 @@ extern "C" {
 #include "util/rabin.h"
 }
 
-ssize_t xostream(std::ofstream &os, const void *buf, ssize_t len);
-int ostream_header(std::ostream &os, byte compress_type);
+#include "bench-util.h"
 
-ssize_t xostream(std::ostream &os, const void *buf, ssize_t len) {
 
-    os.write((const char *)buf, len);
-    bool good = os.good();
+static inline 
+ssize_t xostream(std::ostream *os, const void *buf, ssize_t len) {
+
+    os->write((const char *)buf, len);
+    bool good = os->good();
     if (!good) {
         return -1;
     }
     return len;
 }
 
-int ostream_header(std::ostream &os, byte compress_type) {
+static int ostream_header(std::ostream *os, byte compress_type) {
   int checkbit = CHECKBIT;
   if (xostream(os, &checkbit, sizeof(int)) < 0) {
     return -1;
@@ -93,11 +94,16 @@ int ostream_header(std::ostream &os, byte compress_type) {
 stats_t stats;
 #endif
 
+static lock_t fout_lock;
 
 // The configuration block defined in main
 static config_t * conf;
 // Hash table data structure & utility functions
 static struct hashtable *cache;
+
+// ready_chunks and next_id_to_write are protected by fout_lock
+static struct hashtable *ready_chunks;
+static unsigned int next_id_to_write = 0;
 
 static unsigned int hash_from_key_fn( void *k ) {
     // NOTE: sha1 sum is integer-aligned
@@ -108,6 +114,14 @@ static int keys_equal_fn( void *key1, void *key2 ) {
     return (memcmp(key1, key2, SHA1_LEN) == 0);
 }
 
+static unsigned int hash_from_chunk_id_fn(void *k) {
+    return ((chunk_t *)k)->id;
+}
+
+static int chunk_ids_equal_fn(void *key1, void *key2) {
+    return ((chunk_t *)key1)->id == ((chunk_t *)key2)->id;
+}
+
 // Arguments 
 typedef struct file_info {
     // src file descriptor, first pipeline stage only
@@ -115,7 +129,7 @@ typedef struct file_info {
     // output file descriptor, first pipeline stage only
     int fd_out;
     // output file stream
-    cilk::reducer_ostream *f_out_reducer;
+    std::ostream *f_out;
     // input file buffer, first pipeline stage & preloading only
     unsigned char *buffer; // holds the content from input file
     size_t buf_seek;  // where we are reading in the buffer
@@ -126,7 +140,7 @@ typedef struct file_info {
 
 // Simple write utility function
 // static int write_file(int fd, u_char type, size_t len, u_char * content) {
-static int write_file(std::ostream &f_out,
+static int write_file(std::ostream *f_out,
                       u_char type, size_t len, u_char * content) {
     if (xostream(f_out, &type, sizeof(type)) < 0) {
         perror("xwrite:");
@@ -195,7 +209,7 @@ static int create_output_file(char *outfile) {
 // in-order, which means if it reaches the function it is guaranteed all 
 // data is ready.
 // static void write_chunk_to_file(int fd, chunk_t *chunk) {
-static void write_chunk_to_file(std::ostream &f_out, chunk_t *chunk) {
+static inline void write_chunk_to_file(std::ostream *f_out, chunk_t *chunk) {
     assert(chunk!=NULL);
 
     if(!chunk->isDuplicate) {
@@ -206,6 +220,69 @@ static void write_chunk_to_file(std::ostream &f_out, chunk_t *chunk) {
         write_file( f_out, TYPE_FINGERPRINT, SHA1_LEN, 
                     (unsigned char *)(chunk->sha1) );
     }
+}
+
+static void free_written_chunk(chunk_t *chunk) {
+    // since we have written out the chunk, now we can free the buffer
+    // if this was the last chunk pointing into the buffer
+    if(chunk->buffer_to_free) {
+        free(chunk->buffer_to_free);
+        chunk->buffer_to_free = (unsigned char *) NULL;
+    }
+    // the SHA1 is in the hashtable, so we can't free the chunk yet
+    if(chunk->isDuplicate == 0) { 
+        // the compressed data has been written out, so we can free it
+        free(chunk->data);
+        /* // get new memory for the next chunk so we don't overwrite the SHA1 */
+        /* // anything in the hashtable will be freed at the end of the program */
+        /* chunk = (chunk_t *) malloc(sizeof(chunk_t));  */
+        /* if(chunk == NULL) EXIT_TRACE("Memory allocation failed.\n");  */
+        /* chunk->buffer_to_free = (unsigned char *) NULL; */
+    } else {  // otherwise, we can free it
+        free(chunk);
+    }
+}
+
+/*
+ * This function writes out ready chunks in order before
+ * writing this chunk.   This function will write as many chunks as it
+ * can until it encounters some chunk with smaller ID that is not ready.
+ * In which case, this chunk is simply inserted into the array and 
+ * will be written later by later iteraions. 
+ * It may also write pass the id of curr_chunk if later chunks are ready.
+ */
+static inline void 
+write_prev_chunks_to_file(std::ostream *f_out, chunk_t *curr_chunk) {
+    assert(curr_chunk!=NULL);
+    chunk_t next_to_write;
+    chunk_t *ret = NULL;
+
+    unsigned int this_id = curr_chunk->id;
+
+    do {
+        lock(&fout_lock);
+        if(next_id_to_write == this_id) { 
+            ret = curr_chunk; 
+        } else {
+            next_to_write.id = next_id_to_write;
+            ret = (chunk_t *) hashtable_remove(ready_chunks, &next_to_write);
+        }
+        if(ret) {
+            assert(ret->id == next_id_to_write);
+            write_chunk_to_file(f_out, ret);
+            next_id_to_write++;
+        } else if(next_id_to_write < this_id) {
+            // there are still some chunks before this_id not yet written
+            // but they are not ready to be written yet, so insert this chunk
+            // and return
+            hashtable_insert(ready_chunks, curr_chunk, curr_chunk);
+        }
+        unlock(&fout_lock);
+
+        if(ret) free_written_chunk(ret);
+    } while(ret);
+
+    return;
 }
 
 
@@ -456,6 +533,8 @@ get_next_chunk(file_info_t *const args, chunk_t *const chunk,
  */
 void *SerialIntegratedPipeline(file_info_t *const args) {
 
+    unsigned int chunk_id = 0;
+
     /* WHEN_TIMING( uint64_t write_time = 0.0f, dedup_time = 0.0f; ) */
     /* WHEN_TIMING( float preproc_time = 0.0f, comp_time = 0.0f; ) */
     /* WHEN_TIMING( float read_time = 0.0f, total_time = 0.0f; ) */
@@ -469,7 +548,7 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
     // if (write_header(args->fd_out, conf->compress_type)) {
     //     EXIT_TRACE("Cannot write output file header.\n");
     // }
-    if (ostream_header(args->f_out_reducer->get_reference(), conf->compress_type)) {
+    if (ostream_header(args->f_out, conf->compress_type)) {
         EXIT_TRACE("Cannot write output file header.\n");
     }
 
@@ -498,6 +577,7 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
         chunk_t *chunk = (chunk_t *) malloc(sizeof(chunk_t)); 
         if(chunk == NULL) EXIT_TRACE("Memory allocation failed.\n"); 
         chunk->buffer_to_free = (unsigned char *) NULL;
+        chunk->id = chunk_id++;
 
         // get the next chunk from input file / buffer
         /* WHEN_TIMING( begin = ktiming_getmark(); ) */
@@ -535,32 +615,13 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
           /*     comp_time += ktiming_diff_nsec(&begin, &end); */
           /*     begin = end; */
           /* }) */
-          // write_chunk_to_file(args->fd_out, chunk);
-          write_chunk_to_file(args->f_out_reducer->get_reference(), chunk);
+          write_prev_chunks_to_file(args->f_out, chunk);
           /* WHEN_TIMING({ */
           /*     end = ktiming_getmark();  */
           /*     write_time += ktiming_diff_nsec(&begin, &end); */
           /*     begin = end; */
           /* }) */
           
-          // since we have written out the chunk, now we can free the buffer
-          // if this was the last chunk pointing into the buffer
-          if(chunk->buffer_to_free) {
-            free(chunk->buffer_to_free);
-            chunk->buffer_to_free = (unsigned char *) NULL;
-          }
-          // the SHA1 is in the hashtable, so we can't free the chunk yet
-          if(chunk->isDuplicate == 0) { 
-            // the compressed data has been written out, so we can free it
-            free(chunk->data);
-            /* // get new memory for the next chunk so we don't overwrite the SHA1 */
-            /* // anything in the hashtable will be freed at the end of the program */
-            /* chunk = (chunk_t *) malloc(sizeof(chunk_t));  */
-            /* if(chunk == NULL) EXIT_TRACE("Memory allocation failed.\n");  */
-            /* chunk->buffer_to_free = (unsigned char *) NULL; */
-          } else {  // otherwise, we can free it
-            free(chunk);
-          } 
         } (args, chunk, isDuplicate);
     }
 
@@ -611,6 +672,7 @@ extern "C" void Encode(config_t * _conf) {
     clockmark_t begin, end, preload_end; 
 
     conf = _conf;
+    lock_init(&fout_lock, 0);
     
 #ifdef ENABLE_STATISTICS
     init_stats(&stats);
@@ -619,6 +681,11 @@ extern "C" void Encode(config_t * _conf) {
     // Create chunk cache
     cache = hashtable_create(65536, hash_from_key_fn, keys_equal_fn, FALSE);
     if(cache == NULL) {
+        printf("ERROR: Out of memory\n");
+        exit(1);
+    }
+    ready_chunks = hashtable_create(65536, hash_from_chunk_id_fn, chunk_ids_equal_fn, FALSE);
+    if(ready_chunks == NULL) {
         printf("ERROR: Out of memory\n");
         exit(1);
     }
@@ -652,7 +719,7 @@ extern "C" void Encode(config_t * _conf) {
         EXIT_TRACE("%s output file open error %s\n", conf->outfile, 
                    strerror(errno));
     }
-    args.f_out_reducer = new cilk::reducer_ostream(std::ostream(&fb));
+    args.f_out = new std::ostream(&fb);
     
     begin = ktiming_getmark();
     // Sanity check
@@ -702,7 +769,7 @@ extern "C" void Encode(config_t * _conf) {
 
     // clean up 
     free(args.buffer);
-    delete args.f_out_reducer;
+    delete args.f_out;
 
     /* clean up with the src file */
     if(conf->infile != NULL)
@@ -711,6 +778,8 @@ extern "C" void Encode(config_t * _conf) {
     fb.close();
 
     hashtable_destroy(cache, TRUE);
+    hashtable_destroy(ready_chunks, TRUE);
+    lock_destroy(&fout_lock);
 
     if(preload_time) {
         printf("Preloading time = %.4f seconds\n", preload_time*1.0e-9);

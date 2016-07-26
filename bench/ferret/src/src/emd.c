@@ -68,7 +68,7 @@ mkemdstate(void)
 	emd_state_t *state;
 
 	state = malloc(sizeof *state);
-	bzero(state, sizeof *state);
+	bzero(state, sizeof(*state));
 	return state;
 }
 
@@ -113,7 +113,7 @@ emd(signature_t *Signature1, signature_t *Signature2, float (*Dist)(cass_size_t,
 
   if (C == NULL) C = type_matrix_alloc(double, MAX_SIG_SIZE1, MAX_SIG_SIZE1);
 
-  bzero(state, sizeof *state);
+  bzero(state, sizeof(*state));
 
   state->C = C;
 

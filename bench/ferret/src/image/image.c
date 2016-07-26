@@ -355,7 +355,7 @@ int image_read_rgb_hsv (const char *filename, int *width, int *height, unsigned 
   return 0;
 }
 
-int image_write_rgb (const char *filename, int width, int height, unsigned char *data)
+void image_write_rgb (const char *filename, int width, int height, unsigned char *data)
 {
   struct jpeg_compress_struct cinfo;
   struct jpeg_error_mgr jerr;

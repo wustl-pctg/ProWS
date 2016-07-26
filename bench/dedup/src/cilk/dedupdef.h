@@ -6,7 +6,14 @@
 #include <assert.h>
 
 #include "config.h"
+
+#ifdef __cplusplus
+extern "C" {
 #include "util/sha.h"
+}
+#else
+#include "util/sha.h"
+#endif
 
 
 #define CHECKBIT 123456
@@ -74,6 +81,7 @@ typedef int64_t  int64;
 // The data type of a chunk, the basic work unit of dedup
 // A chunk will flow through all the pipeline stages 
 typedef struct _chunk_t {
+    unsigned int id; // ID in the order in which the chunks are read from the
     int isDuplicate; // whether this is an original chunk or a duplicate
     // The SHA1 sum of the chunk, computed by SHA1/Routing stage from the 
     // uncompressed chunk data
@@ -96,6 +104,7 @@ typedef struct _chunk_t {
 
 #define MAXBUF (128*1024*1024)     /* 128 MB for buffers */
 #define ANCHOR_JUMP (2*1024*1024)  // best for all 2*1024*1024
+#define DEFAULT_THROTTLE_DEPTH  128 /* default number of iterations active */
 
 typedef struct {
     char infile[LEN_FILENAME];
@@ -103,7 +112,6 @@ typedef struct {
     int compress_type;
     int preloading;
     int verbose;
-    int nthreads;
 } config_t;
 
 #define COMPRESS_GZIP 0

@@ -84,9 +84,6 @@ namespace cilkrr {
     acquire_info *current, *base, *match;
     size_t found = 0;
 
-    match = m_it;
-    return match;
-
     match = current = base = find_first(p);
     while (current) {
       if (current->ped == p) found++;
@@ -118,7 +115,6 @@ namespace cilkrr {
 
   acquire_info* acquire_container::find_first(const pedigree_t& p)
   {
-    size_t ind = hash(p);
     acquire_info *current = m_buckets[hash(p)];
 
     while (current) {

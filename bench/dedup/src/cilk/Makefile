@@ -5,8 +5,7 @@ TARGET = dedup
 
 .PHONY: all clean serial lock reducer check
 
-# define BASIC_CFLAGS, BASIC_CXXFLAGS, LDFLAGS, LDLIBS, TOOL_FLAGS,
-# TOOL_LDFLAGS 
+# define BASIC_CFLAGS, BASIC_CXXFLAGS, LDFLAGS, LDLIBS
 include ../../../bench.mk
 
 # let's use cpp compiler for everything
@@ -25,6 +24,7 @@ endif
 export UTIL_OBJ LIBS CFLAGS
 
 CFLAGS += -Wall -D_XOPEN_SOURCE=600 $(INCLUDES) -O3 -DNDEBUG -g 
+CPPFLAGS += -Wall -D_XOPEN_SOURCE=600 $(INCLUDES) -O3 -DNDEBUG -g 
 LIBS += -lpthread -lm -lrt
 
 DEDUP_OBJ = decoder.o
@@ -37,13 +37,13 @@ UTIL_OBJ = $(addprefix util/, $(OTHER_OBJ))
 # LIBS += -lbz2
 
 CFLAGS += -DENABLE_GZIP_COMPRESSION
+CPPFLAGS += -DENABLE_GZIP_COMPRESSION
 LIBS += -lz
 
 # in comiling dedup. use the TOOL related flags for everything
-CFLAGS += $(BASIC_CFLAGS) $(TOOL_FLAGS)
+CFLAGS += $(BASIC_CFLAGS)
 LIBS += $(LDLIBS)
-LDFLAGS += $(TOOL_LDFLAGS)
-CPPFLAGS := -std=c++0x $(CFLAGS)
+CPPFLAGS += -std=c++0x $(BASIC_CXXFLAGS)
 # $(warning "CPPFLAGS is $(CPPFLAGS),  CFLAGS is $(CFLAGS)")
 
 

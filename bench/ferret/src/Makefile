@@ -107,7 +107,7 @@ $(OBJDIR)/%.o: %.cpp
 
 $(tools_tgt): $(BINDIR)/% : $(OBJDIR)/%.o $(LIBDIR)/libcass.a
 	@echo "   '$(CXX) $<' ==> '$@'"
-	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BINDIR)/ferret-reducer: $(OBJDIR)/ferret-reducer.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
@@ -123,8 +123,8 @@ $(BINDIR)/ferret-lock: $(OBJDIR)/ferret-lock.o $(LIBDIR)/libcass.a $(LIBDIR)/lib
 
 $(image_tgt): $(BINDIR)/% : $(OBJDIR)/%.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   '$(CXX) $<' ==> '$@'"
-	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
  
 $(BINDIR)/%: $(OBJDIR)/%.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   '$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
-	@$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)

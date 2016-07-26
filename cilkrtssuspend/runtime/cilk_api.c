@@ -78,58 +78,58 @@
 
 CILK_API_VOID __cilkrts_init(void)
 {
-	// Initialize, but don't start, the cilk runtime.
-	__cilkrts_init_internal(0);
+  // Initialize, but don't start, the cilk runtime.
+  __cilkrts_init_internal(0);
 }
 
 CILK_API_VOID __cilkrts_end_cilk(void)
 {
-	// Take out the global OS mutex while we do this to protect against
-	// another thread attempting to bind while we do this
-	global_os_mutex_lock();
+  // Take out the global OS mutex while we do this to protect against
+  // another thread attempting to bind while we do this
+  global_os_mutex_lock();
 
-	if (cilkg_is_published()) {
-		global_state_t *g = cilkg_get_global_state();
-		if (g->Q || __cilkrts_get_tls_worker())
-			__cilkrts_bug("Attempt to shut down Cilk while Cilk is still "
-										"running");
-		__cilkrts_stop_workers(g);
-		__cilkrts_deinit_internal(g);
-		fprintf(stderr, "Current stacks: %zu\n", g->active_stacks);
-		fprintf(stderr, "Stacks high watermark: %zu\n", g->stacks_high_watermark);
+  if (cilkg_is_published()) {
+    global_state_t *g = cilkg_get_global_state();
+    if (g->Q || __cilkrts_get_tls_worker())
+      __cilkrts_bug("Attempt to shut down Cilk while Cilk is still "
+                    "running");
+    __cilkrts_stop_workers(g);
+    __cilkrts_deinit_internal(g);
+    fprintf(stderr, "Current stacks: %zu\n", g->active_stacks);
+    fprintf(stderr, "Stacks high watermark: %zu\n", g->stacks_high_watermark);
 
-	}
+  }
 
-	global_os_mutex_unlock();
+  global_os_mutex_unlock();
 
 }
 
 CILK_API_INT
 __cilkrts_get_nworkers()
 {
-	return cilkg_get_nworkers();
+  return cilkg_get_nworkers();
 }
 
 CILK_API_INT
 __cilkrts_get_total_workers()
 {
-	return cilkg_get_total_workers();
+  return cilkg_get_total_workers();
 }
 
 CILK_API_INT __cilkrts_get_force_reduce(void)
 {
-	return cilkg_get_force_reduce();
+  return cilkg_get_force_reduce();
 }
 
 CILK_API_INT __cilkrts_set_param(const char* param, const char* value)
 {
-	return cilkg_set_param(param, value);
+  return cilkg_set_param(param, value);
 }
 
 #ifdef _WIN32
 CILK_API_INT __cilkrts_set_param_w(const wchar_t* param, const wchar_t* value)
 {
-	return cilkg_set_param_w(param, value);
+  return cilkg_set_param_w(param, value);
 }
 #endif // _WIN32
 
@@ -146,27 +146,27 @@ CILK_API_INT __cilkrts_set_param_w(const wchar_t* param, const wchar_t* value)
 CILK_API_INT
 __cilkrts_get_worker_number(void)
 {
-	__cilkrts_worker *w = __cilkrts_get_tls_worker();
+  __cilkrts_worker *w = __cilkrts_get_tls_worker();
 
-	if (0 == w)
-		/* A non-worker always has a worker number of zero. */
-		return 0;
-	else if (WORKER_USER == w->l->type)
-		/* User worker was once a non-worker, so its number should still be
-		 * zero. */
-		return 0;
-	else
-		/* w->self for a system worker is in range 0..(P-1); adjust to 1..P
-		 * to avoid conflicting with the user thread's worker number. */
-		return w->self + 1;
+  if (0 == w)
+    /* A non-worker always has a worker number of zero. */
+    return 0;
+  else if (WORKER_USER == w->l->type)
+    /* User worker was once a non-worker, so its number should still be
+     * zero. */
+    return 0;
+  else
+    /* w->self for a system worker is in range 0..(P-1); adjust to 1..P
+     * to avoid conflicting with the user thread's worker number. */
+    return w->self + 1;
 }
 
 CILK_API_INT
 __cilkrts_get_internal_worker_number(void)
 {
-	__cilkrts_worker *w = __cilkrts_get_tls_worker();
-	if (!w) return -1;
-	return w->self;
+  __cilkrts_worker *w = __cilkrts_get_tls_worker();
+  if (!w) return -1;
+  return w->self;
 }
 
 
@@ -176,20 +176,20 @@ __cilkrts_get_internal_worker_number(void)
  */
 typedef struct pedigree_context_t
 {
-	/** Size of the structure, in bytes */
-	size_t size;
+  /** Size of the structure, in bytes */
+  size_t size;
 
-	/** Next __cilkrts_pedigree to return */
-	const __cilkrts_pedigree *pedigree;
+  /** Next __cilkrts_pedigree to return */
+  const __cilkrts_pedigree *pedigree;
 
-	/** Unused.  Left over from previous implementation */
-	void *unused1;
+  /** Unused.  Left over from previous implementation */
+  void *unused1;
 
-	/** Unused.  Left over from previous implementation */
-	void *unused2;
+  /** Unused.  Left over from previous implementation */
+  void *unused2;
 
-	// // Debugging aid for pedigree-test:
-	// __cilkrts_stack_frame *expected_sf;
+  // // Debugging aid for pedigree-test:
+  // __cilkrts_stack_frame *expected_sf;
 } pedigree_context_t;
 
 /*
@@ -212,74 +212,74 @@ CILK_API_INT
 __cilkrts_get_pedigree_info(__cilkrts_pedigree_context_t *external_context,
                             uint64_t *sf_birthrank)
 {
-	pedigree_context_t *context = (pedigree_context_t *)external_context;
+  pedigree_context_t *context = (pedigree_context_t *)external_context;
 
-	CILK_ASSERT(sizeof(__cilkrts_pedigree_context_t) ==
-							sizeof(pedigree_context_t));
-	if (context->size != sizeof(pedigree_context_t))
-		return -3;  // Invalid size
+  CILK_ASSERT(sizeof(__cilkrts_pedigree_context_t) ==
+              sizeof(pedigree_context_t));
+  if (context->size != sizeof(pedigree_context_t))
+    return -3;  // Invalid size
 
-	// If the pointer to the last __cilkrts_pedigree is -1, we've
-	// finished the walk.  We're still done.
-	if (PEDIGREE_WALK_COMPLETE == context->pedigree)
-		return 1;
+  // If the pointer to the last __cilkrts_pedigree is -1, we've
+  // finished the walk.  We're still done.
+  if (PEDIGREE_WALK_COMPLETE == context->pedigree)
+    return 1;
 
-	// The passed in context value contains a pointer to the last
-	// __cilkrts_pedigree returned, or NULL if we're starting a
-	// new walk
-	if (NULL == context->pedigree)
+  // The passed in context value contains a pointer to the last
+  // __cilkrts_pedigree returned, or NULL if we're starting a
+  // new walk
+  if (NULL == context->pedigree)
     {
-			__cilkrts_worker *w = __cilkrts_get_tls_worker();
-			__cilkrts_pedigree* pedigree_node;
-			if (NULL != w) {
-				pedigree_node = &w->pedigree;
-			}
-			else {
-				pedigree_node = __cilkrts_get_tls_pedigree_leaf(1);
-			}
-			context->pedigree = pedigree_node->parent;
+      __cilkrts_worker *w = __cilkrts_get_tls_worker();
+      __cilkrts_pedigree* pedigree_node;
+      if (NULL != w) {
+        pedigree_node = &w->pedigree;
+      }
+      else {
+        pedigree_node = __cilkrts_get_tls_pedigree_leaf(1);
+      }
+      context->pedigree = pedigree_node->parent;
     }
-	else
-		context->pedigree = context->pedigree->parent;
+  else
+    context->pedigree = context->pedigree->parent;
 
-	// Note: If we want to omit the user root node,
-	// stop at context->pedigree->parent instead.
-	if (NULL == context->pedigree)
+  // Note: If we want to omit the user root node,
+  // stop at context->pedigree->parent instead.
+  if (NULL == context->pedigree)
     {
-			context->pedigree = PEDIGREE_WALK_COMPLETE;
-			return 1;
+      context->pedigree = PEDIGREE_WALK_COMPLETE;
+      return 1;
     }
 
-	*sf_birthrank = context->pedigree->rank;
-	return 0;
+  *sf_birthrank = context->pedigree->rank;
+  return 0;
 }
 
 CILK_API_PEDIGREE
 __cilkrts_get_pedigree_internal(__cilkrts_worker *w)
 {
-	if (NULL != w) {
-		return w->pedigree;
-	}
-	else {
-		const __cilkrts_pedigree *pedigree =
-			__cilkrts_get_tls_pedigree_leaf(1);
-		return *pedigree;
-	}
+  if (NULL != w) {
+    return w->pedigree;
+  }
+  else {
+    const __cilkrts_pedigree *pedigree =
+      __cilkrts_get_tls_pedigree_leaf(1);
+    return *pedigree;
+  }
 }
 
 
 CILK_API_INT __cilkrts_bump_worker_rank_internal(__cilkrts_worker *w)
 {
-	__cilkrts_pedigree *pedigree;
-	pedigree = (w ? &w->pedigree : __cilkrts_get_tls_pedigree_leaf(1));
-	pedigree->rank++;
+  __cilkrts_pedigree *pedigree;
+  pedigree = (w ? &w->pedigree : __cilkrts_get_tls_pedigree_leaf(1));
+  pedigree->rank++;
 
 #ifdef PRECOMPUTE_PEDIGREES
-	pedigree->actual += w->g->ped_compression_vec[pedigree->length - 1];
-	if (w->pedigree.actual >= w->g->big_prime)
-		w->pedigree.actual %= w->g->big_prime;
+  pedigree->actual += w->g->ped_compression_vec[pedigree->length - 1];
+  if (w->pedigree.actual >= w->g->big_prime)
+    w->pedigree.actual %= w->g->big_prime;
 #endif
-	return 0;
+  return 0;
 }
 
 /* End cilk_api.c */

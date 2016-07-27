@@ -1,4 +1,4 @@
-COMPILER_HOME=/home/rob/llvm-cilk
+COMPILER_HOME=/home/rob/src/llvm-cilk
 RUNTIME_HOME=./cilkrtssuspend
 LIB=$(COMPILER_HOME)/lib/libcilkrts.a
 
@@ -7,22 +7,22 @@ export LIBRARY_PATH=$(COMPILER_HOME)/lib:$LIBRARY_PATH
 CC=$(COMPILER_HOME)/bin/clang
 CXX=$(COMPILER_HOME)/bin/clang++
 
+USE_PAPI=1
+ifeq ($(USE_PAPI),1)
+  DEFS = -DUSE_PAPI
+  LIBS = -lpapi
+endif
+
 # Optimize with lto
-OPT ?= -march=native -flto -O3 -DNDEBUG
+LTO = -flto
 ARFLAGS = --plugin $(COMPILER_HOME)/lib/LLVMgold.so
+OPT = -march=native -O3 -DNDEBUG $(LTO)
 
-# OPT ?= -march=native -O3 -DNDEBUG
-# ARFLAGS = 
-
-# Don't optimize
-# OPT ?= -O0 
-# ARFLAGS = 
-
-INC = -I/usr/local/gcc5/include/c++/5.3.0 -I/usr/local/gcc5/include/c++/5.3.0/x86_64-unknown-linux-gnu
-CFLAGS = -std=c++11 -Wfatal-errors $(OPT) $(PARAMS) $(INC) -g
+INC = #-I/usr/local/gcc5/include/c++/5.3.0 -I/usr/local/gcc5/include/c++/5.3.0/x86_64-unknown-linux-gnu
+CFLAGS = -g -std=c++11 -Wfatal-errors $(OPT) $(PARAMS) $(INC) $(DEFS)
 CILKFLAGS = -fcilkplus -fcilk-no-inline
 APPFLAGS = -I$(RUNTIME_HOME)/include
-LDFLAGS = -ldl -lpthread -l/usr/local/gcc5/lib64/libstdc++.a -ltcmalloc
+LDFLAGS = -ldl -lpthread -ltcmalloc $(LIBS) $(LTO)
 
 default: fib cilkfor cbt
 

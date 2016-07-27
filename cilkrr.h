@@ -9,8 +9,14 @@
 #include "util.h"
 #include "acquire.h"
 
+#ifdef USE_PAPI
+#include "papi.h"
+#define NUM_PAPI_EVENTS 3
+#endif
+
 namespace cilkrr {
-  #if PTYPE != PPRE
+  
+#if PTYPE != PPRE
 	// 2^64 - 59
 	//static size_t big_prime = std::numeric_limits<size_t>::max() - 58;
 	static size_t big_prime = (1L << 63) - 58;

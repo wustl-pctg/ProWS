@@ -273,15 +273,34 @@ namespace cilkrr {
   */
   state *g_rr_state;
 
+#ifdef USE_PAPI
+  long long papi_counts[NUM_PAPI_EVENTS];
+  int papi_events[NUM_PAPI_EVENTS] = {PAPI_L1_DCM, PAPI_L2_TCM, PAPI_L3_TCM};
+  const char* papi_strings[NUM_PAPI_EVENTS] = {"L1 data misses",
+                                         "L2 misses",
+                                         "L3 misses"};
+#endif
+
   __attribute__((constructor(101))) void cilkrr_init(void)
   {
     cilkrr::g_rr_state = new cilkrr::state();
+#ifdef USE_PAPI
+    assert(PAPI_num_counters() >= NUM_PAPI_EVENTS);
+    int ret = PAPI_start_counters(papi_events, NUM_PAPI_EVENTS);
+    assert(ret == PAPI_OK);
+#endif
   }
 
   __attribute__((destructor(101))) void cilkrr_deinit(void)
   {
+#ifdef USE_PAPI
+    int ret = PAPI_read_counters(papi_counts, NUM_PAPI_EVENTS);
+    assert(ret == PAPI_OK);
+
+    for (int i = 0; i < NUM_PAPI_EVENTS; ++i)
+      printf("%s: %lld\n", papi_strings[i], papi_counts[i]);
+#endif
+
     delete cilkrr::g_rr_state;
   }
 }
-
-

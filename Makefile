@@ -16,10 +16,9 @@ endif
 # Optimize with lto
 LTO = -flto
 ARFLAGS = --plugin $(COMPILER_HOME)/lib/LLVMgold.so
-OPT = -march=native -O3 -DNDEBUG $(LTO)
 
-INC = #-I/usr/local/gcc5/include/c++/5.3.0 -I/usr/local/gcc5/include/c++/5.3.0/x86_64-unknown-linux-gnu
-CFLAGS = -g -std=c++11 -Wfatal-errors $(OPT) $(PARAMS) $(INC) $(DEFS)
+OPT = -march=native -O3 -DNDEBUG $(LTO)
+CFLAGS = -g -std=c++11 -Wfatal-errors $(OPT) $(INC) $(DEFS)
 CILKFLAGS = -fcilkplus -fcilk-no-inline
 APPFLAGS = -I$(RUNTIME_HOME)/include
 LDFLAGS = -ldl -lpthread -ltcmalloc $(LIBS) $(LTO)

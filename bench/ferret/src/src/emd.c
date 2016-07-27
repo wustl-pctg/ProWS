@@ -105,7 +105,9 @@ emd(signature_t *Signature1, signature_t *Signature2,
     float (*Dist)(cass_size_t, feature_t, feature_t, void *),
     cass_size_t dim, void *param, flow_t *Flow, int*FlowSize)
 {
-  struct emd_state_t emd_state, *state = &emd_state;
+  //struct emd_state_t emd_state, *state = &emd_state;
+  struct emd_state_t *state;
+  state = malloc(sizeof(emd_state_t));
   int itr;
   double totalCost;
   float w;
@@ -196,6 +198,7 @@ emd(signature_t *Signature1, signature_t *Signature2,
   //  state->tot_flow, state->tot_flow_costs / state->tot_flow);
   free(U);
   free(V);
+  free(state);
   return (float)(totalCost / w);
 }
 

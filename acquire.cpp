@@ -256,9 +256,9 @@ namespace cilkrr {
 
   void acquire_container::stats()
   {
-    fprintf(stderr, "Avg chain length: %lf\n",
-            ((double)m_size) / ((double)m_num_buckets));
-    fprintf(stderr, "Num conflicts: %zu\n", m_num_conflicts);
+    // fprintf(stderr, "Avg chain length: %lf\n",
+    //         ((double)m_size) / ((double)m_num_buckets));
+    // fprintf(stderr, "Num conflicts: %zu\n", m_num_conflicts);
   }
 
 }

@@ -31,6 +31,8 @@ errcheck () {
         cat log
         exit 1
     fi
+    # No error, so remove the log file
+    rm out
 }
 
 runcmd() {
@@ -38,7 +40,6 @@ runcmd() {
 		mode=$2
 		name=$3
 		args=$4
-    str="CILKRR_MODE=$mode ./$name lock $args out $P &> log"
     CILKRR_MODE=$mode ./$name lock $args out $P &> log
 }
 

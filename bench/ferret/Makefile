@@ -1,4 +1,4 @@
-default:
+ferret:
 	$(MAKE) -C ./src CILKRR=1
 
 clean:

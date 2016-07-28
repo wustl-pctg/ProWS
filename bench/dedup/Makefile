@@ -1,4 +1,4 @@
-default:
+dedup:
 	$(MAKE) -C ./src/cilk CILKRR=1
 
 clean:

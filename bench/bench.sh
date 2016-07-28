@@ -14,9 +14,9 @@ bench=(dedup ferret) #dedup ferret kdtree
 declare -A dirs args
 
 dirs["dedup"]=dedup
-args["dedup"]="native"
+args["dedup"]="medium"
 dirs["ferret"]=ferret
-args["ferret"]="large"
+args["ferret"]="medium"
 
 errcheck () {
     errcode=$1

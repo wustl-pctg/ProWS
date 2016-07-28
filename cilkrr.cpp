@@ -115,12 +115,20 @@ namespace cilkrr {
 
           /// @todo{ Write out # acquires for each lock, then reserve
           /// a hash table of that size when reading in }
-          
+
+          // get id
           size_t num; input >> num;
           assert(num == i);
+
+          // get # acquires
+          assert(input.peek() == ':');
+            input.ignore(1, ':');
+          input >> num;
+
+          // finish reading line
           getline(input, line);
 
-          m_all_acquires.push_back(new acquire_container(m_mode));
+          m_all_acquires.push_back(new acquire_container(num));
           acquire_container* cont = m_all_acquires[i];
           
           int lineno = 0;
@@ -179,31 +187,33 @@ namespace cilkrr {
   state::~state()
   {
 
-    // This should be true, but some pbbs benchmarks (dictionary) don't call the lock destructors
-    // I think they do this so avoid the slowdown, so I don't want to mess with that
+    // This should be true, but some pbbs benchmarks (dictionary)
+    // don't call the lock destructors I think they do this so avoid
+    // the slowdown, so I don't want to mess with that
     // assert(m_active_size == 0);
 
-    //    return; // Only for measuring the overhead
     if (m_mode != RECORD) return;
     std::ofstream output;
     acquire_container* cont;
     output.open(m_filename);
-    
-    // In all example programs I can find, std::to_string is not
-    // necessary Something strange is going on, but I am in the mood
-    // to punch through the damn monitor, so I won't waste the time to
-    // try to figure it out.
-    output << std::to_string(m_size) << std::endl;
+
+    // Write out total # acquires
+    output << m_size << std::endl;
+
     size_t mem_allocated = 0;
+    size_t num_conflicts = 0;
     for (int i = 0; i < m_size; ++i) {
-      output << "{" << i << ":" << std::endl;
-      
       cont = m_all_acquires[i];
+      
+      output << "{" << i << ":" << cont->size() << std::endl;
       cont->stats();
       cont->print(output);
       mem_allocated += cont->memsize();
+      num_conflicts += cont->m_num_conflicts;
       output << "}" << std::endl;
     }
+    output << "---- Stats ----" << std::endl;
+    output << "Conflicts: " << num_conflicts << std::endl;
     output.close();
 
     //fprintf(stderr, "%zu bytes allocated for %zu locks\n", mem_allocated, m_size);

@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cassert>
+#include <iostream>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 

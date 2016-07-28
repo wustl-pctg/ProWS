@@ -4,6 +4,7 @@ set -e
 EXTRA=""
 OPT=""
 LTO=""
+LLVM_HOME=$HOME/src/llvm-cilk
 
 # -march=native -m64
 NORM="-g -fcilk-no-inline"
@@ -15,13 +16,13 @@ else
 fi
 if [[ "$1" = "lto" || "$2" = "lto" || "$3" = "lto" ]]; then
 		LTO=" -flto "
-		EXTRA=" AR_FLAGS=\"cru --plugin=$HOME/llvm-cilk/lib/LLVMgold.so\" RANLIB=/bin/true "
+		EXTRA=" AR_FLAGS=\"cru --plugin=$LLVM_HOME/lib/LLVMgold.so\" RANLIB=/bin/true "
 fi
 if [[ "$1" = "pre" || "$2" = "pre" || "$3" = "pre" ]]; then
 		OPT+=" -DPRECOMPUTE_PEDIGREES=1 "
 fi
 
-cmd="./configure --prefix=/home/rob/llvm-cilk CC=$HOME/llvm-cilk/bin/clang CXX=$HOME/llvm-cilk/bin/clang++ CFLAGS=\"$NORM $OPT $LTO\" CXXFLAGS=\"$NORM  $OPT  $LTO\" $EXTRA"
+cmd="./configure --prefix=$LLVM_HOME CC=$LLVM_HOME/bin/clang CXX=$LLVM_HOME/bin/clang++ CFLAGS=\"$NORM $OPT $LTO\" CXXFLAGS=\"$NORM  $OPT  $LTO\" $EXTRA"
 
 make clean && make distclean
 eval $cmd

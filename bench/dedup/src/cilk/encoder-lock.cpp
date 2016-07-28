@@ -535,13 +535,13 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
 
     unsigned int chunk_id = 0;
 
-    /* WHEN_TIMING( uint64_t write_time = 0.0f, dedup_time = 0.0f; ) */
-    /* WHEN_TIMING( float preproc_time = 0.0f, comp_time = 0.0f; ) */
-    /* WHEN_TIMING( float read_time = 0.0f, total_time = 0.0f; ) */
-    /* WHEN_TIMING( clockmark_t first, last; ) */
-    /* WHEN_TIMING( clockmark_t begin, end; ) */
+    WHEN_TIMING( uint64_t write_time = 0.0f, dedup_time = 0.0f; )
+    WHEN_TIMING( float preproc_time = 0.0f, comp_time = 0.0f; )
+    WHEN_TIMING( float read_time = 0.0f, total_time = 0.0f; )
+    WHEN_TIMING( clockmark_t first, last; )
+    WHEN_TIMING( clockmark_t begin, end; )
 
-    /* WHEN_TIMING( first = begin = ktiming_getmark(); ) */
+    WHEN_TIMING( first = begin = ktiming_getmark(); )
 
     // int fd_out = create_output_file(conf->outfile);
     // XXX
@@ -552,10 +552,10 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
         EXIT_TRACE("Cannot write output file header.\n");
     }
 
-    /* WHEN_TIMING({ */
-    /*     end = ktiming_getmark();  */
-    /*     preproc_time = ktiming_diff_nsec(&begin, &end); */
-    /* }) */
+    WHEN_TIMING({
+        end = ktiming_getmark();
+        preproc_time = ktiming_diff_nsec(&begin, &end);
+    })
 
     u32int *const rabintab = (u32int *) malloc(256*sizeof rabintab[0]);
     u32int *const rabinwintab = (u32int *) malloc(256*sizeof rabintab[0]);
@@ -565,13 +565,13 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
     }
     rabininit(rf_win_dataprocess, rabintab, rabinwintab);
 
-    /* WHEN_TIMING( begin = ktiming_getmark(); ) */
+    WHEN_TIMING( begin = ktiming_getmark(); )
     setup_initial_buffer(args, rabintab, rabinwintab);
-    /* WHEN_TIMING({ */
-    /*     end = ktiming_getmark();  */
-    /*     begin = end; */
-    /*     read_time += ktiming_diff_nsec(&begin, &end); */
-    /* }) */
+    WHEN_TIMING({
+        end = ktiming_getmark();
+        begin = end;
+        read_time += ktiming_diff_nsec(&begin, &end);
+    })
 
     while(args->next_offset > 0) {
         chunk_t *chunk = (chunk_t *) malloc(sizeof(chunk_t)); 
@@ -580,14 +580,14 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
         chunk->id = chunk_id++;
 
         // get the next chunk from input file / buffer
-        /* WHEN_TIMING( begin = ktiming_getmark(); ) */
+        WHEN_TIMING( begin = ktiming_getmark(); )
         get_next_chunk(args, chunk, rabintab, rabinwintab);
         assert(chunk->len > 0);
-        /* WHEN_TIMING({ */
-        /*     end = ktiming_getmark();  */
-        /*     begin = end; */
-        /*     read_time += ktiming_diff_nsec(&begin, &end); */
-        /* }) */
+        WHEN_TIMING({
+            end = ktiming_getmark();
+            begin = end;
+            read_time += ktiming_diff_nsec(&begin, &end);
+        })
 
         // keep of the stats on the sizes of the uncompressed chunks seen
         #ifdef ENABLE_STATISTICS
@@ -598,31 +598,38 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
         // Deduplicate: check if in the hashtable; if so, get the 
         // pointer to the chunk that contains the compressed data
         int isDuplicate = sub_Deduplicate(chunk);
-        /* WHEN_TIMING({ */
-        /*     end = ktiming_getmark();  */
-        /*     dedup_time += ktiming_diff_nsec(&begin, &end); */
-        /*     begin = end; */
-        /* }) */
+        WHEN_TIMING({
+            end = ktiming_getmark();
+            dedup_time += ktiming_diff_nsec(&begin, &end);
+            begin = end;
+        })
 
+#if TIMING
+        cilk_spawn [&comp_time,&write_time](file_info_t *const args, chunk_t *chunk, int isDuplicate, clockmark_t begin) -> void {
+#else 
         cilk_spawn [](file_info_t *const args, chunk_t *chunk, int isDuplicate) -> void {
+#endif
           // If chunk is unique compress & archive it.
           if(isDuplicate == 0) {
             sub_Compress(chunk); // compress the entire chunk
             // chunk.data will point to a newly-malloc-ed memory
           }
-          /* WHEN_TIMING({ */
-          /*     end = ktiming_getmark();  */
-          /*     comp_time += ktiming_diff_nsec(&begin, &end); */
-          /*     begin = end; */
-          /* }) */
+          WHEN_TIMING({
+              clockmark_t tmp = ktiming_getmark();
+              comp_time += ktiming_diff_nsec(&begin, &tmp);
+              begin = tmp;
+          })
           write_prev_chunks_to_file(args->f_out, chunk);
-          /* WHEN_TIMING({ */
-          /*     end = ktiming_getmark();  */
-          /*     write_time += ktiming_diff_nsec(&begin, &end); */
-          /*     begin = end; */
-          /* }) */
-          
+          WHEN_TIMING({
+              clockmark_t tmp = ktiming_getmark();
+              write_time += ktiming_diff_nsec(&begin, &tmp);
+              begin = tmp;
+          })
+#if TIMING
+        } (args, chunk, isDuplicate, begin);
+#else
         } (args, chunk, isDuplicate);
+#endif
     }
 
     cilk_sync;
@@ -631,21 +638,21 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
     free(rabinwintab);
     // free(chunk);  // free the last one allocated
 
-    /* WHEN_TIMING({ */
-    /*     last = ktiming_getmark();  */
-    /*     total_time = ktiming_diff_nsec(&first, &last); */
-    /* }) */
+    WHEN_TIMING({
+        last = ktiming_getmark();
+        total_time = ktiming_diff_nsec(&first, &last);
+    })
 
-    /* WHEN_TIMING({ */
-    /*     printf("Preproc time   = %.4f seconds\n", (double)preproc_time*1.0e-9);  */
-    /*     printf("Reading time   = %.4f seconds\n", (double)read_time*1.0e-9);  */
-    /*     printf("Dedup time     = %.4f seconds\n", (double)dedup_time*1.0e-9);  */
-    /*     printf("Compress time  = %.4f seconds\n", (double)comp_time*1.0e-9);  */
-    /*     printf("Writing time   = %.4f seconds\n", (double)write_time*1.0e-9);  */
-    /*     printf("Mist. time     = %.4f seconds\n",  */
-    /*            (double)(total_time - preproc_time - read_time */
-    /*                     - dedup_time - comp_time - write_time)*1.0e-9);  */
-    /* }) */
+    WHEN_TIMING({
+        printf("Preproc time   = %.4f seconds\n", (double)preproc_time*1.0e-9);
+        printf("Reading time   = %.4f seconds\n", (double)read_time*1.0e-9);
+        printf("Dedup time     = %.4f seconds\n", (double)dedup_time*1.0e-9);
+        printf("Compress time  = %.4f seconds\n", (double)comp_time*1.0e-9);
+        printf("Writing time   = %.4f seconds\n", (double)write_time*1.0e-9);
+        printf("Mist. time     = %.4f seconds\n",
+               (double)(total_time - preproc_time - read_time
+                        - dedup_time - comp_time - write_time)*1.0e-9);
+    })
 
     // XXX
     // close(fd_out);

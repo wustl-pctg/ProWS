@@ -73,6 +73,18 @@ static int ostream_header(std::ostream *os, byte compress_type) {
   return 0;
 }
 
+#define USE_PAPI 0
+
+#if USE_PAPI                                                                       
+#include <papi.h>
+#define NUM_PAPI_EVENTS 3
+long long papi_counts[NUM_PAPI_EVENTS];                                             
+int papi_events[NUM_PAPI_EVENTS] = {PAPI_L1_DCM, PAPI_L2_TCM, PAPI_L3_TCM};
+const char* papi_strings[NUM_PAPI_EVENTS] = {"L1 data misses",                      
+                                             "L2 misses",
+                                             "L3 misses"};
+#endif
+
 #define TIMING 0
 #if TIMING
 #define WHEN_TIMING(...) __VA_ARGS__ 
@@ -294,6 +306,13 @@ write_prev_chunks_to_file(std::ostream *f_out, chunk_t *curr_chunk) {
  */
 static void sub_Compress(chunk_t *const chunk) {
 
+#if USE_PAPI
+    WHEN_TIMING({
+        int ret = PAPI_read_counters(papi_counts, NUM_PAPI_EVENTS);
+        assert(ret == PAPI_OK);      
+    })
+#endif
+
     assert(chunk!=NULL);
     // compress the item and add it to the database
     switch (conf->compress_type) {
@@ -335,26 +354,27 @@ static void sub_Compress(chunk_t *const chunk) {
             // Bzip compression buffer must be at least 1% larger than 
             // the source buffer plus 600 bytes
             size_t len = chunk->len + (chunk->len >> 6) + 600;
-            void *comp_data = malloc(len); 
+            char *comp_data = (char *)malloc(len); 
             if(comp_data == NULL) {
                 EXIT_TRACE("Malloc for space of compression data failed.\n");
             }
             size_t old_len = len;
             // compress the block
-            int ret = BZ2_bzBuffToBuffCompress(comp_data, &len, chunk->data, 
+            int ret = BZ2_bzBuffToBuffCompress(comp_data, (unsigned int *)&len, 
+                                               (char *)chunk->data, 
                                                chunk->len, 9, 0, 30);
-            if (r != BZ_OK) {
+            if (ret != BZ_OK) {
                 EXIT_TRACE("Compression failed\n");
             }
             // Shrink buffer to actual size
             if(len < old_len) {
-                void *new_mem = realloc(comp_data, len);
+                char *new_mem = (char *)realloc(comp_data, len);
                 assert(new_mem != NULL);
                 comp_data = new_mem;
             }
             // no need to free the old data, because those are just pointer
             // pointing into the buffer that stores data read from input file
-            chunk->data = comp_data;
+            chunk->data = (unsigned char *)comp_data;
             chunk->len = len;
             break;
         }
@@ -366,6 +386,13 @@ static void sub_Compress(chunk_t *const chunk) {
     }
 #ifdef ENABLE_STATISTICS
     stats.total_compressed += chunk->len;
+#endif
+
+#if USE_PAPI
+    WHEN_TIMING({
+        int ret = PAPI_accum_counters(papi_counts, NUM_PAPI_EVENTS);
+        assert(ret == PAPI_OK);      
+    })
 #endif
 
     return;
@@ -543,6 +570,13 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
 
     WHEN_TIMING( first = begin = ktiming_getmark(); )
 
+#if USE_PAPI
+    WHEN_TIMING({
+        int ret = PAPI_start_counters(papi_events, NUM_PAPI_EVENTS);
+        assert(ret == PAPI_OK);
+    })
+#endif
+
     // int fd_out = create_output_file(conf->outfile);
     // XXX
     // if (write_header(args->fd_out, conf->compress_type)) {
@@ -652,6 +686,10 @@ void *SerialIntegratedPipeline(file_info_t *const args) {
         printf("Mist. time     = %.4f seconds\n",
                (double)(total_time - preproc_time - read_time
                         - dedup_time - comp_time - write_time)*1.0e-9);
+#if USE_PAPI
+        for (int i = 0; i < NUM_PAPI_EVENTS; ++i)
+            printf("%s: %lld\n", papi_strings[i], papi_counts[i]); 
+#endif
     })
 
     // XXX

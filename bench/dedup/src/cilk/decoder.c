@@ -129,21 +129,20 @@ static int uncompress_chunk(chunk_t *chunk) {
 
     case COMPRESS_BZIP2: {
     #ifdef ENABLE_BZIP2_COMPRESSION
-        size_t len_32 = UNCOMPRESS_BOUND;
+        unsigned int len_32 = UNCOMPRESS_BOUND;
         void *uncomp_data = malloc(len_32);
         if(uncomp_data == 0) EXIT_TRACE("malloc failed.\n");
-        int ret = BZ2_bzBuffToBuffDecompress(chunk->uncompressed_data.ptr, 
-                            &len_32, chunk->compressed_data.ptr, 
-                            chunk->compressed_data.n, 0, 0);
+        int ret = BZ2_bzBuffToBuffDecompress(uncomp_data,
+                            &len_32, chunk->data, 
+                            chunk->len, 0, 0);
         // TODO: Automatically enlarge buffer if return value is BZ_OUTBUFF_FULL
         if(ret != BZ_OK) EXIT_TRACE("error uncompressing chunk data\n");
         if(len_32 < UNCOMPRESS_BOUND) { // Shrink buffer to actual size
-            void *new_mem = realloc(uncomp_data, len_64);
+            void *new_mem = realloc(uncomp_data, len_32);
             assert(new_mem != 0);
             uncomp_data = new_mem; 
         }
-        free(chunk->data);
-        chunk->data = uncomp_data;
+        free(chunk->data); chunk->data = uncomp_data;
         chunk->len = len_32;
         break;
     #else

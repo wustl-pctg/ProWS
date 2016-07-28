@@ -16,6 +16,7 @@ namespace cilkrr {
   mutex::mutex()
   {
     m_id = g_rr_state->register_mutex();
+    pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
 
     if (get_mode() != NONE)
       m_acquires = g_rr_state->get_acquires(m_id);

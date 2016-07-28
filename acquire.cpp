@@ -223,9 +223,7 @@ namespace cilkrr {
     acquire_info **bucket = &m_buckets[hash(p)];
     bucket_add(bucket, a);
 
-    if (full.length == 0)
-      m_unique++;
-    else
+    if (full.length > 0)
       m_num_conflicts++;
 
     if (m_first == nullptr) m_first = m_it = a;

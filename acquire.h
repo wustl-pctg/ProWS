@@ -36,11 +36,6 @@ namespace cilkrr {
 #define RESERVE_SIZE 4
 
     // Hash table
-		size_t m_unique = 0;
-    size_t m_num_conflicts; /// @todo{ Remove either m_num_conflicts
-                            /// or m_unique}
-
-
 		size_t m_num_buckets = RESERVE_SIZE;
     uint64_t m_mask = ((uint64_t)1 << 2) - 1;
 		acquire_info** m_buckets;
@@ -84,10 +79,12 @@ namespace cilkrr {
     acquire_info* m_first = nullptr;
 
 	public:
+    size_t m_num_conflicts = 0; 
     acquire_container(size_t size = RESERVE_SIZE);
 
     // Approximate memory allocated
     size_t memsize();
+    inline size_t size() const { return m_size; }
     void stats();
 
 		acquire_info* begin();

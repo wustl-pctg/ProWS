@@ -1,7 +1,7 @@
 #include "mutex.h"
 #include <cstdio>
+#include <iostream>
 #include <cassert>
-#include <memory>
 
 #include <atomic>
 #define MEM_FENCE std::atomic_thread_fence(std::memory_order_seq_cst)
@@ -24,17 +24,18 @@ namespace cilkrr {
   mutex::mutex(uint64_t index)
   {
     m_id = g_rr_state->register_mutex(index);
+    pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
     
     if (get_mode() != NONE)
       m_acquires = g_rr_state->get_acquires(m_id);
   }
 
-  mutex::~mutex() { g_rr_state->unregister_mutex(m_id); }
+  mutex::~mutex()
+  {
+    pthread_spin_destroy(&m_lock);
+    g_rr_state->unregister_mutex(m_id);
+  }
 
-  // Determinism is enforced at the lock acquires, hence the pedigree
-  // must be changed here, not in the release. Example: A programmer
-  // might grab the lock, but release it based on certain
-  // nondeterministic conditions.
   inline void mutex::acquire()
   {
 #ifdef DEBUG_ACQUIRE
@@ -48,7 +49,7 @@ namespace cilkrr {
     m_owner = nullptr;
     m_active = nullptr;
 #endif
-    m_mutex.unlock();
+    pthread_spin_unlock(&m_lock);
   }
 
   void mutex::lock()
@@ -60,9 +61,8 @@ namespace cilkrr {
     if (get_mode() == REPLAY) {
       // returns locked, but not acquired
       replay_lock(m_acquires->find((const pedigree_t)p));
-      //m_mutex.lock();
     } else {
-      m_mutex.lock();
+      pthread_spin_lock(&m_lock);
     }
     acquire();
     if (get_mode() == RECORD) record_acquire(p);
@@ -72,6 +72,7 @@ namespace cilkrr {
   {
     fprintf(stderr, "try_lock not implemented for CILKRR\n");
     std::abort();
+    pthread_spin_trylock(&m_lock);
   }
 
   void mutex::unlock()
@@ -107,7 +108,8 @@ namespace cilkrr {
       LOAD_FENCE;
       if (front->suspended_deque) {
         front->suspended_deque = nullptr;
-        m_mutex.lock();
+        //m_mutex.lock();
+        pthread_spin_lock(&m_lock);
         return; // continue
       }
     }

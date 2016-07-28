@@ -1,16 +1,11 @@
-#include <mutex>
-#include <list>
-#include <iostream>
-#include <vector>
-#include <string>
-
+#include <pthread.h>
 #include "cilkrr.h"
 
 namespace cilkrr {
 
 	class mutex {
 	private:
-		std::mutex m_mutex;
+    pthread_spinlock_t m_lock;
 
 #ifdef DEBUG_ACQUIRE
 		__cilkrts_worker *m_owner = nullptr; // just for debugging
@@ -24,7 +19,6 @@ namespace cilkrr {
 
 		void record_acquire(pedigree_t& p);
 		void replay_lock(acquire_info *a);
-		/* bool replay_try_lock(pedigree_t& p); */
 		void replay_unlock();
 
 		inline void acquire();
@@ -34,11 +28,9 @@ namespace cilkrr {
 		mutex();
 		mutex(uint64_t index);
 		~mutex();
+    
 		void lock();
 		void unlock();
-
-		// Must be called deterministically! No determinacy races!
-		// i.e. races only within critical sections!
 		bool try_lock();
 
 	};

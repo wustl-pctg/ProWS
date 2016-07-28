@@ -19,7 +19,7 @@ namespace cilkrr {
     full = _full;
   }
 
-  std::string acquire_info::array_str() // length must be > 0
+  std::string acquire_info::array_str()
   {
     full_pedigree_t p = full;
     std::string s = "[";
@@ -100,12 +100,11 @@ namespace cilkrr {
       current = base;
 
       while (current) {
-        if (current->full == full) {
-          match = current;
-          break;
-        }
+        if (current->ped == p) match = current;
+        if (current->full == full) break;
         current = current->chain_next;
       }
+      assert(match->full.length == 0 || match->full == full);
     }
     assert(match != nullptr);
     if (match->next)

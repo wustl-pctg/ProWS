@@ -314,7 +314,10 @@ namespace cilkrr {
 
   __attribute__((destructor(101))) void cilkrr_deinit(void)
   {
+fprintf(stderr, "HEre.");
+
 #ifdef USE_LOCKSTAT
+    // sls_print_stats();
     sls_print_accum_stats();
 #endif    
 
@@ -374,7 +377,7 @@ void sls_print_stats(void)
 void sls_print_accum_stats(void)
 {
     struct spinlock_stat *l;
-    unsigned long contend = 0, acquire = 0, wait = 0, held = 0;
+    unsigned long contend = 0UL, acquire = 0UL, wait = 0UL, held = 0UL;
     pthread_spin_lock(&the_sls_lock);
     unsigned long count = 0;
 

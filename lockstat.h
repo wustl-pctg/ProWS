@@ -36,10 +36,10 @@ static inline void sls_init(struct spinlock_stat *lock, uint64_t id)
 	assert(the_sls_setup);
 
         lock->m_id = id;
-	lock->contend = 0;
-	lock->acquire = 0;
-	lock->wait = 0;
-	lock->held = 0;
+	lock->contend = 0UL;
+	lock->acquire = 0UL;
+	lock->wait = 0UL;
+	lock->held = 0UL;
         lock->next = NULL;
 
 	lock->slock = 0;

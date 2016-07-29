@@ -314,8 +314,6 @@ namespace cilkrr {
 
   __attribute__((destructor(101))) void cilkrr_deinit(void)
   {
-fprintf(stderr, "HEre.");
-
 #ifdef USE_LOCKSTAT
     // sls_print_stats();
     sls_print_accum_stats();

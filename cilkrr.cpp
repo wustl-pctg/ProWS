@@ -8,6 +8,13 @@
 
 #include <internal/abi.h>
 
+#ifdef USE_LOCKSTAT
+extern "C" {
+    #include "lockstat.h"
+}
+#endif
+
+
 namespace cilkrr {
 
   full_pedigree_t get_full_pedigree()
@@ -294,6 +301,10 @@ namespace cilkrr {
   __attribute__((constructor(101))) void cilkrr_init(void)
   {
     cilkrr::g_rr_state = new cilkrr::state();
+#ifdef USE_LOCKSTAT
+    sls_setup();
+#endif    
+
 #ifdef USE_PAPI
     assert(PAPI_num_counters() >= NUM_PAPI_EVENTS);
     int ret = PAPI_start_counters(papi_events, NUM_PAPI_EVENTS);
@@ -303,6 +314,10 @@ namespace cilkrr {
 
   __attribute__((destructor(101))) void cilkrr_deinit(void)
   {
+#ifdef USE_LOCKSTAT
+    sls_print_accum_stats();
+#endif    
+
 #ifdef USE_PAPI
     int ret = PAPI_read_counters(papi_counts, NUM_PAPI_EVENTS);
     assert(ret == PAPI_OK);
@@ -314,3 +329,64 @@ namespace cilkrr {
     delete cilkrr::g_rr_state;
   }
 }
+
+#ifdef USE_LOCKSTAT
+extern "C" {
+void sls_setup(void)
+{
+    pthread_spin_init(&the_sls_lock, 0);
+    the_sls_list = NULL;
+    the_sls_setup = 1;
+}
+
+static void sls_print_lock(struct spinlock_stat *l)
+{
+    // fprintf(stderr, "id %7lu addr %p ", l->m_id, l);
+    fprintf(stderr, "id %7lu: ", l->m_id);
+    fprintf(stderr, "contend %8lu, acquire %8lu, wait %10lu, held %10lu\n",
+            l->contend, l->acquire, l->wait, l->held);
+}
+
+static void sls_accum_lock_stat(struct spinlock_stat *l, 
+                                unsigned long *contend, unsigned long *acquire,
+                                unsigned long *wait, unsigned long *held) 
+{
+    *contend += l->contend; 
+    *acquire += l->acquire; 
+    *wait += l->wait; 
+    *held += l->held;
+    assert(*contend >= l->contend);
+    assert(*acquire >= l->acquire);
+    assert(*wait >= l->wait);
+    assert(*held >= l->held);
+}
+
+void sls_print_stats(void)
+{
+    fprintf(stderr, "Printing lock stats.\n");
+    struct spinlock_stat *l;
+    pthread_spin_lock(&the_sls_lock);
+    for (l = the_sls_list; l; l = l->next)
+            sls_print_lock(l);
+    pthread_spin_unlock(&the_sls_lock);
+}
+
+void sls_print_accum_stats(void)
+{
+    struct spinlock_stat *l;
+    unsigned long contend = 0, acquire = 0, wait = 0, held = 0;
+    pthread_spin_lock(&the_sls_lock);
+    unsigned long count = 0;
+
+    for (l = the_sls_list; l; l = l->next) {
+        count++;
+        sls_accum_lock_stat(l, &contend, &acquire, &wait, &held);
+    }
+    pthread_spin_unlock(&the_sls_lock);
+
+    printf("Total of %lu locks found.\n", count);
+    printf("contend %8lu, acquire %8lu, wait %10lu (cyc), held %10lu (cyc)\n",
+           contend, acquire, wait, held);
+}
+}
+#endif

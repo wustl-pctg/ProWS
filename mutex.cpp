@@ -11,12 +11,22 @@
 #include <internal/abi.h>
 #include "cilk/cilk_api.h"
 
+#ifdef USE_LOCKSTAT
+struct spinlock_stat *the_sls_list = NULL;
+pthread_spinlock_t the_sls_lock;
+int the_sls_setup;
+#endif
+
 namespace cilkrr {
 
   mutex::mutex()
   {
     m_id = g_rr_state->register_mutex();
+#ifdef USE_LOCKSTAT
+    sls_init(&m_lock, m_id);
+#else
     pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+#endif
 
     if (get_mode() != NONE)
       m_acquires = g_rr_state->get_acquires(m_id);
@@ -25,7 +35,11 @@ namespace cilkrr {
   mutex::mutex(uint64_t index)
   {
     m_id = g_rr_state->register_mutex(index);
+#ifdef USE_LOCKSTAT
+    sls_init(&m_lock, index);
+#else
     pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+#endif
     
     if (get_mode() != NONE)
       m_acquires = g_rr_state->get_acquires(m_id);
@@ -33,7 +47,11 @@ namespace cilkrr {
 
   mutex::~mutex()
   {
+#ifdef USE_LOCKSTAT
+    sls_destroy(&m_lock);
+#else
     pthread_spin_destroy(&m_lock);
+#endif
     g_rr_state->unregister_mutex(m_id);
   }
 
@@ -50,7 +68,12 @@ namespace cilkrr {
     m_owner = nullptr;
     m_active = nullptr;
 #endif
+
+#ifdef USE_LOCKSTAT
+    sls_unlock(&m_lock);
+#else
     pthread_spin_unlock(&m_lock);
+#endif
   }
 
   void mutex::lock()
@@ -63,7 +86,11 @@ namespace cilkrr {
       // returns locked, but not acquired
       replay_lock(m_acquires->find((const pedigree_t)p));
     } else {
+#ifdef USE_LOCKSTAT
+    sls_lock(&m_lock);
+#else
       pthread_spin_lock(&m_lock);
+#endif
     }
     acquire();
     if (get_mode() == RECORD) record_acquire(p);
@@ -73,7 +100,11 @@ namespace cilkrr {
   {
     fprintf(stderr, "try_lock not implemented for CILKRR\n");
     std::abort();
+#ifdef USE_LOCKSTAT
+    sls_trylock(&m_lock);
+#else
     pthread_spin_trylock(&m_lock);
+#endif
   }
 
   void mutex::unlock()
@@ -110,7 +141,11 @@ namespace cilkrr {
       if (front->suspended_deque) {
         front->suspended_deque = nullptr;
         //m_mutex.lock();
+#ifdef USE_LOCKSTAT
+        sls_lock(&m_lock);
+#else
         pthread_spin_lock(&m_lock);
+#endif
         return; // continue
       }
     }

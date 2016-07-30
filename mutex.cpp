@@ -52,7 +52,8 @@ namespace cilkrr {
 #else
     pthread_spin_destroy(&m_lock);
 #endif
-    g_rr_state->unregister_mutex(m_id);
+    //g_rr_state->unregister_mutex(m_id);
+    g_rr_state->unregister_mutex(m_id, m_num_acquires);
   }
 
   inline void mutex::acquire()
@@ -60,6 +61,7 @@ namespace cilkrr {
 #ifdef DEBUG_ACQUIRE
     m_owner = __cilkrts_get_tls_worker();
 #endif
+    m_num_acquires++;
   }
   
   inline void mutex::release()
@@ -149,6 +151,7 @@ namespace cilkrr {
         return; // continue
       }
     }
+    LSTAT_INC(LSTAT_SUS);
     __cilkrts_suspend_deque();
   }
 

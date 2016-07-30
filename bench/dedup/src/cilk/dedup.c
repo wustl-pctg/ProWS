@@ -41,7 +41,11 @@ int main(int argc, char** argv) {
     assert(SHA1_LEN % sizeof(unsigned int) == 0);
 
     strcpy(conf.outfile, "");
-    conf.compress_type = COMPRESS_GZIP;
+#ifdef ENABLE_BZIP2_COMPRESSION
+    conf.compress_type = COMPRESS_BZIP2;
+#else
+    conf.compress_type = COMPRESS_GZIP2;
+#endif
     conf.preloading = 0;
     conf.verbose = 0;
 

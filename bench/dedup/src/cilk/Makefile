@@ -35,8 +35,8 @@ UTIL_OBJ = $(addprefix util/, $(OTHER_OBJ))
 # FLAGS += -DENABLE_BZIP2_COMPRESSION
 # LIBS += -lbz2
 
-FLAGS += -DENABLE_GZIP_COMPRESSION
-LIBS += -lz
+FLAGS += -DENABLE_BZIP2_COMPRESSION
+LIBS += -lbz2 -lz
 
 # in comiling dedup. use the TOOL related flags for everything
 CFLAGS += $(BASIC_CFLAGS) $(FLAGS)

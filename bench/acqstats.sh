@@ -6,7 +6,7 @@ trap "kill -- -$$" SIGINT
 
 testdir="$HOME/src/cilkplus-tests"
 
-bench=(MIS BFS matching dict refine dedup ferret)
+bench=(matching)
 declare -A dirs args cmdnames makecmds
 
 dirs["dedup"]=dedup
@@ -78,9 +78,6 @@ runcmd() {
     mode=$2
     name=$3
     args=$4
-    # str="CILK_NWORKERS=$P CILKRR_MODE=$mode taskset 0xff ./$name $args &> log"
-    # echo $str
-    # exit
     CILK_NWORKERS=$P CILKRR_MODE=$mode taskset 0xff ./$name $args &> log
 }
 

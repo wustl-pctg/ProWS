@@ -73,6 +73,7 @@
 
 #include <cilk/common.h>
 
+
 #ifdef __cplusplus
 #   include <cstddef>  /* Defines size_t */
 #else
@@ -189,6 +190,10 @@ CILK_API(int) __cilkrts_set_param_w(const wchar_t *param, const wchar_t *value);
  * runtime waits for all other threads using Intel Cilk Plus to exit.
  */
 CILK_API(void) __cilkrts_end_cilk(void);
+
+/// @todo{Remove cilkrr stat stuff}
+#include <stdio.h>
+CILK_API(void) __cilkrts_dump_cilkrr_stats(FILE*);
 
 /** Initializes Intel Cilk Plus data structures and start the runtime.
  */

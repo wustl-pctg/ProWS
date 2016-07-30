@@ -56,7 +56,7 @@
 
 #define INVALID_START (0ULL - 1ULL)
 
-#ifdef CILK_PROFILE
+//#ifdef CILK_PROFILE
 /* MSVC does not support designated initializers, grrrr... */
 static const char *names[] = {
     /*[INTERVAL_IN_SCHEDULER]*/                 "in scheduler",
@@ -96,7 +96,7 @@ static const char *names[] = {
     /*[INTERVAL_INIT_WORKER]*/                  "init worker thread", 
     /*[INTERVAL_SCHEDULE_WAIT]*/                "schedule wait state", 
 };
-#endif
+//#endif
 
 void __cilkrts_init_stats(statistics *s)
 {
@@ -110,7 +110,25 @@ void __cilkrts_init_stats(statistics *s)
     s->stack_hwm = 0;
 }
 
-#ifdef CILK_PROFILE
+// Temporary, for collecting cilkrr stats
+void __cilkrts_dump_cilkrr_stats(FILE *f)
+{
+  //global_state_t *g = __cilkrts_get_tls_worker()->g;
+  global_state_t *g = cilkg_init_global_state();
+
+  for (int i = 0; i < g->total_workers; ++i) {
+    if (!g->workers) break;
+    __cilkrts_worker *w = g->workers[i];
+    g->stats.accum[INTERVAL_STEAL_ATTEMPT] += w->l->stats->count[INTERVAL_STEAL_ATTEMPT];
+    g->stats.accum[INTERVAL_STEAL_FAIL] += w->l->stats->count[INTERVAL_STEAL_FAIL];
+  }
+
+  fprintf(f, "Steal attempts: %llu\n", g->stats.accum[INTERVAL_STEAL_ATTEMPT]);
+  fprintf(f, "Steal fails: %llu\n", g->stats.accum[INTERVAL_STEAL_FAIL]);
+
+}
+
+//#ifdef CILK_PROFILE
 void __cilkrts_accum_stats(statistics *to, statistics *from)
 {
     int i;
@@ -186,6 +204,6 @@ void dump_stats_to_file(FILE *stat_file, statistics *s)
         fprintf(stat_file, "empty statistics\n");
     }
 }
-#endif // CILK_PROFILE
+//#endif // CILK_PROFILE
 
 /* End stats.c */

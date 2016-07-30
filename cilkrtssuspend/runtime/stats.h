@@ -72,6 +72,9 @@
 #include <stdio.h>     // Define FILE *
 #endif
 
+// Temporary for cilkrr stats
+#include <stdio.h>
+
 __CILKRTS_BEGIN_EXTERN_C
 
 // Some notes on the stats we are counting for the Cilk Plus runtime. 
@@ -114,6 +117,8 @@ enum interval
     INTERVAL_IN_RUNTIME,                    ///< Time spent executing runtime code
     INTERVAL_SCHED_LOOP,                    ///< Time spent in scheduling loop
     INTERVAL_STEALING,                      ///< Time spent stealing work
+    INTERVAL_STEAL_ATTEMPT,
+    INTERVAL_STEAL_FAIL,
     INTERVAL_STEAL_SUCCESS,                 ///< Time to do a successful steal
     INTERVAL_STEAL_FAIL_EMPTYQ,             ///< Count of steal failures due to lack of stealable work
     INTERVAL_STEAL_FAIL_LOCK,               ///< Count of steal failures due to failure to lock worker
@@ -230,24 +235,28 @@ void __cilkrts_stop_interval(__cilkrts_worker *w, enum interval i);
 COMMON_PORTABLE
 void __cilkrts_note_interval(__cilkrts_worker *w, enum interval i);
 
+COMMON_PORTABLE
+void __cilkrts_dump_cilkrr_stats(FILE *f);
+
 #ifdef CILK_PROFILE
 COMMON_PORTABLE
 void dump_stats_to_file(FILE *stat_file, statistics *s);
 #endif
 
 
-#ifdef CILK_PROFILE
-# define START_INTERVAL(w, i) __cilkrts_start_interval(w, i);
-# define STOP_INTERVAL(w, i) __cilkrts_stop_interval(w, i);
+/// @todo{Remove temporary changes for cilkrr profiling}
+// #ifdef CILK_PROFILE
+// # define START_INTERVAL(w, i) __cilkrts_start_interval(w, i);
+// # define STOP_INTERVAL(w, i) __cilkrts_stop_interval(w, i);
 # define NOTE_INTERVAL(w, i) __cilkrts_note_interval(w, i);
-#else
-/** Start an interval.  No effect unless CILK_PROFILE is defined. */
+// #else
+// /** Start an interval.  No effect unless CILK_PROFILE is defined. */
 # define START_INTERVAL(w, i)
-/** End an interval.  No effect unless CILK_PROFILE is defined. */
+// /** End an interval.  No effect unless CILK_PROFILE is defined. */
 # define STOP_INTERVAL(w, i)
-/** Increment a counter.  No effect unless CILK_PROFILE is defined. */
-# define NOTE_INTERVAL(w, i)
-#endif
+// /** Increment a counter.  No effect unless CILK_PROFILE is defined. */
+// # define NOTE_INTERVAL(w, i)
+// #endif
 
 __CILKRTS_END_EXTERN_C
 

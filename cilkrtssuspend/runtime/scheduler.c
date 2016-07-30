@@ -790,6 +790,8 @@ static void random_steal(__cilkrts_worker *w)
     int success = 0;
     int32_t victim_id;
 
+    NOTE_INTERVAL(w, INTERVAL_STEAL_ATTEMPT);
+
     // Nothing's been stolen yet. When true, this will flag
     // setup_for_execution_pedigree to increment the pedigree
     w->l->work_stolen = 0;
@@ -808,22 +810,11 @@ static void random_steal(__cilkrts_worker *w)
        There must be only one worker to prevent stealing. */
     //CILK_ASSERT(w->g->total_workers > 1); // not true for suspendable deques
 
-    // First let's check that our deque_pool is valid
-    /* __cilkrts_worker_lock(w); */
-    /* deque_pool_validate(&w->l->suspended_deques, w); */
-    /* deque_pool_validate(&w->l->resumable_deques, w); */
-    /* __cilkrts_worker_unlock(w); */
-
     // If we have suspended deques, we should be able to choose ourself.
     if (w->g->P == 1) {
         n = 0;
         CILK_ASSERT(w->l->suspended_deques.size > 0
                     || w->l->resumable_deques.size > 0);
-
-        /* int s1 = w->l->fiber_pool.total + w->l->fiber_pool.parent->total; */
-        /* int s2 = w->l->suspended_deques.size + w->l->resumable_deques.size */
-        /*     + w->l->mugged + w->l->waiting_stacks; */
-        /* CILK_ASSERT((s1 == s2) || ((s1+1) == s2) || (s1 == (s2+1))); */
     } else {
 
         // We don't hold the lock here, so we may read a stale
@@ -862,8 +853,7 @@ static void random_steal(__cilkrts_worker *w)
         goto done;
 
     if (!can_steal_from(victim, d)) {
-        if (d->self >= 0) { // not an active deque
-            CILK_ASSERT(d != victim->l->active_deque);
+        if (d != victim->l->active_deque) {
             deque_mug(w, d);
             CILK_ASSERT(!d->resumable);
         }
@@ -875,44 +865,16 @@ static void random_steal(__cilkrts_worker *w)
         fiber = cilk_fiber_allocate(&w->l->fiber_pool);
     } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
 
-    if (NULL == fiber) { // we can't steal, so let's try to find a deque to resume
-        goto done;
-        // Since we already hold the victim's lock, try that first
-        d = victim->l->resumable_deques.array[0];
-        if (d) return jump_to_suspended_fiber(w, victim, d);
-        __cilkrts_mutex_unlock(w, &victim->l->lock);
-
-        for (int i = 0; i < w->g->P; ++i) {
-            victim = w->g->workers[i];
-            __cilkrts_mutex_lock(w, &victim->l->lock);
-            deque* d = victim->l->resumable_deques.array[0];
-            if (victim->l->resumable_deques.size > 0)
-                return jump_to_suspended_fiber(w, victim, d);
-            __cilkrts_mutex_unlock(w, &victim->l->lock);
-        }
+    // Instead of giving up, we could search through all workers'
+    // resumable deques...
+    if (NULL == fiber) {
 
 #if FIBER_DEBUG >= 2
         fprintf(stderr, "w=%d: failed steal because we could not get a fiber\n",
                 w->self);
-#endif        
-        return;
+#endif
+        goto done;
     }
-    //fprintf(stderr, "(w: %d) allocated fiber %p\n", w->self, fiber);
-    
-    /* Execute a quick check before engaging in the THE protocol.
-       Avoid grabbing locks if there is nothing to steal. */
-    /* if (!can_steal_from(victim, d)) { */
-    /*     NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_EMPTYQ); */
-    /*     START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) { */
-    /*         int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool); */
-    /*         // Fibers we use when trying to steal should not be active, */
-    /*         // and thus should not have any other references. */
-    /*         CILK_ASSERT(0 == ref_count); */
-    /*     } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE); */
-    /*     CILK_ASSERT(w->l->active_deque->frame_ff == NULL); */
-    /*     return; */
-    /* } */
-    
     /* Attempt to steal work from the victim */
     /// @todo get deque locks, not worker locks
     //  if (worker_trylock_other(w, victim)) {
@@ -963,7 +925,7 @@ static void random_steal(__cilkrts_worker *w)
 //                        fprintf(stderr, msg, w->self, victim->self);
 
                     // The use of victim->self contradicts our
-                    // classification of the "self" field as 
+                    // classification of the "self" field as
                     // local.  But since this code is only for
                     // debugging, it is ok.
                     DBGPRINTF ("%d-%p: Stealing work from worker %d\n"
@@ -979,23 +941,19 @@ static void random_steal(__cilkrts_worker *w)
     } else {
         NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_EMPTYQ);
     }
-    //worker_unlock_other(w, victim);
-    /* } else { */
-    /*     NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_LOCK); */
-    /* } */
 
 done:
     if (victim->l->lock.owner == w)
         worker_unlock_other(w, victim);
     else
         NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL_LOCK);
-//    __cilkrts_mutex_unlock(w, &d->lock);
 
     // Record whether work was stolen.  When true, this will flag
     // setup_for_execution_pedigree to increment the pedigree
     w->l->work_stolen = success;
 
     if (0 == success) {
+        NOTE_INTERVAL(w, INTERVAL_STEAL_FAIL);
         // failed to steal work.  Return the fiber to the pool.
         if (NULL == fiber) return;
         START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
@@ -2886,12 +2844,12 @@ __cilkrts_worker *make_worker(global_state_t *g,
     w->l->fiber_to_free = NULL;
     w->l->pending_exception = NULL;
 
-#if CILK_PROFILE
+//#if CILK_PROFILE
     w->l->stats = __cilkrts_malloc(sizeof(statistics));
     __cilkrts_init_stats(w->l->stats);
-#else
-    w->l->stats = NULL;
-#endif    
+/* #else */
+/*     w->l->stats = NULL; */
+/* #endif     */
     w->l->steal_failure_count = 0;
 
     w->l->work_stolen = 0;
@@ -2995,6 +2953,7 @@ void __cilkrts_deinit_internal(global_state_t *g)
 #ifdef CILK_PROFILE
     __cilkrts_dump_stats_to_stderr(g);
 #endif
+    __cilkrts_dump_cilkrr_stats(stderr);
 
     w = g->workers[0];
     if (*w->l->frame_ff) {

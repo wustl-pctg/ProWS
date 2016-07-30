@@ -9,17 +9,11 @@
 #include "util.h"
 #include "acquire.h"
 
-#ifdef USE_PAPI
-#include "papi.h"
-#define NUM_PAPI_EVENTS 3
-#endif
-
 namespace cilkrr {
   
 #if PTYPE != PPRE
 	// 2^64 - 59
-	//static size_t big_prime = std::numeric_limits<size_t>::max() - 58;
-	static size_t big_prime = (1L << 63) - 58;
+	static const size_t big_prime = (1L << 63) - 58;
 #endif
 
 	class state {
@@ -27,9 +21,10 @@ namespace cilkrr {
 		std::vector< acquire_container * > m_all_acquires;
 		std::string m_filename;
 		size_t m_size;
+    uint64_t m_num_acquires = 0;
 
 		// To make sure we are really done.
-		std::atomic<size_t> m_active_size;
+		//std::atomic<size_t> m_active_size;
 
 		static constexpr size_t m_default_capacity = 32;
 
@@ -50,7 +45,8 @@ namespace cilkrr {
 		size_t register_mutex(); 
 
 		acquire_container* get_acquires(size_t index);
-		size_t unregister_mutex(size_t index);
+		//size_t unregister_mutex(size_t index);
+    size_t unregister_mutex(size_t id, uint64_t num_acquires);
 	};
 	extern state *g_rr_state;
 	inline enum mode get_mode() { return g_rr_state->m_mode; }

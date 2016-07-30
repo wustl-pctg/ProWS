@@ -40,9 +40,11 @@ namespace cilkrr {
     uint64_t m_mask = ((uint64_t)1 << 2) - 1;
 		acquire_info** m_buckets;
 		void bucket_add(acquire_info** bucket, acquire_info* item);
-#if PTYPE == PARRAY
-    size_t hash(pedigree_t k);
-#else
+
+#if PTYPE == PARRAY    
+    size_t hash(full_pedigree_t k);
+#endif
+    
     inline size_t hash(pedigree_t k) {
       // Alternatively, we can just take the low-order gits of k.
       // Specifically,
@@ -53,7 +55,6 @@ namespace cilkrr {
       // But testing this only made an insignificant difference.
       /* return k % m_num_buckets; */
     }
-#endif
 
 		void rehash(size_t new_cap);
 
@@ -95,9 +96,7 @@ namespace cilkrr {
 		void print(std::ofstream& output);
 		
 		acquire_info* add(pedigree_t p); // for record
-#if PTYPE != PARRAY
     acquire_info* add(pedigree_t p, full_pedigree_t full); // for replay
-#endif
 		acquire_info* find_first(const pedigree_t& p);
     acquire_info* find(const pedigree_t& p);
     acquire_info* find(const pedigree_t& p, const full_pedigree_t& full);

@@ -94,8 +94,13 @@ namespace cilkrr {
     if (found == 0) {
       fprintf(stderr, "Cilkrecord error: can't find pedigree %zu\n", p);
       std::abort();
-    } else if (found > 1) {
-      
+    }
+
+#if PTYPE == PARRAY
+    found = 2; // just make sure we get the full pedigree
+#endif
+
+    if (found > 1) {
       const full_pedigree_t& full = get_full_pedigree();
       current = base;
 
@@ -233,9 +238,14 @@ namespace cilkrr {
 
   acquire_info* acquire_container::add(pedigree_t p)
   {
+
+#if PTYPE == PARRAY
+    full_pedigree_t full = get_full_pedigree();
+#else
     full_pedigree_t full = {0, nullptr};
     if (find_first(p) != nullptr)
       full = get_full_pedigree();
+#endif
     return add(p, full);
   }
 

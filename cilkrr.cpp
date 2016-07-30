@@ -3,6 +3,7 @@
 #include <cstdlib> // getenv
 #include <algorithm> // count
 #include <csignal> // raise
+#include <cstring> // memset
 
 #include "cilkrr.h"
 
@@ -66,18 +67,12 @@ namespace cilkrr {
       current = current->parent;
     }
     p %= big_prime;
-
-    // if (actual != p) {
-    //  fprintf(stderr, "Pre: %zu, Dot: %zu\n", actual, p);
-    //  raise(SIGSTOP);
-    //  //assert(0);
-    // }
 #endif
     
     return p;
   }
 
-  state::state() : m_size(0), m_active_size(0)
+  state::state() : m_size(0), m_mode(NONE) //, m_active_size(0)
   {
     char *env;
     g_rr_state = this;
@@ -85,8 +80,8 @@ namespace cilkrr {
 #if PTYPE != PPRE
     srand(0);
     for (int i = 0; i < 256; ++i)
-      randvec[i] = i+1;
-    //randvec[i] = rand() % big_prime;
+      randvec[i] = rand() % big_prime;
+    //randvec[i] = i+1;
 #endif
 
     // Seed Cilk's pedigree seed
@@ -97,98 +92,77 @@ namespace cilkrr {
     if (env) m_filename = env;
 
     env = std::getenv("CILKRR_MODE");
-    if (env) {
-      std::string mode = env;
-      if (mode == "record") {
-        m_mode = RECORD;
-      } else if (mode == "replay") {
-        m_mode = REPLAY;
+    if (!env) return;
+    
+    std::string mode = env;
+    if (mode == "record")
+      m_mode = RECORD;
+    if (mode != "replay")
+      return;
 
-        // Read from file
-        std::ifstream input;
-        std::string line;
-        size_t size;
-        input.open(m_filename);
+    // replay
+    m_mode = REPLAY;
+
+    // Read from file
+    std::ifstream input;
+    std::string line;
+    size_t size;
+    input.open(m_filename);
         
-        input >> size;
-        m_all_acquires.reserve(size);
+    input >> size;
+    m_all_acquires.reserve(size);
 
-        for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i) {
 
-          getline(input, line); // Advance line
-          assert(input.good());
-          assert(input.peek() == '{');
-          input.ignore(1, '{');
+      getline(input, line); // Advance line
+      assert(input.good());
+      assert(input.peek() == '{');
+      input.ignore(1, '{');
 
-          /// @todo{ Write out # acquires for each lock, then reserve
-          /// a hash table of that size when reading in }
+      // get id
+      size_t num; input >> num;
+      assert(num == i);
 
-          // get id
-          size_t num; input >> num;
-          assert(num == i);
+      // get # acquires
+      assert(input.peek() == ':');
+      input.ignore(1, ':');
+      input >> num;
 
-          // get # acquires
-          assert(input.peek() == ':');
-            input.ignore(1, ':');
-          input >> num;
+      // finish reading line
+      getline(input, line);
 
-          // finish reading line
-          getline(input, line);
-
-          m_all_acquires.push_back(new acquire_container(num));
-          acquire_container* cont = m_all_acquires[i];
+      m_all_acquires.push_back(new acquire_container(num));
+      acquire_container* cont = m_all_acquires[i];
           
-          int lineno = 0;
-          while (input.peek() != '}') {
-            pedigree_t p;
-#if PTYPE != PARRAY
-            full_pedigree_t full = {0, nullptr};
-#endif
+      while (input.peek() != '}') {
+        pedigree_t p;
+        full_pedigree_t full = {0, nullptr};
 
-            // Get rid of beginning
-            input.ignore(std::numeric_limits<std::streamsize>::max(), '\t');
+        // Get rid of beginning
+        input.ignore(std::numeric_limits<std::streamsize>::max(), '\t');
 
-            getline(input, line);
-            size_t ind = line.find('[');
-#if PTYPE != PARRAY
-            if (ind == std::string::npos) // read in compressed pedigree
-              p = std::stoul(line);
-            else { // read in full pedigree
-              p = std::stoul(line.substr(0,ind));
-              full.length = std::count(line.begin(), line.end(), ',');
-              full.array = (uint64_t*) malloc(full.length * sizeof(uint64_t));
-              for (int i = 0; i < full.length; ++i) {
-                ind++;
-                size_t next_ind = line.find(',', ind);
-                full.array[i] = std::stoul(line.substr(ind, next_ind - ind));
-                ind = next_ind;
-              }
-            }
-            
-            cont->add(p, full);
-#else
-            p.length = std::count(line.begin(), line.end(), ',');
-            p.array = (uint64_t*) malloc(p.length * sizeof(uint64_t));
-            for (int i = 0; i < p.length; ++i) {
-              ind++;
-              size_t next_ind = line.find(',', ind);
-              p.array[i] = std::stoul(line.substr(ind, next_ind - ind));
-              ind = next_ind;
-            }
-            cont->add(p);
-#endif
-            lineno++;
+        getline(input, line);
+        size_t ind = line.find('[');
+        
+        p = std::stoul(line.substr(0,ind)); // read in compressed pedigree
+        if (ind != std::string::npos) { // found full pedigree
+          full.length = std::count(line.begin(), line.end(), ',');
+          full.array = (uint64_t*) malloc(full.length * sizeof(uint64_t));
+          for (int i = 0; i < full.length; ++i) {
+            ind++;
+            size_t next_ind = line.find(',', ind);
+            full.array[i] = std::stoul(line.substr(ind, next_ind - ind));
+            ind = next_ind;
           }
-          cont->reset();
         }
-        
-        input.close();
-        
-        
-      } else {
-        m_mode = NONE;
+        cont->add(p, full);
       }
+
+      // Set curren iterator to beginning
+      cont->reset();
     }
+        
+    input.close();
   }
 
   state::~state()
@@ -199,6 +173,7 @@ namespace cilkrr {
     // the slowdown, so I don't want to mess with that
     // assert(m_active_size == 0);
 
+    fprintf(stderr, "Total lock acquires: %lu\n", m_num_acquires);
     if (m_mode != RECORD) return;
     std::ofstream output;
     acquire_container* cont;
@@ -245,20 +220,20 @@ namespace cilkrr {
   {
     // We assume resize() was previously called.
     size_t id = m_size - local_id - 1;
-    m_active_size++;
+    //m_active_size++;
     assert(id < m_size);
     if (m_mode == RECORD)
-      m_all_acquires[id] = new acquire_container(m_mode);
+      m_all_acquires[id] = new acquire_container();
     return id;
   }
 
   size_t state::register_mutex()
   {
     size_t id = m_size++;
-    m_active_size++;
+    //m_active_size++;
 
     if (m_mode == RECORD) {
-      m_all_acquires.emplace_back(new acquire_container(m_mode));
+      m_all_acquires.emplace_back(new acquire_container());
       assert(m_size == m_all_acquires.size());
     }
     
@@ -271,10 +246,12 @@ namespace cilkrr {
     return m_all_acquires[id];
   }
 
-  size_t state::unregister_mutex(size_t id)
+  size_t state::unregister_mutex(size_t id, uint64_t num_acquires)
   {
     // This is a bit hacky, but we don't care until the size reaches 0.
-    return --m_active_size;
+    //return --m_active_size;
+    m_num_acquires += num_acquires;
+    return 0;
   }
 
   void reserve_locks(size_t n) { g_rr_state->resize(n); }
@@ -290,12 +267,18 @@ namespace cilkrr {
   */
   state *g_rr_state;
 
-#ifdef USE_PAPI
+#ifdef STATS
   long long papi_counts[NUM_PAPI_EVENTS];
   int papi_events[NUM_PAPI_EVENTS] = {PAPI_L1_DCM, PAPI_L2_TCM, PAPI_L3_TCM};
   const char* papi_strings[NUM_PAPI_EVENTS] = {"L1 data misses",
                                          "L2 misses",
                                          "L3 misses"};
+  uint64_t g_stats[NUM_GLOBAL_STATS];
+  const char* g_stat_strings[NUM_GLOBAL_STATS] = {};
+
+  uint64_t* t_stats[NUM_LOCAL_STATS];
+  const char* t_stat_strings[NUM_LOCAL_STATS] = {"Suspensions"};
+
 #endif
 
   __attribute__((constructor(101))) void cilkrr_init(void)
@@ -305,7 +288,12 @@ namespace cilkrr {
     sls_setup();
 #endif    
 
-#ifdef USE_PAPI
+#ifdef STATS
+    memset(g_stats, 0, sizeof(uint64_t) * NUM_GLOBAL_STATS);
+    int p = __cilkrts_get_nworkers();
+    for (int i = 0; i < NUM_LOCAL_STATS; ++i)
+      t_stats[i] = (uint64_t*) calloc(p, sizeof(uint64_t));
+
     assert(PAPI_num_counters() >= NUM_PAPI_EVENTS);
     int ret = PAPI_start_counters(papi_events, NUM_PAPI_EVENTS);
     assert(ret == PAPI_OK);
@@ -319,12 +307,32 @@ namespace cilkrr {
     sls_print_accum_stats();
 #endif    
 
-#ifdef USE_PAPI
+#ifdef STATS
     int ret = PAPI_read_counters(papi_counts, NUM_PAPI_EVENTS);
     assert(ret == PAPI_OK);
-
     for (int i = 0; i < NUM_PAPI_EVENTS; ++i)
       printf("%s: %lld\n", papi_strings[i], papi_counts[i]);
+
+    for (int i = 0; i < NUM_GLOBAL_STATS; ++i)
+      printf("%s: %lu\n", g_stat_strings[i], g_stats[i]);
+
+    uint64_t accum[NUM_LOCAL_STATS];
+    int p = __cilkrts_get_nworkers();
+    
+    for (int i = 0; i < NUM_LOCAL_STATS; ++i) {
+      accum[i] = 0;
+      for (int j = 0; j < p; ++j)
+        accum[i] += t_stats[i][j];
+    }
+
+    for (int i = 0; i < NUM_LOCAL_STATS; ++i)
+      free(t_stats[i]);
+
+    for (int i = 0; i < NUM_LOCAL_STATS; ++i)
+      printf("%s: %lu\n", t_stat_strings[i], accum[i]);
+
+    __cilkrts_dump_cilkrr_stats(stdout);
+
 #endif
 
     delete cilkrr::g_rr_state;

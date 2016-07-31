@@ -19,8 +19,6 @@ int main(int argc, char *argv[])
   int sleep_ms = 0;
   int work_ms = 0;
 
-  assert(PAPI_num_counters() >= 3);
-  
   switch (argc) {
   case 5:
     work_ms = atoi(argv[4]);

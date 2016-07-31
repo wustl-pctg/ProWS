@@ -1,40 +1,47 @@
 // Similar to the CBT synthetic benchmark in the DOTMIX paper.
+// Actually, no. This benchmark has changed and is now misnamed.
 
 #include <cstdio>
 #include <cassert>
 #include <iostream>
+#include <chrono> // timing
+#include <unistd.h> // sleep()
+
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
 #include "mutex.h"
-int count = 0;
+
+int g_count = 0;
+double g_leaf_work = 0.0;
 cilkrr::mutex g_mutex;
 
-void tree(int level)
+void tree_search(int index, int level)
 {
 	if (level == 0) {
 		g_mutex.lock();
-		count++;
+		g_count++;
+    if (g_leaf_work > 0.0) sleep(g_leaf_work);
 		g_mutex.unlock();
 		return;
 	}
 
-	cilk_spawn tree(level/2);
-	tree(level/2);
+	cilk_spawn tree_search(index, level-1);
+	tree_search(index+1, level-1);
 	cilk_sync;
 	return;
 }
 
 int main(int argc, char *argv[])
 {
-	int n = (argc > 1) ? std::atoi(argv[1]) : 1024;
-	int k = (argc > 2) ? std::atoi(argv[2]) : 256;
-	assert(n > k);
-	assert(n % k == 0);
-	assert(k % 2 == 0);
+	int depth = (argc > 1) ? std::atoi(argv[1]) : 10;
 
-	for (int i = 0; i < n/k; ++i)
-		tree(k);
-
+  auto start = std::chrono::high_resolution_clock::now();
+  tree_search(0, depth);
+  auto end = std::chrono::high_resolution_clock::now();
+  assert(g_count == (1 << depth));
+  std::cout << "time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+            << std::endl;
 	return 0;
 }

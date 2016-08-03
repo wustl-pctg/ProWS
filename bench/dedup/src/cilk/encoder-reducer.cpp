@@ -264,9 +264,9 @@ static void sub_Compress(chunk_t *const chunk) {
             }
             size_t old_len = len;
             // compress the block
-            int ret = BZ2_bzBuffToBuffCompress(comp_data, &len, chunk->data, 
+            int ret = BZ2_bzBuffToBuffCompress((char*)comp_data, (unsigned int*)&len, (char*)chunk->data, 
                                                chunk->len, 9, 0, 30);
-            if (r != BZ_OK) {
+            if (ret != BZ_OK) {
                 EXIT_TRACE("Compression failed\n");
             }
             // Shrink buffer to actual size
@@ -277,7 +277,7 @@ static void sub_Compress(chunk_t *const chunk) {
             }
             // no need to free the old data, because those are just pointer
             // pointing into the buffer that stores data read from input file
-            chunk->data = comp_data;
+            chunk->data = (unsigned char*)comp_data;
             chunk->len = len;
             break;
         }

@@ -226,7 +226,7 @@ static void sub_Compress(chunk_t *const chunk) {
             // compress the block
             int ret = BZ2_bzBuffToBuffCompress(comp_data, &len, chunk->data, 
                                                chunk->len, 9, 0, 30);
-            if (r != BZ_OK) {
+            if (ret != BZ_OK) {
                 EXIT_TRACE("Compression failed\n");
             }
             // Shrink buffer to actual size

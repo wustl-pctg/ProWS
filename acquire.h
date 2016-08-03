@@ -1,9 +1,7 @@
 #ifndef _ACQUIRE_H
 #define _ACQUIRE_H
 
-#include <list>
-#include <unordered_map>
-#include <unordered_set>
+#include <chrono> // perf debug timing
 
 #include "util.h"
 
@@ -80,7 +78,10 @@ namespace cilkrr {
     acquire_info* m_first = nullptr;
 
 	public:
-    size_t m_num_conflicts = 0; 
+    size_t m_num_conflicts = 0;
+    //uint64_t m_time = 0L;
+    /* acquire_container(); */
+    /* acquire_container(size_t size); */
     acquire_container(size_t size = RESERVE_SIZE);
 
     // Approximate memory allocated

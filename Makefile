@@ -1,4 +1,4 @@
-COMPILER_HOME=/home/rob/src/llvm-cilk
+COMPILER_HOME=/home/rob/llvm-cilk
 RUNTIME_HOME=./cilkrtssuspend
 LIB=$(COMPILER_HOME)/lib/libcilkrts.a
 
@@ -7,11 +7,19 @@ export LIBRARY_PATH=$(COMPILER_HOME)/lib:$LIBRARY_PATH
 CC=$(COMPILER_HOME)/bin/clang
 CXX=$(COMPILER_HOME)/bin/clang++
 
-USE_PAPI=1
-ifeq ($(USE_PAPI),1)
-  DEFS = -DUSE_PAPI
+STATS ?= 0
+PTYPE ?= 1
+STAGE ?= 4
+DEFS = -DPTYPE=$(PTYPE) -DSTAGE=$(STAGE)
+ifeq ($(STATS),1)
+  DEFS += -DSTATS
   LIBS = -lpapi
 endif
+
+# Stoppard is messed up...
+INC = -I/usr/local/gcc5/include/c++/5.3.0 -I/usr/local/gcc5/include/c++/5.3.0/x86_64-unknown-linux-gnu
+LIBS += /usr/local/gcc5/lib64/libstdc++.a
+ARFLAGS =
 
 # Optimize with lto
 LTO = -flto
@@ -21,7 +29,7 @@ OPT = -march=native -O3 -DNDEBUG $(LTO)
 CFLAGS = -g -std=c++11 -Wfatal-errors $(OPT) $(INC) $(DEFS)
 CILKFLAGS = -fcilkplus -fcilk-no-inline
 APPFLAGS = -I$(RUNTIME_HOME)/include
-LDFLAGS = -ldl -lpthread -ltcmalloc $(LIBS) $(LTO)
+LDFLAGS = $(LTO) -ldl -lpthread -ltcmalloc $(LIBS)
 
 default: fib cilkfor cbt
 

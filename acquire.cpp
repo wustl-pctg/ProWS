@@ -44,6 +44,12 @@ namespace cilkrr {
     return out;
   }
 
+  // acquire_container::acquire_container()
+  // {
+  //   m_first_chunk = nullptr;
+  //   m_buckets = nullptr;
+  // }
+
   acquire_container::acquire_container(size_t size)
     : m_chunk_size(size)
   {
@@ -119,6 +125,14 @@ namespace cilkrr {
 
   acquire_info* acquire_container::find_first(const pedigree_t& p)
   {
+    // if (m_buckets == nullptr) {
+    //   m_buckets = (acquire_info**) calloc(m_num_buckets, sizeof(acquire_info*));
+    //   assert(m_buckets);
+    // }
+#if STAGE < 3
+    return nullptr;
+#endif
+
     acquire_info *current = m_buckets[hash(p)];
 
     while (current) {
@@ -171,12 +185,15 @@ namespace cilkrr {
   void acquire_container::rehash(size_t new_cap)
   {
     if (new_cap <= m_num_buckets) return;
-
+    // auto start = std::chrono::high_resolution_clock::now();
     acquire_info** new_buckets = (acquire_info**) calloc(new_cap, sizeof(acquire_info*));
     size_t num_old_buckets = m_num_buckets;
     m_num_buckets = new_cap; // I change this so the hash will work
     m_mask = ((m_mask + 1) << 1) - 1;
 
+    /// @todo{acquire_container::reshash -- probably better cache
+    /// locality if I loop through each acquire in the chunked linked
+    /// list rather than all the buckets}
     for (int i = 0; i < num_old_buckets; ++i) {
       acquire_info *current = m_buckets[i];
       acquire_info *next;
@@ -201,10 +218,25 @@ namespace cilkrr {
 
     free(m_buckets);
     m_buckets = new_buckets;
+    // auto end = std::chrono::high_resolution_clock::now();
+    // m_time += std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
   }
 
   acquire_info* acquire_container::new_acquire_info()
   {
+    // if (m_first_chunk == nullptr) {
+    //   assert(m_chunk_size == RESERVE_SIZE);
+    //   m_first_chunk = m_current_chunk = new chunk();
+    //   assert(m_first_chunk);
+    
+    //   m_current_chunk->size = m_chunk_size;
+    //   m_current_chunk->array = (acquire_info*) malloc(m_chunk_size * sizeof(acquire_info));
+    //   assert(m_current_chunk->array);
+    //   m_current_chunk->next = nullptr;
+      
+    //   assert(m_buckets);
+    // }
+
     acquire_info *a = &m_current_chunk->array[m_index++];
     a->next = nullptr;
     a->suspended_deque = nullptr;
@@ -241,6 +273,12 @@ namespace cilkrr {
 
 #if PTYPE == PARRAY
     full_pedigree_t full = get_full_pedigree();
+    // don't need to use hash table during recording, and this is only
+    // called during recording
+    acquire_info *a = new(new_acquire_info()) acquire_info(p, full);
+    if (m_first == nullptr) m_first = m_it = a;
+    else m_it = m_it->next = a;
+    return a;
 #else
     full_pedigree_t full = {0, nullptr};
     if (find_first(p) != nullptr)

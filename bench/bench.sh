@@ -1,29 +1,29 @@
 #!/bin/bash
 set -e
-ulimit -v 6291456
+# ulimit -v 6291456
 # Don't forget that we might need to set vm.max_map_limit
 trap "kill -- -$$" SIGINT
 
+: ${BENCH_LOG_FILE:=$HOME/tmp/log}
+logfile=$BENCH_LOG_FILE
+echo "********** Begin script: $(realpath $0) **********" >> $logfile
+
 MAXTIME="5m"
-CORES="1 2 4 6 8"
+CORES="1 2 4 8 12 16"
 BASE_ITER=3
-RECORD_ITER=5
-REPLAY_ITER=10
+RECORD_ITER=3
+REPLAY_ITER=5
 
-bench=(dedup ferret) #dedup ferret kdtree
-declare -A dirs args
-
-dirs["dedup"]=dedup
-args["dedup"]="medium"
-dirs["ferret"]=ferret
-args["ferret"]="medium"
+bench=(MIS matching BFS)
+source config.sh
 
 errcheck () {
     errcode=$1
     logname=$2
 
     if [[ $errcode -eq 0 ]]; then
-        printf "%0.2f" "$(grep 'Processing time' log | tail -1 | cut -d' ' -f 4 | tr -d ' ')"
+        tmp=$(grep "time" $logname | tr "=" ":" | cut -d':' -f 2 | cut -d' ' -f 2 | tr -d ' ')
+        printf "%0.2f" "$tmp"
     else
         printf "\n[Error]:\n"
         if [[ $errcode -eq 124 ]]; then
@@ -33,8 +33,6 @@ errcheck () {
         cat log
         exit 1
     fi
-    # No error, so remove the log file
-    rm out
 }
 
 runcmd() {
@@ -42,7 +40,15 @@ runcmd() {
     mode=$2
     name=$3
     args=$4
-    CILKRR_MODE=$mode ./$name lock $args out $P &> log
+    oldargs=$4
+    if [[ "$name" = "run.sh lock" ]]; then
+        args="$4 $P"
+    fi
+
+    cmd="CILKRR_MODE=$mode ./$name lock $args out $P"
+    echo "$cmd" >> $logfile
+    CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args &> log
+    echo "------------------------------------------------------------" >> $logfile
 }
 
 runreplay() {
@@ -51,6 +57,7 @@ runreplay() {
     declare -A vals
     
     for P in $CORES; do
+        vals=()
         for i in $(seq $REPLAY_ITER); do
             runcmd "$P" "replay" "$name" "$args"
             val=$(errcheck $? "log")
@@ -69,9 +76,9 @@ runreplay() {
 
 
 runall () {
-    name=$1 # actually, we don't need
-    name="run.sh"
-    args=$2
+    name=$1
+    cmdname=$2
+    args=$3
     
     printf -- "--- $name $args ---\n"
     header_left="P\tbase\t\trecord"
@@ -84,8 +91,9 @@ runall () {
 
     for P in $CORES; do
         printf "$P"
+        vals=()
         for i in $(seq $BASE_ITER); do
-            runcmd "$P" "none" "run.sh" "$args"
+            runcmd "$P" "none" "$cmdname" "$args"
             val=$(errcheck $? "log")
             if [[ $? -ne 0 ]]; then
                 printf "Error\n"
@@ -99,8 +107,9 @@ runall () {
 
 
         rm -f .recordtimes
+        vals=()
         for i in $(seq $RECORD_ITER); do
-            runcmd "$P" "record" "$name" "$args"
+            runcmd "$P" "record" "$cmdname" "$args"
             val=$(errcheck $? "log")
             if [[ $? -ne 0 ]]; then
                 printf "Error\n"
@@ -117,6 +126,7 @@ runall () {
         median=$(cat .recordtimes | sort | cut -f 2 | datamash median 1)
         mv .cilkrecord.$median .cilkrecord
         runreplay "$name" "$args"
+        mv .cilkrecord .cilkrecord-p$P
         printf "\n"
     done
     printf "\n-------------------------"
@@ -127,7 +137,13 @@ runall () {
 if [ $# -gt 0 ]; then bench=($@); fi
 for b in "${bench[@]}"; do
     cd ${dirs[$b]}
-    make
-    runall "$b" "${args[$b]}"
-    cd -
+    (${makecmds[$b]} 2>&1) > compile.log
+    if [[ "$?" -ne 0 ]]; then
+        echo "Compile error!"
+        cat compile.log
+    fi
+    runall "$b" "${cmdnames[$b]}" "${args[$b]}"
+    cd - >/dev/null
 done
+
+echo "********** End script: $(realpath $0) **********" >> $logfile

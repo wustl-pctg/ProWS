@@ -21,28 +21,35 @@ namespace cilkrr {
 
   mutex::mutex()
   {
+#if STAGE > 1
     m_id = g_rr_state->register_mutex();
+    if (get_mode() != NONE)
+      m_acquires = g_rr_state->get_acquires(m_id);
+#else
+    m_id = 0; // not sure if this works...
+#endif
+    
 #ifdef USE_LOCKSTAT
     sls_init(&m_lock, m_id);
 #else
     pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
 #endif
 
-    if (get_mode() != NONE)
-      m_acquires = g_rr_state->get_acquires(m_id);
   }
 
   mutex::mutex(uint64_t index)
   {
-    m_id = g_rr_state->register_mutex(index);
 #ifdef USE_LOCKSTAT
     sls_init(&m_lock, index);
 #else
     pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
 #endif
-    
+
+#if STAGE > 1
+    m_id = g_rr_state->register_mutex(index);
     if (get_mode() != NONE)
       m_acquires = g_rr_state->get_acquires(m_id);
+#endif
   }
 
   mutex::~mutex()
@@ -52,8 +59,9 @@ namespace cilkrr {
 #else
     pthread_spin_destroy(&m_lock);
 #endif
-    //g_rr_state->unregister_mutex(m_id);
+#if STAGE > 1
     g_rr_state->unregister_mutex(m_id, m_num_acquires);
+#endif
   }
 
   inline void mutex::acquire()
@@ -80,9 +88,11 @@ namespace cilkrr {
 
   void mutex::lock()
   {
+#if STAGE > 0
     enum mode m = get_mode();
     pedigree_t p;
     if (m != NONE) p = get_pedigree();
+
     
     if (get_mode() == REPLAY) {
       // returns locked, but not acquired
@@ -94,8 +104,13 @@ namespace cilkrr {
       pthread_spin_lock(&m_lock);
 #endif
     }
+#else
+    pthread_spin_lock(&m_lock);
+#endif
     acquire();
+#if STAGE > 1
     if (get_mode() == RECORD) record_acquire(p);
+#endif
   }
 
   bool mutex::try_lock()

@@ -72,7 +72,7 @@ for b in "${bench[@]}"; do
 
     # Array
     make clean &> compile.log
-    make PTYPE=2 &> compile.log
+    make -j PTYPE=2 &> compile.log
     printf "%-10s" "base"
     runall "$b" "none"
 
@@ -81,7 +81,7 @@ for b in "${bench[@]}"; do
 
     # Precomputed
     make clean &> compile.log
-    make PTYPE=1 &> compile.log
+    make -j PTYPE=1 &> compile.log
     printf "%-10s" "pre"
     runall "$b" "record"
 

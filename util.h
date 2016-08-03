@@ -17,6 +17,10 @@
 #define PRECOMPUTE_PEDIGREES 1
 /* #endif */
 
+#ifndef STAGE
+#define STAGE 4 // full
+#endif
+
 #ifdef STATS
 #include "papi.h"
 #define NUM_PAPI_EVENTS 3

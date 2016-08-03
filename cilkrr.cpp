@@ -173,6 +173,10 @@ namespace cilkrr {
     // the slowdown, so I don't want to mess with that
     // assert(m_active_size == 0);
 
+#if STAGE < 4
+    return;
+#endif
+
     fprintf(stderr, "Total lock acquires: %lu\n", m_num_acquires);
     if (m_mode != RECORD) return;
     std::ofstream output;
@@ -184,6 +188,7 @@ namespace cilkrr {
 
     size_t mem_allocated = 0;
     size_t num_conflicts = 0;
+    // uint64_t hash_time = 0L;
     for (int i = 0; i < m_size; ++i) {
       cont = m_all_acquires[i];
       
@@ -193,11 +198,13 @@ namespace cilkrr {
       mem_allocated += cont->memsize();
       num_conflicts += cont->m_num_conflicts;
       output << "}" << std::endl;
+      // hash_time += cont->m_time;
     }
     output << "---- Stats ----" << std::endl;
     output << "Conflicts: " << num_conflicts << std::endl;
     output.close();
-
+    
+    // std::cout << "Hash time (ms): " << hash_time << std::endl;
     //fprintf(stderr, "%zu bytes allocated for %zu locks\n", mem_allocated, m_size);
   }
 

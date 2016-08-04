@@ -98,11 +98,10 @@ int main(int argc, char *argv[])
 	auto start = std::chrono::high_resolution_clock::now();
 	result = fib(n);
 	auto end = std::chrono::high_resolution_clock::now();
-	// std::cout << "Result: " << result << std::endl;
-	// std::cout << "Count: " << count << std::endl;
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
+  
+	std::cout << "CilkRR time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>
+    (end - start).count() << std::endl;
 
-	// Prints out stack high watermark
-	//	__cilkrts_end_cilk();
 	return 0;
 }

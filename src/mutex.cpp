@@ -166,7 +166,9 @@ namespace cilkrr {
         return; // continue
       }
     }
+// #if STATS > 0
     LSTAT_INC(LSTAT_SUS);
+// #endif
     __cilkrts_suspend_deque();
   }
 

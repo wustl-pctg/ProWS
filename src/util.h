@@ -10,18 +10,14 @@
 #define PARRAY 2
 
 #ifndef PTYPE
-#define PTYPE PPRE
+#define PTYPE PARRAY
 #endif
 
 /* #if PTYPE == PPRE */
 #define PRECOMPUTE_PEDIGREES 1
 /* #endif */
 
-#ifndef STAGE
-#define STAGE 4 // full
-#endif
-
-#ifdef STATS
+#if STATS > 0
 #include "papi.h"
 #define NUM_PAPI_EVENTS 3
 #define NUM_GLOBAL_STATS 0
@@ -31,10 +27,9 @@
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
-
 namespace cilkrr {
 
-#ifdef STATS
+#if STATS > 0
   enum g_stat_names {};
   extern uint64_t g_stats[NUM_GLOBAL_STATS];
   extern const char* g_stat_strings[NUM_GLOBAL_STATS];

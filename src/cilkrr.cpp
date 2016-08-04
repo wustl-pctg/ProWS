@@ -274,7 +274,7 @@ namespace cilkrr {
   */
   state *g_rr_state;
 
-#ifdef STATS
+#if STATS > 0
   long long papi_counts[NUM_PAPI_EVENTS];
   int papi_events[NUM_PAPI_EVENTS] = {PAPI_L1_DCM, PAPI_L2_TCM, PAPI_L3_TCM};
   const char* papi_strings[NUM_PAPI_EVENTS] = {"L1 data misses",
@@ -295,7 +295,7 @@ namespace cilkrr {
     sls_setup();
 #endif    
 
-#ifdef STATS
+#if STATS > 0
     memset(g_stats, 0, sizeof(uint64_t) * NUM_GLOBAL_STATS);
     int p = __cilkrts_get_nworkers();
     for (int i = 0; i < NUM_LOCAL_STATS; ++i)
@@ -314,7 +314,7 @@ namespace cilkrr {
     sls_print_accum_stats();
 #endif    
 
-#ifdef STATS
+#if STATS > 0
     int ret = PAPI_read_counters(papi_counts, NUM_PAPI_EVENTS);
     assert(ret == PAPI_OK);
     for (int i = 0; i < NUM_PAPI_EVENTS; ++i)

@@ -24,3 +24,13 @@ which will write out the results to ".cilkrecord". Later, the filename
 will be customizable with an environment variable. To replay, use
 
 	CILKRR_MODE=replay ./prog
+
+You'll need to define a "config.mk" file at the top-level. Example file:
+
+	BUILD_DIR=$(BASE_DIR)/build
+	RUNTIME_HOME=$(BASE_DIR)/cilkrtssuspend
+	COMPILER_HOME=$(HOME)/src/llvm-cilk
+	RTS_LIB=$(COMPILER_HOME)/lib/libcilkrts.a
+	LTO=0
+
+

@@ -1,5 +1,4 @@
 // Similar to the CBT synthetic benchmark in the DOTMIX paper.
-// Actually, no. This benchmark has changed and is now misnamed.
 
 #include <cstdio>
 #include <cassert>
@@ -12,13 +11,11 @@
 
 #include "mutex.h"
 
-// 2 ^ 23
-#define NUM_LOCK_ACQUIRES (1 << 23)
-int g_count = 0;
-double g_leaf_work = 0.0;
+size_t g_count = 0;
+double g_leaf_work;
 cilkrr::mutex g_mutex;
 
-void tree_search(int index, int level)
+void tree_search(size_t index, size_t level)
 {
 	if (level == 0) {
 		g_mutex.lock();
@@ -34,17 +31,28 @@ void tree_search(int index, int level)
 	return;
 }
 
+// ./cbt <# acquires> <depth> [leaf work time (ms)]
 int main(int argc, char *argv[])
 {
-	int depth = (argc > 1) ? std::atoi(argv[1]) : 5;
-  int iter = (argc > 2) ? std::atoi(argv[2]) : (NUM_LOCK_ACQUIRES >> depth);
+  size_t num_acquires = (argc > 1) ? std::strtoul(argv[1],nullptr, 0) : (1 << 23);
+  size_t num_leaves = (argc > 2) ? std::strtoul(argv[2], nullptr, 0) : 32;
+  g_leaf_work = (argc > 3) ? std::strtod(argv[3], nullptr) : 0.0;
 
+  // These two should always be a power of 2.
+  assert(__builtin_popcount(num_acquires) == 1);
+  assert(__builtin_popcount(num_leaves) == 1);
+
+  size_t depth = __builtin_ctz(num_leaves);
+  size_t iter = (num_acquires >> depth);
+  
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < iter; ++i)
+  
+  for (size_t i = 0; i < iter; ++i)
     tree_search(0, depth);
+  
   auto end = std::chrono::high_resolution_clock::now();
-  int expected = iter * (1 << depth);
-  assert(g_count == expected);
+  
+  assert(g_count == num_acquires);
   std::cout << "time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
             << std::endl;

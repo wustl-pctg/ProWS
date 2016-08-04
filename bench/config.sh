@@ -3,15 +3,20 @@
 
 declare -A dirs args cmdnames makecmds
 
-dirs["fib"]=..
+dirs["fib"]=micro
 args["fib"]="25"
 cmdnames["fib"]="fib"
 makecmds["fib"]="make fib"
 
-dirs["cbt"]=..
+dirs["cbt"]=micro
 args["cbt"]=""
 cmdnames["cbt"]="cbt"
 makecmds["cbt"]="make cbt"
+
+dirs["cilkfor"]=micro
+args["cilkfor"]=""
+cmdnames["cilkfor"]="cilkfor"
+makecmds["cilkfor"]="make cilkfor"
 
 dirs["dedup"]=dedup
 args["dedup"]="large"

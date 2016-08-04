@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
-# ulimit -v 6291456
-# Don't forget that we might need to set vm.max_map_limit
+if [[ $(sysctl vm.max_map_count | cut -d'=' -f2 | tr -d ' ') -lt 1000000 ]]; then
+    echo "vm.max_map_count too low! Must be at least 1M"
+    exit 1
+fi
 trap "kill -- -$$" SIGINT
 
 : ${BENCH_LOG_FILE:=$HOME/tmp/log}
@@ -9,12 +11,12 @@ logfile=$BENCH_LOG_FILE
 echo "********** Begin script: $(realpath $0) **********" >> $logfile
 
 MAXTIME="5m"
-CORES="1 2 4 8 12 16"
-BASE_ITER=3
-RECORD_ITER=3
-REPLAY_ITER=5
+CORES="1 2 4 8"
+BASE_ITER=1
+RECORD_ITER=1
+REPLAY_ITER=1
 
-bench=(MIS matching BFS)
+bench=(fib cbt cilkfor)
 source config.sh
 
 errcheck () {

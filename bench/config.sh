@@ -4,7 +4,7 @@
 declare -A dirs args cmdnames makecmds
 
 dirs["fib"]=micro
-args["fib"]="25"
+args["fib"]="30"
 cmdnames["fib"]="fib"
 makecmds["fib"]="make fib"
 
@@ -14,7 +14,7 @@ cmdnames["cbt"]="cbt"
 makecmds["cbt"]="make cbt"
 
 dirs["cilkfor"]=micro
-args["cilkfor"]=""
+args["cilkfor"]="10000000"
 cmdnames["cilkfor"]="cilkfor"
 makecmds["cilkfor"]="make cilkfor"
 

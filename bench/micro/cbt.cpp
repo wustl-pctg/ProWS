@@ -13,6 +13,7 @@
 
 size_t g_count = 0;
 double g_leaf_work;
+double g_unlock_work;
 cilkrr::mutex g_mutex;
 
 void tree_search(size_t index, size_t level)
@@ -22,6 +23,7 @@ void tree_search(size_t index, size_t level)
 		g_count++;
     if (g_leaf_work > 0.0) sleep(g_leaf_work);
 		g_mutex.unlock();
+    if (g_unlock_work > 0.0) sleep(g_unlock_work);
 		return;
 	}
 
@@ -34,10 +36,21 @@ void tree_search(size_t index, size_t level)
 // ./cbt <# acquires> <depth> [leaf work time (ms)]
 int main(int argc, char *argv[])
 {
-  size_t num_acquires = (argc > 1) ? std::strtoul(argv[1],nullptr, 0) : (1 << 23);
-  size_t num_leaves = (argc > 2) ? std::strtoul(argv[2], nullptr, 0) : 32;
-  g_leaf_work = (argc > 3) ? std::strtod(argv[3], nullptr) : 0.0;
+  // defaults
+  size_t num_acquires = (1L << 23);
+  size_t num_leaves = 32;
+  g_leaf_work = g_unlock_work = 0.0;
+  
+  if (argc > 1 && argv[1][0] != '_')
+    num_acquires = 1L << std::strtoul(argv[1],nullptr, 0);
+  if (argc > 2 && argv[2][0] != '_') 
+    num_leaves = std::strtoul(argv[2], nullptr, 0);
+  if (argc > 3 && argv[3][0] != '_')
+    g_leaf_work = std::strtod(argv[3], nullptr)/1000.0;
+  if (argc > 4 && argv[4][0] != '_')
+    g_unlock_work = std::strtod(argv[4], nullptr)/1000.0;
 
+  std::cout << num_acquires << std::endl;
   // These two should always be a power of 2.
   assert(__builtin_popcount(num_acquires) == 1);
   assert(__builtin_popcount(num_leaves) == 1);

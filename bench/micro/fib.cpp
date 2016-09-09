@@ -39,18 +39,10 @@ int fib(int n) {
 	if (n < 2) {
 		if (n == 0) {
 			g_mutex0.lock();
-			log("(w: %d) acquired lock at %s (%zu)\n",
-					__cilkrts_get_internal_worker_number(),
-					cilkrr::get_pedigree().c_str(),
-					cilkrr::get_compressed_pedigree());
 			count++;
 			g_mutex0.unlock();
 		} else {
 			g_mutex0.lock();
-			log("(w: %d) acquired lock at %s (%zu)\n",
-					__cilkrts_get_internal_worker_number(),
-					cilkrr::get_pedigree().c_str(),
-					cilkrr::get_compressed_pedigree());
 			count++;
 			g_mutex0.unlock();
 		}
@@ -60,26 +52,9 @@ int fib(int n) {
 		int x = 0;
 		int y = 0;
 
-		log("(w: %d) (p: %s) (%zu) entered fib %d\n",
-				__cilkrts_get_internal_worker_number(),
-				cilkrr::get_pedigree().c_str(),
-				cilkrr::get_compressed_pedigree(), n);
-
-
 		x = cilk_spawn fib(n - 1);
-
-		log("(w: %d) (p: %s) (%zu) in the middle of fib %d\n",
-				__cilkrts_get_internal_worker_number(),
-				cilkrr::get_pedigree().c_str(),
-				cilkrr::get_compressed_pedigree(), n);
-
 		y = fib(n - 2);
 		cilk_sync;
-
-		log("(w: %d) (p: %s) (%zu) exiting fib %d\n",
-				__cilkrts_get_internal_worker_number(),
-				cilkrr::get_pedigree().c_str(),
-				cilkrr::get_compressed_pedigree(), n);
 
 		return (x + y);
 	}
@@ -101,7 +76,7 @@ int main(int argc, char *argv[])
   
 	std::cout << "CilkRR time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>
-    (end - start).count() << std::endl;
+    (end - start).count() / 1000.0 << std::endl;
 
 	return 0;
 }

@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
   auto end = std::chrono::high_resolution_clock::now();
   
   assert(g_count == num_acquires);
-  std::cout << "CilkRR time: "
+  std::cout << "PORR time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>
     (end - start).count() << std::endl;
 	return 0;

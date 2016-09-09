@@ -27,26 +27,19 @@
 #include "mutex.h"
 int count = 0;
 
-#ifdef VERBOSE
-#define log(args...) fprintf(stderr, args)
-#else
-#define log(args...)
-#endif
-
-cilkrr::mutex g_mutex0;//, g_mutex1;
+cilkrr::mutex g_mutex;
 
 int fib(int n) {
 	if (n < 2) {
 		if (n == 0) {
-			g_mutex0.lock();
+			g_mutex.lock();
 			count++;
-			g_mutex0.unlock();
+			g_mutex.unlock();
 		} else {
-			g_mutex0.lock();
+			g_mutex.lock();
 			count++;
-			g_mutex0.unlock();
+			g_mutex.unlock();
 		}
-
 		return (n);
 	} else {
 		int x = 0;
@@ -74,7 +67,7 @@ int main(int argc, char *argv[])
 	result = fib(n);
 	auto end = std::chrono::high_resolution_clock::now();
   
-	std::cout << "CilkRR time: "
+	std::cout << "PORR time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>
     (end - start).count() / 1000.0 << std::endl;
 

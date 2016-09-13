@@ -31,16 +31,10 @@ cilkrr::mutex g_mutex;
 
 int fib(int n) {
 	if (n < 2) {
-		if (n == 0) {
-			g_mutex.lock();
-			count++;
-			g_mutex.unlock();
-		} else {
-			g_mutex.lock();
-			count++;
-			g_mutex.unlock();
-		}
-		return (n);
+    g_mutex.lock();
+    count++;
+    g_mutex.unlock();
+    return (n);
 	} else {
 		int x = 0;
 		int y = 0;

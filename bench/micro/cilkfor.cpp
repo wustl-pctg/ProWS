@@ -19,12 +19,18 @@ int main(int argc, char *argv[])
   double unlock_time = (argc > 4) ? std::strtod(argv[4], nullptr)/1000.0 : 0.0;
 
   assert(num_acquires % num_locks == 0);
-  size_t count = 0;
-  cilkrr::mutex *locks = new cilkrr::mutex[num_locks];
+  volatile size_t count = 0;
 
-	auto start = std::chrono::high_resolution_clock::now();
+  auto start = std::chrono::high_resolution_clock::now();
+
+  cilkrr::mutex *locks = new cilkrr::mutex[num_locks];
+  // cilkrr::mutex *locks = (cilkrr::mutex*) malloc(num_locks
+  //                                                * cilkrr::mutex::memsize());
+  // cilk_for (int i = 0; i < num_locks; ++i)
+  //   new (&locks[i]) cilkrr::mutex(i);
+
 #pragma cilk grainsize = 1
-	cilk_for (int i = 0; i < (num_acquires / num_locks); ++i) {
+	cilk_for (int i = 0; i < num_acquires; ++i) {
 
     if (unlock_time > 0.0) sleep(unlock_time);
     
@@ -33,13 +39,12 @@ int main(int argc, char *argv[])
     if (lock_time > 0.0) sleep(lock_time);
     locks[i % num_locks].unlock();
   }
-
+  free(locks);
 	auto end = std::chrono::high_resolution_clock::now();
   assert(count == num_acquires);
-  std::cout << "CilkRR time: "
+  std::cout << "PORR time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>
-    (end - start).count() << std::endl;
+    (end - start).count() / 1000.0<< std::endl;
   
-  delete[] locks;
 	return 0;
   }

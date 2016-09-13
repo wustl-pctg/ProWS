@@ -35,16 +35,14 @@ int fib(int n) {
     count++;
     g_mutex.unlock();
     return (n);
-	} else {
-		int x = 0;
-		int y = 0;
-
-		x = cilk_spawn fib(n - 1);
-		y = fib(n - 2);
-		cilk_sync;
-
-		return (x + y);
 	}
+  
+  int x, y;
+  x = cilk_spawn fib(n - 1);
+  y = fib(n - 2);
+  cilk_sync;
+
+  return (x + y);
 }
 
 int main(int argc, char *argv[])

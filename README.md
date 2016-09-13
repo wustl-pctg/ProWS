@@ -38,3 +38,4 @@ You'll need to define a "config.mk" file at the top-level. Example file:
 
 * change CILKRR to PORR
 * Change cilkrr::mutex to porr::spinlock, since that's actually what it is
+* Add porr::mutex functionality -- no record/replay, but locking failure suspends the fiber

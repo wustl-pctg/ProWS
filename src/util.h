@@ -10,12 +10,14 @@
 #define PARRAY 2
 
 #ifndef PTYPE
-#define PTYPE PARRAY
+#define PTYPE PPRE
 #endif
 
 /* #if PTYPE == PPRE */
 #define PRECOMPUTE_PEDIGREES 1
 /* #endif */
+
+//#define ACQ_PTR 1
 
 #if STATS > 0
 #include "papi.h"
@@ -52,11 +54,12 @@ namespace cilkrr {
 
 
 	typedef uint64_t pedigree_t;
+  typedef uint64_t rank_t;
 
   // Need to check for conflicts
 	typedef struct full_pedigree_s {
 		size_t length;
-		uint64_t *array;
+		rank_t *array;
 
     bool operator==(const struct full_pedigree_s &other) const
 		{

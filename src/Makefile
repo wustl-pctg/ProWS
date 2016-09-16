@@ -9,6 +9,8 @@ default: $(LIBNAME)
 # Why do I have to do this?!
 %.mk: ;
 
+Makefile: ;
+
 %.a: $(OBJ)
 	$(AR) $(ARFLAGS) $@ $^
 

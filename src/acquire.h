@@ -11,12 +11,13 @@ namespace cilkrr {
 
 	class acquire_info {
 	public:
-		const pedigree_t ped;
-		full_pedigree_t full;
+		/*const*/ pedigree_t ped;
+		full_pedigree_t full = {0, nullptr};
+		acquire_info *chain_next = nullptr;
+		void * volatile suspended_deque = nullptr;
 
-		acquire_info *chain_next;
-		acquire_info *next; // Needed for replay only
-		void * volatile suspended_deque;
+    // thread local allocator requires this
+    acquire_info *next = nullptr;
     
 		acquire_info() = delete;
 		acquire_info(pedigree_t p);
@@ -25,82 +26,77 @@ namespace cilkrr {
     std::string str();
   private:
     std::string array_str();
-	};
+	} __attribute__((aligned (64)));
 	std::ostream& operator<< (std::ostream &out, acquire_info s);
+
+  static constexpr size_t RESERVE_SIZE  = 32;
+  static constexpr size_t MAX_CHUNK_SIZE = (1L << 25);
 
 	class acquire_container {
 	private:
 
-#define RESERVE_SIZE 4
-
-    // Hash table
-		size_t m_num_buckets = RESERVE_SIZE;
-    uint64_t m_mask = ((uint64_t)1 << 2) - 1;
-		acquire_info** m_buckets;
-		void bucket_add(acquire_info** bucket, acquire_info* item);
-
+    // Bloom filter
+    // It seems it is never worth it to resize this as we go...
+    // I guess at that point there are so many lock acquires you ought
+    // to just get the full pedigree? Skeptical of this...
+#define RESIZE 0
+    static constexpr size_t DEFAULT_FILTER_SIZE = 64;
+    static constexpr int bits_per_slot = sizeof(uint64_t) * 8;
+    union {
+      uint64_t m_filter_base[DEFAULT_FILTER_SIZE / bits_per_slot] = {0};
+      uint64_t *m_filter;
+      acquire_info** m_table;
+    };
+    static constexpr size_t m_filter_size = DEFAULT_FILTER_SIZE;
+  
 #if PTYPE == PARRAY    
     size_t hash(full_pedigree_t k);
 #endif
     
-    inline size_t hash(pedigree_t k) {
-      // Alternatively, we can just take the low-order gits of k.
-      // Specifically,
-      return k & m_mask;
-      //   where mask is ((uint64_t)1 << log_2(m_num_buckets)) - 1
-      //   and we reset mask during each rehash
-      // This only works when m_num_buckets is a power of 2.
-      // But testing this only made an insignificant difference.
-      /* return k % m_num_buckets; */
-    }
+    // inline size_t hash(pedigree_t k) { return k % m_num_buckets; }
+		// void rehash(size_t new_cap);
 
-		void rehash(size_t new_cap);
-
-    /// @todo{ It is a bit silly to have an allocator inside each
-    // acquire_container. Instead, just have each thread use its own
-    // allocator, that way it is shared between locks }
-    
     // Chunked linked list that stores the actual acquire_info structs
     acquire_info* new_acquire_info();
-		size_t m_size = 0;
-		// chunked Linked list
-		struct chunk {
-			size_t size;
-			acquire_info *array;
-			struct chunk *next;
-		};
-		size_t m_index = 0;
-		size_t m_chunk_size = RESERVE_SIZE;
-		struct chunk* m_first_chunk;
-		struct chunk* m_current_chunk;
-
-    acquire_info* m_it = nullptr;
-    acquire_info* m_first = nullptr;
 
 	public:
-    size_t m_num_conflicts = 0;
-    //uint64_t m_time = 0L;
-    /* acquire_container(); */
-    /* acquire_container(size_t size); */
-    acquire_container(size_t size = RESERVE_SIZE);
+/* #ifdef ACQ_PTR */
+/*     acquire_info *m_first = nullptr; */
+/* #endif */
+    acquire_info *m_it = nullptr;
+    size_t m_size = 0; /// Is this necessary?
 
-    // Approximate memory allocated
-    size_t memsize();
-    inline size_t size() const { return m_size; }
-    void stats();
+    typedef struct chunk {
+      size_t size;
+      acquire_info *array;
+      struct chunk *next;
+    } chunk_t;
 
-		acquire_info* begin();
-		acquire_info* end();
-		acquire_info* current();
-		acquire_info* next();
-		void reset();
-		void print(std::ofstream& output);
+    __thread static size_t t_index;
+    __thread static struct chunk* t_first_chunk;
+    __thread static struct chunk* t_current_chunk;
+    
+
+    acquire_container(acquire_container const&) = delete;
+    /* acquire_container() {} */
+
+#ifdef ACQ_PTR
+    acquire_container() {}
+#else
+    acquire_container() = delete;
+    acquire_container(acquire_info** start_ptr);
+#endif
+
+    inline acquire_info* current() { return m_it; }
+    inline void next() { m_it = m_it->next; }
 		
 		acquire_info* add(pedigree_t p); // for record
     acquire_info* add(pedigree_t p, full_pedigree_t full); // for replay
 		acquire_info* find_first(const pedigree_t& p);
+    // acquire_info* bucket_find(acquire_info **const bucket, const pedigree_t& p);
+
     acquire_info* find(const pedigree_t& p);
-    acquire_info* find(const pedigree_t& p, const full_pedigree_t& full);
+    //acquire_info* find(const pedigree_t& p, const full_pedigree_t& full);
 
 	};
 

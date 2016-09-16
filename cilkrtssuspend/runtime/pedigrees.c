@@ -106,8 +106,10 @@ void save_pedigree_leaf_from_user_worker(__cilkrts_worker *w)
     // fails because the pedigree chain not restored correctly. 
     // CILK_ASSERT(w->l->original_pedigree_leaf->next == w->pedigree.parent);
     w->l->original_pedigree_leaf->rank = w->pedigree.rank;
+#ifdef PRECOMPUTE_PEDIGREES
     w->l->original_pedigree_leaf->length = w->pedigree.length;
     w->l->original_pedigree_leaf->actual = w->pedigree.actual;
+#endif
 
     // Save that leaf pointer back into tls.
     __cilkrts_set_tls_pedigree_leaf(w->l->original_pedigree_leaf);
@@ -137,6 +139,7 @@ void update_pedigree_after_sync(__cilkrts_stack_frame *sf)
 void validate_pedigree(__cilkrts_worker *w)
 {
     CILK_ASSERT(0); // disabled
+#ifdef PRECOMPUTE_PEDIGREES
     __cilkrts_pedigree* current = &w->pedigree;
     uint64_t real = 0;
 
@@ -149,6 +152,7 @@ void validate_pedigree(__cilkrts_worker *w)
     }
 
     CILK_ASSERT(w->pedigree.actual == real);
+#endif
 }
 
 void init_pedigree_compression_vec(global_state_t* g)

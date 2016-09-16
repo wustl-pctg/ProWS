@@ -2,7 +2,6 @@
 #define _CILKRR_H
 
 #include <string>
-#include <vector>
 #include <atomic>
 #include <limits>
 
@@ -11,42 +10,53 @@
 
 namespace cilkrr {
   
-#if PTYPE != PPRE
-	// 2^64 - 59
-	static const size_t big_prime = (1L << 63) - 58;
-#endif
-
 	class state {
 	private:
-		std::vector< acquire_container * > m_all_acquires;
+    template <class T>
+    class achunk {
+    public:
+      size_t size;
+      achunk* next = nullptr;
+      T* data;
+
+      achunk() = delete;
+      achunk(size_t _size) : size(_size)
+      { data = (T*) malloc(sizeof(T) * size); }
+    };
+
+#ifdef ACQ_PTR
+#define CHUNK_TYPE acquire_container
+#else
+#define CHUNK_TYPE acquire_info*
+#endif
+    
+    achunk<CHUNK_TYPE> *m_current_chunk = nullptr;
+    union {
+      achunk<CHUNK_TYPE> *m_first_chunk; // recording only
+      acquire_info* m_acquires;// replay only
+    };
+    // Replay hash tables
+    acquire_info** m_tables = nullptr;
+
+    // replay only
+    size_t m_curr_base_index = 0;
+    size_t m_next_base_index = 0;
+    
 		std::string m_filename;
-		size_t m_size;
+		size_t m_num_locks = 0;
     uint64_t m_num_acquires = 0;
 
-		// To make sure we are really done.
-		//std::atomic<size_t> m_active_size;
-
-		static constexpr size_t m_default_capacity = 32;
-
 	public:
-#if PTYPE != PPRE
-		uint64_t randvec[256];
-#endif
-		enum mode m_mode;
+		enum mode m_mode = NONE;
 
 		state();
 		~state();
-		void resize(size_t n);
+		void reserve(size_t n);
+    
+		CHUNK_TYPE* register_mutex(); // For individual, sequentially allocated spinlocks
+    CHUNK_TYPE* register_mutex(size_t id); // For batches of spinlocks
+    void unregister_mutex(size_t size);
 
-		// Assumes resize has already been called to the correct size.
-		size_t register_mutex(size_t local_id);
-
-		// Does not assume resize has been called, but must be called sequentially.
-		size_t register_mutex(); 
-
-		acquire_container* get_acquires(size_t index);
-		//size_t unregister_mutex(size_t index);
-    size_t unregister_mutex(size_t id, uint64_t num_acquires);
 	};
 	extern state *g_rr_state;
 	inline enum mode get_mode() { return g_rr_state->m_mode; }

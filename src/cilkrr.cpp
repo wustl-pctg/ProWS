@@ -6,6 +6,7 @@
 #include <cstring> // memset
 
 #include "cilkrr.h"
+#include "mutex.h"
 
 #include <internal/abi.h>
 
@@ -17,6 +18,40 @@ extern "C" {
 
 
 namespace cilkrr {
+
+  void reserve_locks(size_t n) { g_rr_state->reserve(n); }
+
+  struct ped_chunk {
+    size_t size;
+    rank_t *array;
+    //struct ped_chunk *next;
+  };
+
+  struct ped_chunk* alloc_chunk(size_t size)
+  {
+    struct ped_chunk *chunk = new ped_chunk();
+    chunk->size = size;
+    chunk->array = (rank_t*) malloc(sizeof(rank_t) * size);
+    //chunk->next = nullptr;
+    return chunk;
+  }
+
+  rank_t* allocate_full_ped_array(size_t len)
+  {
+    __thread static struct ped_chunk* current_chunk = nullptr;
+    __thread static size_t index = 0;
+
+    if (!current_chunk) current_chunk = alloc_chunk(256);
+
+    if (index + len >= current_chunk->size) {
+      current_chunk = alloc_chunk(current_chunk->size * 2);
+      index = 0;
+    }
+
+    rank_t* ped = &current_chunk->array[index];
+    index += len;
+    return ped;
+  }
 
   full_pedigree_t get_full_pedigree()
   {
@@ -30,7 +65,8 @@ namespace cilkrr {
       current = current->parent;
     }
 
-    p.array = (uint64_t*) malloc(sizeof(uint64_t) * p.length);
+    //p.array = (uint64_t*) malloc(sizeof(uint64_t) * p.length);
+    p.array = allocate_full_ped_array(p.length);
     size_t ind = p.length - 1;
     // Note that we get this backwards!
     current = &tmp;
@@ -48,10 +84,9 @@ namespace cilkrr {
     const __cilkrts_pedigree* current = &tmp;
     pedigree_t p;
 
-#if PTYPE != PDOT
+#if PTYPE == PPRE
     p = current->actual;
-    
-#else // dot product
+#elif PTYPE == PDOT
     pedigree_t actual = current->actual;
     size_t len = 0;
     const __cilkrts_pedigree* curr = current;
@@ -72,7 +107,7 @@ namespace cilkrr {
     return p;
   }
 
-  state::state() : m_size(0), m_mode(NONE) //, m_active_size(0)
+  state::state() : m_mode(NONE)
   {
     char *env;
     g_rr_state = this;
@@ -91,14 +126,17 @@ namespace cilkrr {
     env = std::getenv("CILKRR_FILE");
     if (env) m_filename = env;
 
+
     env = std::getenv("CILKRR_MODE");
     if (!env) return;
     
     std::string mode = env;
-    if (mode == "record")
+    if (mode == "record") {
       m_mode = RECORD;
-    if (mode != "replay")
       return;
+    } else if (mode != "replay") {
+      return;
+    }
 
     // replay
     m_mode = REPLAY;
@@ -106,35 +144,44 @@ namespace cilkrr {
     // Read from file
     std::ifstream input;
     std::string line;
-    size_t size;
     input.open(m_filename);
         
-    input >> size;
-    m_all_acquires.reserve(size);
+    input >> m_num_locks;
+    input >> m_num_acquires;
 
-    for (int i = 0; i < size; ++i) {
+    m_current_chunk = new achunk<CHUNK_TYPE>(m_num_locks);
+
+    // I allocate an extra to store the size of each...very hackish
+    // @TODO{ Remove fake acquire_info used to store size during replay}
+    m_acquires = (acquire_info*)
+      malloc((m_num_acquires+m_num_locks) * sizeof(acquire_info));
+    assert(m_acquires);
+
+    m_tables = (acquire_info**)
+      calloc(m_num_acquires, sizeof(acquire_info*));
+
+    size_t global_index = 0;
+    for (int i = 0; i < m_num_locks; ++i) {
 
       getline(input, line); // Advance line
       assert(input.good());
       assert(input.peek() == '{');
-      input.ignore(1, '{');
-
-      // get id
-      size_t num; input >> num;
-      assert(num == i);
-
-      // get # acquires
-      assert(input.peek() == ':');
-      input.ignore(1, ':');
-      input >> num;
-
+      // input.ignore(1, '{');
       // finish reading line
       getline(input, line);
 
-      m_all_acquires.push_back(new acquire_container(num));
-      acquire_container* cont = m_all_acquires[i];
-          
+#ifdef ACQ_PTR
+      acquire_container* cont = &m_current_chunk->data[i];
+#else
+      m_current_chunk->data[i] = nullptr;
+#endif
+      
+      size_t size = 0;
+      size_t start = global_index++;
+      m_current_chunk->data[i] = &m_acquires[start];
+
       while (input.peek() != '}') {
+        size++;
         pedigree_t p;
         full_pedigree_t full = {0, nullptr};
 
@@ -147,19 +194,36 @@ namespace cilkrr {
         p = std::stoul(line.substr(0,ind)); // read in compressed pedigree
         if (ind != std::string::npos) { // found full pedigree
           full.length = std::count(line.begin(), line.end(), ',');
-          full.array = (uint64_t*) malloc(full.length * sizeof(uint64_t));
-          for (int i = 0; i < full.length; ++i) {
+          full.array = (rank_t*) malloc(full.length * sizeof(rank_t));
+          for (int j = 0; j < full.length; ++j) {
             ind++;
             size_t next_ind = line.find(',', ind);
-            full.array[i] = std::stoul(line.substr(ind, next_ind - ind));
+            full.array[j] = std::stoul(line.substr(ind, next_ind - ind));
             ind = next_ind;
           }
         }
-        cont->add(p, full);
+        
+        acquire_info *a = new (&m_acquires[global_index]) acquire_info(p, full);
+        // if (m_current_chunk->data[i] == nullptr)
+        //   m_current_chunk->data[i] = a;
+        // else
+        //m_acquires[global_index-1].next = a;
+
+        m_acquires[global_index-1].next = a;
+        global_index++;
+        //cont->add(p, full);
+      }
+      acquire_info* debug = m_acquires;
+      size_t table_begin = global_index-i-1-size;
+      m_acquires[start].full.length = size;
+      m_acquires[start].full.array = (rank_t*) &m_tables[table_begin];
+      for (int j = 0; j < size; ++j) {
+        acquire_info *a = &m_acquires[global_index-1-j];
+        uint64_t h = a->ped % size;
+        a->chain_next = m_tables[table_begin+h];
+        m_tables[table_begin+h] = a;
       }
 
-      // Set curren iterator to beginning
-      cont->reset();
     }
         
     input.close();
@@ -167,101 +231,93 @@ namespace cilkrr {
 
   state::~state()
   {
+    if (m_mode != RECORD) return;
 
-    // This should be true, but some pbbs benchmarks (dictionary)
-    // don't call the lock destructors I think they do this so avoid
-    // the slowdown, so I don't want to mess with that
-    // assert(m_active_size == 0);
-
+    fprintf(stderr, "Base lock size: %lu\n", sizeof(pthread_spinlock_t));
+    fprintf(stderr, "PORR mutex size: %lu\n", sizeof(cilkrr::mutex));
+    fprintf(stderr, "Acquire container size: %lu\n", sizeof(acquire_container));
+    fprintf(stderr, "Acquire info size: %lu\n", sizeof(acquire_info));
+    fprintf(stderr, "Locks: %lu\n", m_num_locks);
+    
 #if STAGE < 4
     return;
 #endif
 
-    fprintf(stderr, "Total lock acquires: %lu\n", m_num_acquires);
-    if (m_mode != RECORD) return;
     std::ofstream output;
-    acquire_container* cont;
     output.open(m_filename);
 
-    // Write out total # acquires
-    output << m_size << std::endl;
+    // Write out # locks and acquires
+    output << m_num_locks << std::endl;
+    output << m_num_acquires << std::endl;
 
-    size_t mem_allocated = 0;
-    size_t num_conflicts = 0;
-    // uint64_t hash_time = 0L;
-    for (int i = 0; i < m_size; ++i) {
-      cont = m_all_acquires[i];
-      
-      output << "{" << i << ":" << cont->size() << std::endl;
-      cont->stats();
-      cont->print(output);
-      mem_allocated += cont->memsize();
-      num_conflicts += cont->m_num_conflicts;
-      output << "}" << std::endl;
-      // hash_time += cont->m_time;
+    achunk<CHUNK_TYPE> *c = m_first_chunk;
+    while (c) {
+      for (int i = 0; i < c->size; ++i) {
+
+        // @TODO{Figure out how to write the number of acquires for
+        // this lock...but is this necessary?}
+        //output << "{" << i << ":" << cont->size() << std::endl;
+        output << "{" << std::endl;
+
+#ifdef ACQ_PTR
+        //acquire_info *a = c->data[i].m_first;
+        acquire_info *a = c->data[i].m_it; // INCORRECT!
+#else
+        // First one is fake
+        acquire_info *a = c->data[i]->next;
+#endif
+        while (a) {
+          output << '\t' << *a << std::endl;
+          a = a->next;
+        }
+        output << "}" << std::endl;
+      }
+      c = c->next;
     }
-    output << "---- Stats ----" << std::endl;
-    output << "Conflicts: " << num_conflicts << std::endl;
+    // output << "---- Stats ----" << std::endl;
+    // output << "Conflicts: " << num_conflicts << std::endl;
     output.close();
-    
-    // std::cout << "Hash time (ms): " << hash_time << std::endl;
-    //fprintf(stderr, "%zu bytes allocated for %zu locks\n", mem_allocated, m_size);
   }
 
-  // This may be called multiple times, but it is not thread-safe!
+    // This may be called multiple times, but it is not thread-safe!
   // The use case is for an algorithm that has consecutive rounds with
   // parallelism (only) within each round.
-  void state::resize(size_t n)
+  void state::reserve(size_t n)
   {
-    m_size += n;
-    /* Unfortunately, this will initialize all the new elements, which
-     * is a waste. As with many STL classes, std::vector treats every
-     * user like a child, so it makes it a pain to avoid this. If it
-     * becomes a bottleneck, we will need some dirty hacks to avoid
-     * it. */
-    if (m_mode == RECORD)
-      m_all_acquires.resize(m_size);
-  }
-
-  size_t state::register_mutex(size_t local_id)
-  {
-    // We assume resize() was previously called.
-    size_t id = m_size - local_id - 1;
-    //m_active_size++;
-    assert(id < m_size);
-    if (m_mode == RECORD)
-      m_all_acquires[id] = new acquire_container();
-    return id;
-  }
-
-  size_t state::register_mutex()
-  {
-    size_t id = m_size++;
-    //m_active_size++;
-
-    if (m_mode == RECORD) {
-      m_all_acquires.emplace_back(new acquire_container());
-      assert(m_size == m_all_acquires.size());
+    if (m_mode == NONE) return;
+    else if (m_mode == REPLAY) {
+      m_curr_base_index = m_next_base_index;
+      m_next_base_index = m_curr_base_index + n;
+      return;
     }
-    
-    return id;
+
+    auto c = new achunk<CHUNK_TYPE>(n);
+    if (!m_first_chunk)
+      m_first_chunk = m_current_chunk = c;
+    else
+      m_current_chunk = m_current_chunk->next = c;
+
+    m_num_locks += n;
   }
 
-  acquire_container* state::get_acquires(size_t id)
+  CHUNK_TYPE* state::register_mutex()
   {
-    assert(id < m_size);
-    return m_all_acquires[id];
+    state::reserve(1);
+    return register_mutex(0);
   }
 
-  size_t state::unregister_mutex(size_t id, uint64_t num_acquires)
+  CHUNK_TYPE* state::register_mutex(size_t id)
   {
-    // This is a bit hacky, but we don't care until the size reaches 0.
-    //return --m_active_size;
-    m_num_acquires += num_acquires;
-    return 0;
+    if (m_mode == NONE) return nullptr;
+    return &m_current_chunk->data[id + m_curr_base_index];
   }
 
-  void reserve_locks(size_t n) { g_rr_state->resize(n); }
+  void state::unregister_mutex(size_t size)
+  {
+    //m_num_acquires += size;
+    if (m_mode == RECORD)
+      __sync_fetch_and_add(&m_num_acquires, size);
+  }
 
   /** Since the order of initialization between compilation units is
       undefined, we want to make sure the global cilkrr state is created

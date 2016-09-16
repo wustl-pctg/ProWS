@@ -6,17 +6,20 @@ if [[ $(sysctl vm.max_map_count | cut -d'=' -f2 | tr -d ' ') -lt 1000000 ]]; the
 fi
 trap "kill -- -$$" SIGINT
 
-: ${BENCH_LOG_FILE:=$HOME/tmp/log}
+: ${BENCH_LOG_FILE:=$HOME/tmp/bench.log}
 logfile=$BENCH_LOG_FILE
+tmplog=$HOME/tmp/.log
+rm -f $logfile $tmplog
+
 echo "********** Begin script: $(realpath $0) **********" >> $logfile
 
 MAXTIME="5m"
-CORES="1 2 4 8"
-BASE_ITER=1
-RECORD_ITER=1
-REPLAY_ITER=1
+CORES="1 2 4 8 12 16"
+BASE_ITER=3
+RECORD_ITER=3
+REPLAY_ITER=3
 
-bench=(fib cbt cilkfor)
+bench=(MIS)
 source config.sh
 
 errcheck () {
@@ -24,7 +27,7 @@ errcheck () {
     logname=$2
 
     if [[ $errcode -eq 0 ]]; then
-        tmp=$(grep "time" $logname | tr "=" ":" | cut -d':' -f 2 | cut -d' ' -f 2 | tr -d ' ')
+        tmp=$(grep "time" $logname | tr "=" ":" | tail -1 | cut -d':' -f 2 | cut -d' ' -f 2 | tr -d ' ')
         printf "%0.2f" "$tmp"
     else
         printf "\n[Error]:\n"
@@ -47,9 +50,9 @@ runcmd() {
         args="$4 $P"
     fi
 
-    cmd="CILKRR_MODE=$mode ./$name lock $args out $P"
+    cmd="CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args"
     echo "$cmd" >> $logfile
-    CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args &> log
+    CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args 2>&1 | tee -a $logfile &> $tmplog
     echo "------------------------------------------------------------" >> $logfile
 }
 
@@ -62,7 +65,7 @@ runreplay() {
         vals=()
         for i in $(seq $REPLAY_ITER); do
             runcmd "$P" "replay" "$name" "$args"
-            val=$(errcheck $? "log")
+            val=$(errcheck $? $tmplog)
             if [[ $? -ne 0 ]]; then
                 printf "Error\n"
                 exit 1
@@ -84,7 +87,8 @@ runall () {
     
     printf -- "--- $name $args ---\n"
     header_left="P\tbase\t\trecord"
-    printf "${header_left}\t\t\treplayP\n"
+    #printf "${header_left}\t\t\treplayP\n"
+    printf "${header_left}\t\t\tOverhead\n"
     printf "%${#header_left}s\t\t\t\t\t\t\t\t\t" | tr " " "=" | tr "\t" "====="
     for P in $CORES; do printf "\t\t$P"; done;
     printf "\n"
@@ -96,7 +100,7 @@ runall () {
         vals=()
         for i in $(seq $BASE_ITER); do
             runcmd "$P" "none" "$cmdname" "$args"
-            val=$(errcheck $? "log")
+            val=$(errcheck $? $tmplog)
             if [[ $? -ne 0 ]]; then
                 printf "Error\n"
                 exit 1
@@ -106,29 +110,31 @@ runall () {
         avg=$( echo ${vals[@]} | tr " " "\n" | datamash mean 1 | tr -s " ")
         stdev=$( echo ${vals[@]} | tr " " "\n" | datamash sstdev 1 | tr -s " ")
         printf "\t%.2f(%.2f)" "$avg" "$stdev"
+        base=$avg
 
 
         rm -f .recordtimes
         vals=()
         for i in $(seq $RECORD_ITER); do
             runcmd "$P" "record" "$cmdname" "$args"
-            val=$(errcheck $? "log")
+            val=$(errcheck $? $tmplog)
             if [[ $? -ne 0 ]]; then
                 printf "Error\n"
                 exit 1
             fi
             vals[$i]=$val
             printf "%.2f\t%d\n" "$val" "$i" >> .recordtimes
-            mv .cilkrecord .cilkrecord.$i
+            #mv .cilkrecord .cilkrecord.$i
         done
         avg=$( echo ${vals[@]} | tr " " "\n" | datamash mean 1 | tr -s " ")
         stdev=$( echo ${vals[@]} | tr " " "\n" | datamash sstdev 1 | tr -s " ")
         printf "\t%.2f(%.2f)" "$avg" "$stdev"
 
-        median=$(cat .recordtimes | sort | cut -f 2 | datamash median 1)
-        mv .cilkrecord.$median .cilkrecord
-        runreplay "$name" "$args"
-        mv .cilkrecord .cilkrecord-p$P
+        # median=$(cat .recordtimes | sort | cut -f 2 | datamash median 1)
+        # mv .cilkrecord.$median .cilkrecord
+        #runreplay "$name" "$args"
+        # mv .cilkrecord .cilkrecord-p$P
+        printf "\t%10.2f" $(echo "scale=2; $avg / $base" | bc)
         printf "\n"
     done
     printf "\n-------------------------"

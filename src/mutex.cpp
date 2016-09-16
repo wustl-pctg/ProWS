@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <iostream>
 #include <cassert>
+#include <cstring>
 
 #include <atomic>
 #define MEM_FENCE std::atomic_thread_fence(std::memory_order_seq_cst)
@@ -11,57 +12,41 @@
 #include <internal/abi.h>
 #include "cilk/cilk_api.h"
 
-#ifdef USE_LOCKSTAT
-struct spinlock_stat *the_sls_list = NULL;
-pthread_spinlock_t the_sls_lock;
-int the_sls_setup;
-#endif
-
 namespace cilkrr {
 
-  mutex::mutex()
+  void mutex::init()
   {
-#if STAGE > 1
-    m_id = g_rr_state->register_mutex();
-    if (get_mode() != NONE)
-      m_acquires = g_rr_state->get_acquires(m_id);
-#else
-    m_id = 0; // not sure if this works...
-#endif
-    
-#ifdef USE_LOCKSTAT
-    sls_init(&m_lock, m_id);
-#else
     pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
-#endif
-
   }
 
-  mutex::mutex(uint64_t index)
-  {
-#ifdef USE_LOCKSTAT
-    sls_init(&m_lock, index);
-#else
-    pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+  mutex::mutex()
+    //: m_acquires(new acquire_container(g_rr_state->register_mutex()))
+#ifndef ACQ_PTR
+  : m_acquires(g_rr_state->register_mutex())
 #endif
-
-#if STAGE > 1
-    m_id = g_rr_state->register_mutex(index);
-    if (get_mode() != NONE)
-      m_acquires = g_rr_state->get_acquires(m_id);
+  {
+    init();
+#ifdef ACQ_PTR
+    m_acquires = new (g_rr_state->register_mutex()) acquire_container();
+#endif
+  }
+  
+  mutex::mutex(uint64_t id)
+    //: m_acquires(new acquire_container(g_rr_state->register_mutex(id)))
+#ifndef ACQ_PTR
+  : m_acquires(g_rr_state->register_mutex(id))
+#endif
+  {
+    init();
+#ifdef ACQ_PTR
+    m_acquires = new (g_rr_state->register_mutex(id)) acquire_container();
 #endif
   }
 
   mutex::~mutex()
   {
-#ifdef USE_LOCKSTAT
-    sls_destroy(&m_lock);
-#else
     pthread_spin_destroy(&m_lock);
-#endif
-#if STAGE > 1
-    g_rr_state->unregister_mutex(m_id, m_num_acquires);
-#endif
+    g_rr_state->unregister_mutex(m_acquires.m_size);
   }
 
   inline void mutex::acquire()
@@ -69,7 +54,9 @@ namespace cilkrr {
 #ifdef DEBUG_ACQUIRE
     m_owner = __cilkrts_get_tls_worker();
 #endif
+#ifdef PORR_STATS
     m_num_acquires++;
+#endif
   }
   
   inline void mutex::release()
@@ -78,17 +65,11 @@ namespace cilkrr {
     m_owner = nullptr;
     m_active = nullptr;
 #endif
-
-#ifdef USE_LOCKSTAT
-    sls_unlock(&m_lock);
-#else
     pthread_spin_unlock(&m_lock);
-#endif
   }
 
   void mutex::lock()
   {
-#if STAGE > 0
     enum mode m = get_mode();
     pedigree_t p;
     if (m != NONE) p = get_pedigree();
@@ -96,32 +77,23 @@ namespace cilkrr {
     
     if (get_mode() == REPLAY) {
       // returns locked, but not acquired
+#ifdef ACQ_PTR
       replay_lock(m_acquires->find((const pedigree_t)p));
+#else
+      replay_lock(m_acquires.find((const pedigree_t)p));
+#endif
     } else {
-#ifdef USE_LOCKSTAT
-    sls_lock(&m_lock);
-#else
       pthread_spin_lock(&m_lock);
-#endif
     }
-#else
-    pthread_spin_lock(&m_lock);
-#endif
     acquire();
-#if STAGE > 1
     if (get_mode() == RECORD) record_acquire(p);
-#endif
   }
 
   bool mutex::try_lock()
   {
-    fprintf(stderr, "try_lock not implemented for CILKRR\n");
+    fprintf(stderr, "try_lock not implemented in this version of PORRidge!\n");
     std::abort();
-#ifdef USE_LOCKSTAT
-    sls_trylock(&m_lock);
-#else
     pthread_spin_trylock(&m_lock);
-#endif
   }
 
   void mutex::unlock()
@@ -134,7 +106,11 @@ namespace cilkrr {
 
   void mutex::record_acquire(pedigree_t& p)
   {
+#ifdef ACQ_PTR
     acquire_info *a = m_acquires->add(p);
+#else
+    acquire_info *a = m_acquires.add(p);
+#endif
 #ifdef DEBUG_ACQUIRE
     m_active = a;
 #endif
@@ -150,25 +126,22 @@ namespace cilkrr {
     a->suspended_deque = __cilkrts_get_deque();
     MEM_FENCE;
 
+#ifdef ACQ_PTR
     acquire_info *front = m_acquires->current();
+#else
+    acquire_info *front = m_acquires.current();
+#endif
     if (front == a) {
 
       while (m_checking) ;
       LOAD_FENCE;
       if (front->suspended_deque) {
         front->suspended_deque = nullptr;
-        //m_mutex.lock();
-#ifdef USE_LOCKSTAT
-        sls_lock(&m_lock);
-#else
         pthread_spin_lock(&m_lock);
-#endif
         return; // continue
       }
     }
-// #if STATS > 0
     LSTAT_INC(LSTAT_SUS);
-// #endif
     __cilkrts_suspend_deque();
   }
 
@@ -182,8 +155,15 @@ namespace cilkrr {
     
     void *deque = nullptr;
     m_checking = true;
+
+#ifdef ACQ_PTR
     m_acquires->next();
     acquire_info *front = m_acquires->current();
+#else
+    m_acquires.next();
+    acquire_info *front = m_acquires.current();
+#endif
+    
     MEM_FENCE;
 
     if (front && front->suspended_deque) {

@@ -6,11 +6,9 @@
 namespace cilkrr {
 
   // Initialize static thread locals
-  /// @todo{Try to allocate initial chunk?}
   __thread size_t acquire_container::t_index = 0;
   __thread acquire_container::chunk_t* acquire_container::t_first_chunk = nullptr;
   __thread acquire_container::chunk_t* acquire_container::t_current_chunk = nullptr;
-  //acquire_info* acquire_container::static_acquire = (acquire_info*) malloc(sizeof(acquire_info));
 
   std::string get_pedigree_str()
   {
@@ -51,12 +49,14 @@ namespace cilkrr {
     return out;
   }
 
-#ifndef ACQ_PTR
   acquire_container::acquire_container(acquire_info** start_ptr)
   {
     //return;
     enum mode m = g_rr_state->m_mode;
     if (m == NONE) return;
+
+    // m_size = m_index = 0;
+    // m_it = nullptr;
     
     acquire_info *first;
     if (m == RECORD) {
@@ -65,12 +65,14 @@ namespace cilkrr {
     } else {
       first = *start_ptr;
       m_size = first->full.length;
-      m_table = (acquire_info**)first->full.array;
+      //m_table = (acquire_info**)first->full.array;
       first = first->next;
+
+      // Using array to search
+      m_start = first;
     }
     m_it = first;
   }
-#endif
 
   // acquire_container::acquire_container(acquire_info *first, acquire_info *table)
   //   : m_it(first), m_table(table) {}
@@ -89,38 +91,55 @@ namespace cilkrr {
 
   acquire_info* acquire_container::find(const pedigree_t& p)
   {
+    //return nullptr
     size_t num_matches = 0;
     acquire_info* first_match = nullptr;
 
     // Simple search (use a->next in loop)
-    // acquire_info* it = m_it;
+    acquire_info* it = m_it;
 
     // Hash table search (use a->chain_next in loop)
-    acquire_info** debug = m_table;
-    acquire_info* it = m_table[p % m_size];
-    
-    for (acquire_info* a = it; a != nullptr; a = a->chain_next) {
+    // acquire_info** debug = m_table;
+    // acquire_info* it = m_table[p % m_size];
+
+    if (&m_start[m_index] != m_it) {
+      fprintf(stderr, "Error in find\n");
+    }
+
+    full_pedigree_t full;
+    for (acquire_info *a = &m_start[m_index]; a != &m_start[m_size]; ++a) {
+    // for (size_t i = m_index; i < m_size; ++i) {
+    //   acquire_info *a = &m_start[i];
+    // for (acquire_info* a = it; a != nullptr; a = a->next) {
       if (a->ped == p) {
-        if (num_matches++ == 0)
+        num_matches++;
+        if (num_matches == 1)
           first_match = a;
-        else
-          break;
+        else {
+          if (num_matches == 2)
+            full = get_full_pedigree();
+          if (a->full == full) {
+            free(full.array);
+            return a;
+          }
+        }
       }
     }
     if (num_matches == 0) {
       fprintf(stderr, "Error: %zu not found!\n", p);
       std::exit(1);
     }
-
-    if (num_matches > 1) {
-      full_pedigree_t full = get_full_pedigree();
-      for (acquire_info* a = first_match; a->next != nullptr; a = a->next) {
-        if (a->ped == p && a->full == full)
-          return a;
-        first_match = first_match->next;
-      }
-    }
     return first_match;
+
+    // if (num_matches > 1) {
+    //   full_pedigree_t full = get_full_pedigree();
+    //   for (acquire_info* a = first_match; a->next != nullptr; a = a->next) {
+    //     if (a->ped == p && a->full == full)
+    //       return a;
+    //     first_match = first_match->next;
+    //   }
+    // }
+    // return first_match;
       
   }
 
@@ -265,7 +284,7 @@ namespace cilkrr {
   {
     //if (m_num_buckets == 0) rehash(RESERVE_SIZE);
     //return static_acquire;
-
+  
     if (t_first_chunk == nullptr) {
       t_first_chunk = t_current_chunk = new chunk();
       assert(t_first_chunk);
@@ -278,10 +297,21 @@ namespace cilkrr {
       return &t_first_chunk->array[t_index++];
     }
 
+    // recycle
+    // if (t_index > t_current_chunk->size)
+    //   t_index = 0;
+
     acquire_info *a = &t_current_chunk->array[t_index++];
+
 
     size_t current_size = t_current_chunk->size;
     if (t_index >= current_size) {
+
+      // g_rr_state->m_output.write((const char*)t_current_chunk->array,
+      //                            sizeof(acquire_info)*current_size);
+      // free(t_current_chunk);
+      // t_current_chunk = new chunk();
+
       t_index = 0;
       if (current_size < MAX_CHUNK_SIZE)
         current_size *= 2;
@@ -291,7 +321,7 @@ namespace cilkrr {
       t_current_chunk->array = (acquire_info*)
         malloc(current_size * sizeof(acquire_info));
     }
-
+    
     return a;
     //return static_acquire;
   }
@@ -314,10 +344,11 @@ namespace cilkrr {
 
   acquire_info* acquire_container::add(pedigree_t p)
   {
-    acquire_info *a = new(new_acquire_info()) acquire_info(p);
-    // acquire_info *a = nullptr;
-    m_size++;
 
+    acquire_info *a = new(new_acquire_info()) acquire_info(p);
+    m_size++;
+    //acquire_info *a = new_acquire_info();
+  
 #if PTYPE == PARRAY
     a->full = get_full_pedigree();
 #else

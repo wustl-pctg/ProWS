@@ -26,7 +26,7 @@ namespace cilkrr {
     std::string str();
   private:
     std::string array_str();
-	} __attribute__((aligned (64)));
+	}; //__attribute__((aligned (64)));
 	std::ostream& operator<< (std::ostream &out, acquire_info s);
 
   static constexpr size_t RESERVE_SIZE  = 32;
@@ -46,9 +46,10 @@ namespace cilkrr {
       uint64_t m_filter_base[DEFAULT_FILTER_SIZE / bits_per_slot] = {0};
       uint64_t *m_filter;
       acquire_info** m_table;
+      acquire_info* m_start; // For array-based search
     };
     static constexpr size_t m_filter_size = DEFAULT_FILTER_SIZE;
-  
+    
 #if PTYPE == PARRAY    
     size_t hash(full_pedigree_t k);
 #endif
@@ -63,9 +64,10 @@ namespace cilkrr {
 /* #ifdef ACQ_PTR */
 /*     acquire_info *m_first = nullptr; */
 /* #endif */
-    acquire_info *m_it = nullptr;
+    /*union { */ acquire_info *m_it = nullptr;
     size_t m_size = 0; /// Is this necessary?
-
+    /*union { */ size_t m_index = 0;
+      
     typedef struct chunk {
       size_t size;
       acquire_info *array;
@@ -88,7 +90,9 @@ namespace cilkrr {
 #endif
 
     inline acquire_info* current() { return m_it; }
-    inline void next() { m_it = m_it->next; }
+
+    // The read of m_it is killing us during replay...
+    inline void next() { m_it = m_it->next; m_index++; }
 		
 		acquire_info* add(pedigree_t p); // for record
     acquire_info* add(pedigree_t p, full_pedigree_t full); // for replay

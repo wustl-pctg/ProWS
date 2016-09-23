@@ -13,6 +13,34 @@
 #define PTYPE PPRE
 #endif
 
+//#define USE_LOCKSTAT 1
+#ifdef USE_LOCKSTAT
+extern "C" {
+#include "lockstat.h"
+}
+extern struct spinlock_stat *the_sls_list;
+extern pthread_spinlock_t the_sls_lock;
+extern int the_sls_setup;
+
+typedef struct spinlock_stat base_lock_t;
+#define base_lock_init(l, id) sls_init(l, id)
+#define base_lock_destroy(l) sls_destroy(l)
+#define base_lock(l) sls_lock(l)
+#define base_trylock(l) sls_trylock(l)
+#define base_unlock(l) sls_unlock(l)
+
+#else
+typedef pthread_spinlock_t base_lock_t;
+#define base_lock_init(l, id) pthread_spin_init(l, PTHREAD_PROCESS_PRIVATE)
+#define base_lock_destroy(l) pthread_spin_destroy(l)
+#define base_lock(l) pthread_spin_lock(l)
+#define base_trylock(l) pthread_spin_trylock(l)
+#define base_unlock(l) pthread_spin_unlock(l)
+
+#endif
+
+
+
 /* #if PTYPE == PPRE */
 #define PRECOMPUTE_PEDIGREES 1
 /* #endif */

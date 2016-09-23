@@ -1,21 +1,11 @@
 #include <pthread.h>
 #include "cilkrr.h"
 
-#ifdef USE_LOCKSTAT
-extern "C" {
-#include "lockstat.h"
-}
-#endif
-
 namespace cilkrr {
 
   class mutex {
   private:
-#ifdef USE_LOCKSTAT
-    struct spinlock_stat m_lock;
-#else
-    pthread_spinlock_t m_lock;
-#endif
+    base_lock_t m_lock;
 
 #ifdef DEBUG_ACQUIRE
     __cilkrts_worker *m_owner = nullptr;
@@ -28,11 +18,8 @@ namespace cilkrr {
 
     // Record/Replay fields
     volatile bool m_checking = false; /// For handoff between acquires
-#ifdef ACQ_PTR
-    acquire_container* m_acquires;
-#else
     acquire_container m_acquires;
-#endif
+    /* char pad[32]; */
             
     void record_acquire(pedigree_t& p);
     void replay_lock(acquire_info *a);
@@ -40,7 +27,7 @@ namespace cilkrr {
 
     inline void acquire();
     inline void release();
-    inline void init();
+    inline void init(uint64_t id);
 
   public:
     mutex();
@@ -51,6 +38,6 @@ namespace cilkrr {
     void unlock();
     bool try_lock();
 
-  } __attribute__((aligned(64)));
+  };// __attribute__((aligned(64)));
 
 }

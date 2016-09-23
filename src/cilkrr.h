@@ -4,6 +4,7 @@
 #include <string>
 #include <atomic>
 #include <limits>
+#include <fstream>
 
 #include "util.h"
 #include "acquire.h"
@@ -47,6 +48,7 @@ namespace cilkrr {
     uint64_t m_num_acquires = 0;
 
 	public:
+    //std::ofstream m_output;
 		enum mode m_mode = NONE;
 
 		state();

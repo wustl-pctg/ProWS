@@ -11,11 +11,10 @@
 #include <internal/abi.h>
 
 #ifdef USE_LOCKSTAT
-extern "C" {
-    #include "lockstat.h"
-}
+struct spinlock_stat *the_sls_list = NULL;
+pthread_spinlock_t the_sls_lock;
+int the_sls_setup;
 #endif
-
 
 namespace cilkrr {
 
@@ -133,6 +132,7 @@ namespace cilkrr {
     std::string mode = env;
     if (mode == "record") {
       m_mode = RECORD;
+      //m_output.open(m_filename);
       return;
     } else if (mode != "replay") {
       return;
@@ -249,6 +249,7 @@ namespace cilkrr {
     // Write out # locks and acquires
     output << m_num_locks << std::endl;
     output << m_num_acquires << std::endl;
+    size_t global_index = 0;
 
     achunk<CHUNK_TYPE> *c = m_first_chunk;
     while (c) {
@@ -257,7 +258,7 @@ namespace cilkrr {
         // @TODO{Figure out how to write the number of acquires for
         // this lock...but is this necessary?}
         //output << "{" << i << ":" << cont->size() << std::endl;
-        output << "{" << std::endl;
+        output << "{" << global_index++ << std::endl;
 
 #ifdef ACQ_PTR
         //acquire_info *a = c->data[i].m_first;

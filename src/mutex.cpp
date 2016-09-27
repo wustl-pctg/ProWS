@@ -86,7 +86,7 @@ namespace cilkrr {
 
   void mutex::record_acquire(pedigree_t& p)
   {
-    //acquire_info *a = m_acquires.add(p);
+    acquire_info *a = m_acquires.add(p);
 #ifdef DEBUG_ACQUIRE
     m_active = a;
 #endif

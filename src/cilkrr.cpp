@@ -316,8 +316,8 @@ namespace cilkrr {
   void state::unregister_mutex(size_t size)
   {
     //m_num_acquires += size;
-    if (m_mode == RECORD)
-      __sync_fetch_and_add(&m_num_acquires, size);
+    // if (m_mode == RECORD)
+    //   __sync_fetch_and_add(&m_num_acquires, size);
   }
 
   /** Since the order of initialization between compilation units is

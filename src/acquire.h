@@ -29,7 +29,7 @@ namespace cilkrr {
 	}; //__attribute__((aligned (64)));
 	std::ostream& operator<< (std::ostream &out, acquire_info s);
 
-  static constexpr size_t RESERVE_SIZE  = 32;
+  static constexpr size_t RESERVE_SIZE  = 128;
   static constexpr size_t MAX_CHUNK_SIZE = (1L << 25);
 
 	class acquire_container {
@@ -96,7 +96,6 @@ namespace cilkrr {
 		
 		acquire_info* add(pedigree_t p); // for record
     acquire_info* add(pedigree_t p, full_pedigree_t full); // for replay
-		acquire_info* find_first(const pedigree_t& p);
     // acquire_info* bucket_find(acquire_info **const bucket, const pedigree_t& p);
 
     acquire_info* find(const pedigree_t& p);

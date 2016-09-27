@@ -196,48 +196,6 @@ namespace cilkrr {
 
   // }
 
-  acquire_info* acquire_container::find_first(const pedigree_t& p)
-  {
-#if STAGE < 3
-    return nullptr;
-#endif
-    return nullptr;
-    //return bucket_find(&m_buckets[hash(p)], p);
-  }
-  
-  // acquire_info* acquire_container::find(const pedigree_t& p,
-  //                                       const full_pedigree_t &full)
-  // {
-  //   acquire_info *current = find_first(p);
-
-  //   while (current) {
-  //     if (current->ped == p && current->full == full)
-  //       return current;
-  //     current = current->chain_next;
-  //   }
-
-  //   // Not found!!
-  //   current = new acquire_info(p, full);
-  //   fprintf(stderr, "Cilkrecord error: can't find pedigree %s\n",
-  //           current->str().c_str());
-  //   std::abort();
-  // }
-
-  // void acquire_container::print(std::ofstream& output)
-  // {
-  //   acquire_info *a = m_first;
-  //   while (a) {
-  //     output << "\t" << *a << std::endl;
-  //     a = a->next;
-  //   }
-  // }
-  
-  // void acquire_container::bucket_add(acquire_info** bucket, acquire_info* item)
-  // {
-  //   item->chain_next = *bucket;
-  //   *bucket = item;
-  // }
-
   // void acquire_container::rehash(size_t new_cap)
   // {
   //   if (new_cap <= m_num_buckets) return;
@@ -320,6 +278,12 @@ namespace cilkrr {
       t_current_chunk->next = nullptr;
       t_current_chunk->array = (acquire_info*)
         malloc(current_size * sizeof(acquire_info));
+
+      // Touch pages (perf. debugging)
+      // int num_pages = (current_size * sizeof(acquire_info)) / 4096;
+      // int incr = 4096 / sizeof(acquire_info);
+      // for (int i = 0; i < num_pages; ++i)
+      //   new(&t_current_chunk->array[i * incr]) acquire_info(0);
     }
     
     return a;
@@ -346,8 +310,9 @@ namespace cilkrr {
   {
 
     acquire_info *a = new(new_acquire_info()) acquire_info(p);
-    m_size++;
     //acquire_info *a = new_acquire_info();
+    m_size++;
+
   
 #if PTYPE == PARRAY
     a->full = get_full_pedigree();

@@ -1,6 +1,6 @@
 include ../common.mk
 
-OBJ = mutex.o cilkrr.o acquire.o
+OBJ = mutex.o porr.o acquire.o
 .SECONDARY: $(OBJ)
 
 .PHONY: default

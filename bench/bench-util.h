@@ -1,7 +1,7 @@
 #ifdef PORR
-#include <cilkrr.h>
+#include <porr.h>
 #include <mutex.h>
-typedef cilkrr::mutex lock_t;
+typedef porr::mutex lock_t;
 #else 
 #include <pthread.h>
 typedef pthread_spinlock_t lock_t;
@@ -9,7 +9,7 @@ typedef pthread_spinlock_t lock_t;
 
 inline void lock_init(lock_t *l, int i) {
 #ifdef PORR                                                                   
-    new (l) cilkrr::mutex(i);                                              
+    new (l) porr::mutex(i);                                              
 #else                                                                           
     if( pthread_spin_init(l, PTHREAD_PROCESS_PRIVATE) ) {
         fprintf(stderr, "Error initializing lock!  Exit.\n");

@@ -11,7 +11,7 @@ CXX = $(COMPILER_DIR)/bin/clang++
 
 ifeq ($(PORR), 1)
     PORR_CFLAGS = -DPORR -fcilk-no-inline
-    PORR_LIBS = $(PORR_INSTALL)/libcilkrr.a
+    PORR_LIBS = $(PORR_INSTALL)/libporr.a
 else 
     PORR_CFLAGS = -fcilk-no-inline
 endif

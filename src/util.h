@@ -110,7 +110,7 @@ namespace porr {
 		REPLAY,
 	};
 
-	enum mode cilkrr_mode();
+	enum mode porr_mode();
 }
 
 #endif // ifndef _UTIL_H

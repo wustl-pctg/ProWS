@@ -234,7 +234,7 @@ namespace porr {
     if (m_mode != RECORD) return;
 
     fprintf(stderr, "Base lock size: %lu\n", sizeof(pthread_spinlock_t));
-    fprintf(stderr, "PORR mutex size: %lu\n", sizeof(cilkrr::mutex));
+    fprintf(stderr, "PORR mutex size: %lu\n", sizeof(porr::mutex));
     fprintf(stderr, "Acquire container size: %lu\n", sizeof(acquire_container));
     fprintf(stderr, "Acquire info size: %lu\n", sizeof(acquire_info));
     fprintf(stderr, "Locks: %lu\n", m_num_locks);
@@ -321,7 +321,7 @@ namespace porr {
   }
 
   /** Since the order of initialization between compilation units is
-      undefined, we want to make sure the global cilkrr state is created
+      undefined, we want to make sure the global porr state is created
       before everything else and destroyed after everything else. 
 
       I also need to use a pointer to the global state; otherwise the
@@ -345,9 +345,9 @@ namespace porr {
 
 #endif
 
-  __attribute__((constructor(101))) void cilkrr_init(void)
+  __attribute__((constructor(101))) void porr_init(void)
   {
-    cilkrr::g_rr_state = new cilkrr::state();
+    porr::g_rr_state = new porr::state();
 #ifdef USE_LOCKSTAT
     sls_setup();
 #endif    
@@ -364,7 +364,7 @@ namespace porr {
 #endif
   }
 
-  __attribute__((destructor(101))) void cilkrr_deinit(void)
+  __attribute__((destructor(101))) void porr_deinit(void)
   {
 #ifdef USE_LOCKSTAT
     // sls_print_stats();
@@ -395,11 +395,11 @@ namespace porr {
     for (int i = 0; i < NUM_LOCAL_STATS; ++i)
       printf("%s: %lu\n", t_stat_strings[i], accum[i]);
 
-    __cilkrts_dump_cilkrr_stats(stdout);
+    __cilkrts_dump_porr_stats(stdout);
 
 #endif
 
-    delete cilkrr::g_rr_state;
+    delete porr::g_rr_state;
   }
 }
 

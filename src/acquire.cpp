@@ -12,7 +12,7 @@ namespace porr {
 
   std::string get_pedigree_str()
   {
-    acquire_info tmp = acquire_info(cilkrr::get_pedigree());
+    acquire_info tmp = acquire_info(porr::get_pedigree());
     return tmp.str();
   }
 

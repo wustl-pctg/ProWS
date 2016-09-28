@@ -1,7 +1,7 @@
 #include <pthread.h>
 #include "porr.h"
 
-namespace cilkrr {
+namespace porr {
 
   class mutex {
   private:

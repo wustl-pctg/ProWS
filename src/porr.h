@@ -9,7 +9,7 @@
 #include "util.h"
 #include "acquire.h"
 
-namespace cilkrr {
+namespace porr {
   
 	class state {
 	private:

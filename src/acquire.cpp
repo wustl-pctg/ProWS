@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <fstream>
 
-namespace cilkrr {
+namespace porr {
 
   // Initialize static thread locals
   __thread size_t acquire_container::t_index = 0;

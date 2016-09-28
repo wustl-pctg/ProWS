@@ -35,23 +35,23 @@ static inline void sls_init(struct spinlock_stat *lock, uint64_t id)
 
 	assert(the_sls_setup);
 
-        lock->m_id = id;
+  lock->m_id = id;
 	lock->contend = 0UL;
 	lock->acquire = 0UL;
 	lock->wait = 0UL;
 	lock->held = 0UL;
-        lock->next = NULL;
+  lock->next = NULL;
 
 	lock->slock = 0;
 	// pthread_spin_init(&(lock->my_lock), PTHREAD_PROCESS_PRIVATE);
 
-        /*
-	for (l = the_sls_list; l; l = l->next) {
+  /*
+    for (l = the_sls_list; l; l = l->next) {
 		if (l == lock) {
-			pthread_spin_unlock(&the_sls_lock);
-			return;
+    pthread_spin_unlock(&the_sls_lock);
+    return;
 		}
-	} */
+    } */
 	pthread_spin_lock(&the_sls_lock);
 	lock->next = the_sls_list;
 	the_sls_list = lock;
@@ -60,22 +60,22 @@ static inline void sls_init(struct spinlock_stat *lock, uint64_t id)
 
 static inline void sls_destroy(struct spinlock_stat *lock)
 {
-/*
-	struct spinlock_stat *l, *p;
-	p = 0;
-	pthread_spin_lock(&the_sls_lock);
-	for (l = the_sls_list; l; l = l->next) {
+  /*
+    struct spinlock_stat *l, *p;
+    p = 0;
+    pthread_spin_lock(&the_sls_lock);
+    for (l = the_sls_list; l; l = l->next) {
 		if (l == lock) {
-			if (p)
-				p->next = l->next;
-			else
-				the_sls_list = l->next;
-			break;
+    if (p)
+    p->next = l->next;
+    else
+    the_sls_list = l->next;
+    break;
 		}
 		p = l;
-	}
-	pthread_spin_unlock(&the_sls_lock);
-*/
+    }
+    pthread_spin_unlock(&the_sls_lock);
+  */
 }
 
 /* Upon success lock acquire, returns nonzero */
@@ -84,20 +84,20 @@ static inline int __sls_trylock(struct spinlock_stat *lock)
 	int tmp, new_v;
 
 	asm volatile("movzwl %2, %0\n\t"
-		     "cmpb %h0,%b0\n\t"
-		     "leal 0x100(%q0), %1\n\t"
-		     "jne 1f\n\t"
-		     "lock; cmpxchgw %w1,%2\n\t"
-		     "1:"
-		     "sete %b1\n\t"
-		     "movzbl %b1,%0\n\t"
-		     : "=&a" (tmp), "=&q" (new_v), "+m" (lock->slock)
-		     :
-		     : "memory", "cc");
+               "cmpb %h0,%b0\n\t"
+               "leal 0x100(%q0), %1\n\t"
+               "jne 1f\n\t"
+               "lock; cmpxchgw %w1,%2\n\t"
+               "1:"
+               "sete %b1\n\t"
+               "movzbl %b1,%0\n\t"
+               : "=&a" (tmp), "=&q" (new_v), "+m" (lock->slock)
+               :
+               : "memory", "cc");
 
 	return tmp;
 
-        // return (pthread_spin_trylock(&(lock->my_lock)) == 0);
+  // return (pthread_spin_trylock(&(lock->my_lock)) == 0);
 }
 
 static inline void sls_lock(struct spinlock_stat *lock)
@@ -114,26 +114,26 @@ static inline void sls_lock(struct spinlock_stat *lock)
 	start = sls_read_tsc();
        
 	asm volatile (
-		"lock; xaddw %w0, %1\n"
-		"1:\t"
-		"cmpb %h0, %b0\n\t"
-		"je 2f\n\t"
-		"rep ; nop\n\t"
-		"movb %1, %b0\n\t"
-		// don't need lfence here, because loads are in-order 
-		"jmp 1b\n"
-		"2:"
-		: "+Q" (inc), "+m" (lock->slock)
-		:
-		: "memory", "cc");
+                "lock; xaddw %w0, %1\n"
+                "1:\t"
+                "cmpb %h0, %b0\n\t"
+                "je 2f\n\t"
+                "rep ; nop\n\t"
+                "movb %1, %b0\n\t"
+                // don't need lfence here, because loads are in-order 
+                "jmp 1b\n"
+                "2:"
+                : "+Q" (inc), "+m" (lock->slock)
+                :
+                : "memory", "cc");
         
-        /*
-        int ret = 0;
-        do {
-            ret = pthread_spin_trylock(&(lock->my_lock));
-        } while( ret == EBUSY );
-        assert(ret == 0); // if reach here, we should have the lock
-        */
+  /*
+    int ret = 0;
+    do {
+    ret = pthread_spin_trylock(&(lock->my_lock));
+    } while( ret == EBUSY );
+    assert(ret == 0); // if reach here, we should have the lock
+  */
 
 	lock->contend++;
 	lock->acquire++;
@@ -157,13 +157,13 @@ static inline void sls_unlock(struct spinlock_stat *lock)
 	lock->held = sls_read_tsc() - lock->held_start;
 
 	asm volatile("incb %0"
-		     : "+m" (lock->slock)
-		     :
-		     : "memory", "cc");
-        /*
-        int ret = pthread_spin_unlock(&(lock->my_lock));
-        assert(ret == 0);
-        */
+               : "+m" (lock->slock)
+               :
+               : "memory", "cc");
+  /*
+    int ret = pthread_spin_unlock(&(lock->my_lock));
+    assert(ret == 0);
+  */
 }
 
 void sls_setup(void);

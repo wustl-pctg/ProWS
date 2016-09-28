@@ -12,7 +12,7 @@
 #include <internal/abi.h>
 #include "cilk/cilk_api.h"
 
-namespace cilkrr {
+namespace porr {
 
   void mutex::init(uint64_t id) { base_lock_init(&m_lock, id); }
 

@@ -57,7 +57,7 @@ typedef pthread_spinlock_t base_lock_t;
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
-namespace cilkrr {
+namespace porr {
 
 #if STATS > 0
   enum g_stat_names {};

@@ -5,7 +5,7 @@
 
 #include "util.h"
 
-namespace cilkrr {
+namespace porr {
 
 	std::string get_pedigree_str();
 

@@ -16,7 +16,7 @@ pthread_spinlock_t the_sls_lock;
 int the_sls_setup;
 #endif
 
-namespace cilkrr {
+namespace porr {
 
   void reserve_locks(size_t n) { g_rr_state->reserve(n); }
 

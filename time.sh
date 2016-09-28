@@ -51,114 +51,114 @@ runcmd() {
 printf "Running %s %d, P=%d, %d iterations \n" $PROG $N $P $ITER
 
 #clean
-base=$(runcmd $ITER $N $P "CILKRR_MODE=none")
+base=$(runcmd $ITER $N $P "PORR_MODE=none")
 printf "Base: %f\n" $base
 
-record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+record=$(runcmd $ITER $N $P "PORR_MODE=record")
 printf "Record: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=0 -DIMETHOD=0'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Call only: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=1 -DIMETHOD=0'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Walk only: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=2 -DIMETHOD=0'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Array,none: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=2 -DIMETHOD=1 -DUSE_STL=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Array,STL list: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=2 -DIMETHOD=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Array,LL: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=2 -DIMETHOD=2'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Array,CLL: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=2 -DIMETHOD=2 -DRESERVE_SIZE=$RESERVE'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Array,CLL,reserve: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=0'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,none: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=2'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,CLL only: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,STL hash: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1 -DRESERVE_SIZE=$RESERVE'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,STL hash, reserve: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1 -DCONFLICT_CHECK=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,STL hash,conflict: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=3 -DUSE_STL=1 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,STL hash, reserve, conflict: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=5'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,Mixed: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=5 -DRESERVE_SIZE=$RESERVE'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,Mixed, reserve: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=5 -DCONFLICT_CHECK=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,Mixed,conflict: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=5 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,Mixed, reserve, conflict: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=4'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,myhash: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,myhash,reserve: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=4 -DCONFLICT_CHECK=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,myhash-conflict: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=3 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Dot,myhash-conflict,reserve: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=4 -DIMETHOD=0 -DPRECOMPUTE_PEDIGREES=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Pre,none: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DPRECOMPUTE_PEDIGREES=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Pre,myhash: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE -DPRECOMPUTE_PEDIGREES=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Pre,myhash,reserve: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DCONFLICT_CHECK=1 -DPRECOMPUTE_PEDIGREES=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Pre,myhash-conflict: %f\n" $record
 
 # clean "PARAMS='-DPTYPE=4 -DIMETHOD=4 -DRESERVE_SIZE=$RESERVE -DCONFLICT_CHECK=1 -DPRECOMPUTE_PEDIGREES=1'"
-# record=$(runcmd $ITER $N $P "CILKRR_MODE=record")
+# record=$(runcmd $ITER $N $P "PORR_MODE=record")
 # printf "Pre,myhash-conflict,reserve: %f\n" $record
 
 unset PROG

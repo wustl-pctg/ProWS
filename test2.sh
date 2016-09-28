@@ -64,12 +64,12 @@ function showstatus() {
 # 1=n, 2=recordp, 3=replayp
 function runcmd() {
 
-		cmd="CILK_NWORKERS=$3 PORR_MODE=replay timeout --signal=SIGSTOP ${maxtime}s ./fib $1"
-		msg="fib($1) recorded with $2 workers, replayed with $3 workers"
+		cmd="CILK_NWORKERS=$3 PORR_MODE=replay timeout --signal=SIGSTOP ${maxtime}s ./cilkfor $1"
+		msg="cilkfor($1) recorded with $2 workers, replayed with $3 workers"
 		suffix=""
 		if [[ "$verbose" -eq 0 ]]; then
-				echo $msg > .log
-				suffix=" >> .log 2>&1"
+				echo $msg > log
+				suffix=" >> log 2>&1"
 		fi
 		eval $cmd $suffix
 		res=$?
@@ -86,31 +86,31 @@ function runcmd() {
 		fi
 }
 
-make fib
+make cilkfor
 rm -f core
 
 status=""
 for n in `seq $STARTN $ENDN`; do
-		status="fib($n):"
+		status="cilkfor($n):"
 		for recordp in `seq 1 8`; do
 				for i in `seq 1 $NUM_RECORDS`; do
 						showstatus
-						CILK_NWORKERS=$recordp PORR_MODE=record ./fib $n >& .log
+						CILK_NWORKERS=$recordp PORR_MODE=record ./cilkfor $n >& log
 						if [[ $? -ne 0 ]]; then
 								echo "Problem with record!"
 								exit 1
 						fi
 						for replayp in `seq 1 8`; do
 								for j in `seq 1 $ITER_PER_RECORD`; do
-                    status="\rfib($n), recordp=${recordp}-${i}, replayp=$replayp, iter=$j / $ITER_PER_RECORD"
+                    status="\rcilkfor($n), recordp=${recordp}-${i}, replayp=$replayp, iter=$j / $ITER_PER_RECORD"
 								    showstatus
 										runcmd $n $recordp $replayp
 								done
-                status="fib($n), recordp=${recordp}-${i}, replayp=$replayp"
+                status="cilkfor($n), recordp=${recordp}-${i}, replayp=$replayp"
 								showstatus
 						done
 				done
 		done
 		clearline
-		printf "\rDone with fib($n)\n"
+		printf "\rDone with cilkfor($n)\n"
 done

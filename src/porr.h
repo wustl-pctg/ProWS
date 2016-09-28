@@ -25,12 +25,6 @@ namespace porr {
       { data = (T*) malloc(sizeof(T) * size); }
     };
 
-#ifdef ACQ_PTR
-#define CHUNK_TYPE acquire_container
-#else
-#define CHUNK_TYPE acquire_info*
-#endif
-    
     achunk<CHUNK_TYPE> *m_current_chunk = nullptr;
     union {
       achunk<CHUNK_TYPE> *m_first_chunk; // recording only

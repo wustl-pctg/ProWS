@@ -30,9 +30,9 @@ runcmd() {
     mode=$2
     name=$3
     args=$4
-    str="CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args &> .log"
+    str="CILK_NWORKERS=$P PORR_MODE=$mode ./$name $args &> .log"
     # printf "$str --- "
-    CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args &> .log
+    CILK_NWORKERS=$P PORR_MODE=$mode ./$name $args &> .log
 }
 
 runall () {

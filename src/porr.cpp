@@ -122,11 +122,11 @@ namespace porr {
     __cilkrts_set_param("ped seed", "0");
 
     m_filename = ".cilkrecord";
-    env = std::getenv("CILKRR_FILE");
+    env = std::getenv("PORR_FILE");
     if (env) m_filename = env;
 
 
-    env = std::getenv("CILKRR_MODE");
+    env = std::getenv("PORR_MODE");
     if (!env) return;
     
     std::string mode = env;

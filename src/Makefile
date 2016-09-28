@@ -1,6 +1,6 @@
 include ../common.mk
 
-OBJ = mutex.o porr.o acquire.o
+OBJ = spinlock.o porr.o acquire.o
 .SECONDARY: $(OBJ)
 
 .PHONY: default

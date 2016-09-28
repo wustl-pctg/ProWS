@@ -1,4 +1,4 @@
-#include "mutex.h"
+#include "spinlock.h"
 #include <cstdio>
 #include <iostream>
 #include <cassert>
@@ -14,27 +14,27 @@
 
 namespace porr {
 
-  void mutex::init(uint64_t id) { base_lock_init(&m_lock, id); }
+  void spinlock::init(uint64_t id) { base_lock_init(&m_lock, id); }
 
-  mutex::mutex()
-  : m_acquires(g_rr_state->register_mutex())
+  spinlock::spinlock()
+  : m_acquires(g_rr_state->register_spinlock())
   {
     init(0); // not correct
   }
   
-  mutex::mutex(uint64_t id)
-   : m_acquires(g_rr_state->register_mutex(id))
+  spinlock::spinlock(uint64_t id)
+   : m_acquires(g_rr_state->register_spinlock(id))
   {
     init(id);
   }
 
-  mutex::~mutex()
+  spinlock::~spinlock()
   {
     base_lock_destroy(&m_lock);
-    g_rr_state->unregister_mutex(m_acquires.m_size);
+    g_rr_state->unregister_spinlock(m_acquires.m_size);
   }
 
-  inline void mutex::acquire()
+  inline void spinlock::acquire()
   {
 #ifdef DEBUG_ACQUIRE
     m_owner = __cilkrts_get_tls_worker();
@@ -44,7 +44,7 @@ namespace porr {
 #endif
   }
   
-  inline void mutex::release()
+  inline void spinlock::release()
   {
 #ifdef DEBUG_ACQUIRE
     m_owner = nullptr;
@@ -53,7 +53,7 @@ namespace porr {
     base_unlock(&m_lock);
   }
 
-  void mutex::lock()
+  void spinlock::lock()
   {
     enum mode m = get_mode();
     pedigree_t p;
@@ -69,14 +69,14 @@ namespace porr {
     if (get_mode() == RECORD) record_acquire(p);
   }
 
-  bool mutex::try_lock()
+  bool spinlock::try_lock()
   {
     fprintf(stderr, "try_lock not implemented in this version of PORRidge!\n");
     std::abort();
     base_trylock(&m_lock);
   }
 
-  void mutex::unlock()
+  void spinlock::unlock()
   {
     if (get_mode() == REPLAY) replay_unlock();
     else release();
@@ -84,7 +84,7 @@ namespace porr {
       __cilkrts_bump_worker_rank();
   }
 
-  void mutex::record_acquire(pedigree_t& p)
+  void spinlock::record_acquire(pedigree_t& p)
   {
     acquire_info *a = m_acquires.add(p);
 #ifdef DEBUG_ACQUIRE
@@ -92,7 +92,7 @@ namespace porr {
 #endif
   }
 
-  void mutex::replay_lock(acquire_info* a)
+  void spinlock::replay_lock(acquire_info* a)
   {
     // perf debug
     // pthread_spin_lock(&m_lock);
@@ -118,7 +118,7 @@ namespace porr {
     __cilkrts_suspend_deque();
   }
 
-  void mutex::replay_unlock()
+  void spinlock::replay_unlock()
   {
     // for performance debugging
     // m_acquires.next();

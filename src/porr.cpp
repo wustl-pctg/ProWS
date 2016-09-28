@@ -6,7 +6,7 @@
 #include <cstring> // memset
 
 #include "porr.h"
-#include "mutex.h"
+#include "spinlock.h"
 
 #include <internal/abi.h>
 
@@ -234,7 +234,7 @@ namespace porr {
     if (m_mode != RECORD) return;
 
     fprintf(stderr, "Base lock size: %lu\n", sizeof(pthread_spinlock_t));
-    fprintf(stderr, "PORR mutex size: %lu\n", sizeof(porr::mutex));
+    fprintf(stderr, "PORR spinlock size: %lu\n", sizeof(porr::spinlock));
     fprintf(stderr, "Acquire container size: %lu\n", sizeof(acquire_container));
     fprintf(stderr, "Acquire info size: %lu\n", sizeof(acquire_info));
     fprintf(stderr, "Locks: %lu\n", m_num_locks);
@@ -301,19 +301,19 @@ namespace porr {
     m_num_locks += n;
   }
 
-  CHUNK_TYPE* state::register_mutex()
+  CHUNK_TYPE* state::register_spinlock()
   {
     state::reserve(1);
-    return register_mutex(0);
+    return register_spinlock(0);
   }
 
-  CHUNK_TYPE* state::register_mutex(size_t id)
+  CHUNK_TYPE* state::register_spinlock(size_t id)
   {
     if (m_mode == NONE) return nullptr;
     return &m_current_chunk->data[id + m_curr_base_index];
   }
 
-  void state::unregister_mutex(size_t size)
+  void state::unregister_spinlock(size_t size)
   {
     //m_num_acquires += size;
     // if (m_mode == RECORD)

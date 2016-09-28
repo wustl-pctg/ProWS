@@ -55,9 +55,9 @@ namespace porr {
 		~state();
 		void reserve(size_t n);
     
-		CHUNK_TYPE* register_mutex(); // For individual, sequentially allocated spinlocks
-    CHUNK_TYPE* register_mutex(size_t id); // For batches of spinlocks
-    void unregister_mutex(size_t size);
+		CHUNK_TYPE* register_spinlock(); // For individual, sequentially allocated spinlocks
+    CHUNK_TYPE* register_spinlock(size_t id); // For batches of spinlocks
+    void unregister_spinlock(size_t size);
 
 	};
 	extern state *g_rr_state;

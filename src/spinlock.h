@@ -3,7 +3,7 @@
 
 namespace porr {
 
-  class mutex {
+  class spinlock {
   private:
     base_lock_t m_lock;
 
@@ -30,9 +30,9 @@ namespace porr {
     inline void init(uint64_t id);
 
   public:
-    mutex();
-    mutex(uint64_t index);
-    ~mutex();
+    spinlock();
+    spinlock(uint64_t index);
+    ~spinlock();
 
     void lock();
     void unlock();

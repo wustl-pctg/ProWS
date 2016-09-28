@@ -50,9 +50,9 @@ runcmd() {
         args="$4 $P"
     fi
 
-    cmd="CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args"
+    cmd="CILK_NWORKERS=$P PORR_MODE=$mode ./$name $args"
     echo "$cmd" >> $logfile
-    CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args 2>&1 | tee -a $logfile &> $tmplog
+    CILK_NWORKERS=$P PORR_MODE=$mode ./$name $args 2>&1 | tee -a $logfile &> $tmplog
     echo "------------------------------------------------------------" >> $logfile
 }
 

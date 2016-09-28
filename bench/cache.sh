@@ -65,7 +65,7 @@ runcmd() {
     fi
     # hack
     SOCKETS=0x01
-    CILK_NWORKERS=$P CILKRR_MODE=$mode taskset $SOCKETS ./$name $args &> log
+    CILK_NWORKERS=$P PORR_MODE=$mode taskset $SOCKETS ./$name $args &> log
     args=$oldargs
 }
 

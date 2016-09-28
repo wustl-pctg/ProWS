@@ -13,7 +13,7 @@ ITER=5
 CORES="1"
 
 #refine MIS matching BFS chess dedup ferret
-bench=(cbt cilkfor fib)
+bench=(fib)
 basedir=../src
 source config.sh
 
@@ -45,10 +45,10 @@ runcmd() {
     if [[ $name =~ "run.sh" ]]; then
         args="$args out $P"
     fi
-    cmd="CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args"
+    cmd="CILK_NWORKERS=$P PORR_MODE=$mode ./$name $args"
     echo "$cmd" >> $logfile
     
-    CILK_NWORKERS=$P CILKRR_MODE=$mode ./$name $args 2>&1 | tee -a $logfile &> .log
+    CILK_NWORKERS=$P PORR_MODE=$mode ./$name $args 2>&1 | tee -a $logfile &> .log
     echo "------------------------------------------------------------" >> $logfile
 }
 

@@ -22,32 +22,32 @@ makecmds["ferret"]="make"
 dirs["chess"]="${testdir}/chess"
 args["chess"]=""
 cmdnames["chess"]="chess-cover-locking"
-makecmds["chess"]="../../make CILK=1 CILKRR=1"
+makecmds["chess"]="../../make CILK=1 PORR=1"
 
 dirs["dict"]="${testdir}/pbbs/dictionary/lockingHash"
 args["dict"]="-r 1 ../sequenceData/data/randomSeq_100000_1000_int "
 cmdnames["dict"]="dict"
-makecmds["dict"]="make CILK=1 CILKRR=1"
+makecmds["dict"]="make CILK=1 PORR=1"
 
 dirs["MIS"]="${testdir}/pbbs/maximalIndependentSet/lockingMIS"
 args["MIS"]="-r 1 ../graphData/data/randLocalGraph_J_5_10000"
 cmdnames["MIS"]="MIS"
-makecmds["MIS"]="make CILK=1 CILKRR=1"
+makecmds["MIS"]="make CILK=1 PORR=1"
 
 dirs["matching"]="${testdir}/pbbs/maximalMatching/lockingMatching"
 args["matching"]="-r 1 ../graphData/data/randLocalGraph_E_5_10000"
 cmdnames["matching"]="matching"
-makecmds["matching"]="make CILK=1 CILKRR=1"
+makecmds["matching"]="make CILK=1 PORR=1"
 
 dirs["BFS"]="${testdir}/pbbs/breadthFirstSearch/lockingBFS"
 args["BFS"]="-r 1 ../graphData/data/randLocalGraph_J_5_10000"
 cmdnames["BFS"]="BFS"
-makecmds["BFS"]="make CILK=1 CILKRR=1"
+makecmds["BFS"]="make CILK=1 PORR=1"
 
 dirs["refine"]="${testdir}/pbbs/delaunayRefine/lockingRefine"
 args["refine"]="-r 1 ../geometryData/data/2DinCubeDelaunay_10000"
 cmdnames["refine"]="refine"
-makecmds["refine"]="make CILK=1 CILKRR=1"
+makecmds["refine"]="make CILK=1 PORR=1"
 
 
 errcheck () {
@@ -78,7 +78,7 @@ runcmd() {
     mode=$2
     name=$3
     args=$4
-    CILK_NWORKERS=$P CILKRR_MODE=$mode taskset 0xff ./$name $args &> log
+    CILK_NWORKERS=$P PORR_MODE=$mode taskset 0xff ./$name $args &> log
 }
 
 runall () {

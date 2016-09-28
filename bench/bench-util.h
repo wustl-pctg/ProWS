@@ -1,4 +1,4 @@
-#ifdef CILKRR
+#ifdef PORR
 #include <cilkrr.h>
 #include <mutex.h>
 typedef cilkrr::mutex lock_t;
@@ -8,7 +8,7 @@ typedef pthread_spinlock_t lock_t;
 #endif
 
 inline void lock_init(lock_t *l, int i) {
-#ifdef CILKRR                                                                   
+#ifdef PORR                                                                   
     new (l) cilkrr::mutex(i);                                              
 #else                                                                           
     if( pthread_spin_init(l, PTHREAD_PROCESS_PRIVATE) ) {
@@ -19,7 +19,7 @@ inline void lock_init(lock_t *l, int i) {
 }
 
 inline void lock_destroy(lock_t *l) {
-#ifdef CILKRR
+#ifdef PORR
     l->~mutex();
 #else
     pthread_spin_destroy(l);
@@ -27,7 +27,7 @@ inline void lock_destroy(lock_t *l) {
 }
 
 inline void lock(lock_t *l) {
-#ifdef CILKRR
+#ifdef PORR
     l->lock();
 #else
     if(pthread_spin_lock(l)) {
@@ -38,7 +38,7 @@ inline void lock(lock_t *l) {
 }
 
 inline void unlock(lock_t *l) {
-#ifdef CILKRR
+#ifdef PORR
     l->unlock();
 #else
     if(pthread_spin_unlock(l)) {

@@ -27,7 +27,7 @@
 #include "mutex.h"
 int count = 0;
 
-cilkrr::mutex g_mutex;
+porr::mutex g_mutex;
 
 int fib(int n) {
 	if (n < 2) {

@@ -14,7 +14,7 @@
 size_t g_count = 0;
 double g_leaf_work;
 double g_unlock_work;
-cilkrr::mutex g_mutex;
+porr::mutex g_mutex;
 
 void tree_search(size_t index, size_t level)
 {

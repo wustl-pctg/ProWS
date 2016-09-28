@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  cilkrr::mutex *locks = new cilkrr::mutex[num_locks];
-  // cilkrr::mutex *locks = (cilkrr::mutex*) malloc(num_locks
-  //                                                * cilkrr::mutex::memsize());
+  porr::mutex *locks = new porr::mutex[num_locks];
+  // porr::mutex *locks = (porr::mutex*) malloc(num_locks
+  //                                                * porr::mutex::memsize());
   // cilk_for (int i = 0; i < num_locks; ++i)
-  //   new (&locks[i]) cilkrr::mutex(i);
+  //   new (&locks[i]) porr::mutex(i);
 
 #pragma cilk grainsize = 1
 	cilk_for (int i = 0; i < num_acquires; ++i) {

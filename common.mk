@@ -3,16 +3,16 @@ include $(BASE_DIR)/config.mk
 
 CC=$(COMPILER_HOME)/bin/clang
 CXX=$(COMPILER_HOME)/bin/clang++
-LIBNAME = $(BUILD_DIR)/libcilkrr.a
+LIBNAME = $(BUILD_DIR)/libporr.a
 
 INC = -I$(RUNTIME_HOME)/include
 LDFLAGS = -ldl -lpthread -ltcmalloc
 ARFLAGS = rcs
-OPT = -O0 #-O3 -march=native -DNDEBUG
+OPT = -O3 -march=native -DNDEBUG
 
 STATS ?= 0
 PTYPE ?= 1
-STAGE ?= 4
+STAGE ?= 3
 DEFS = -DPTYPE=$(PTYPE) -DSTAGE=$(STAGE) -DSTATS=$(STATS)
 
 LTO ?= 1

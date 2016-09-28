@@ -10,20 +10,20 @@ This library relies on modifications to the Cilk runtime library
 compiler that won't inline some Cilk helper functions. You can find
 such a compiler [here](https://gitlab.com/wustl-pctg/llvm-cilk).
 
-Currently, the provided interface is basically that of std::mutex, so
-just replace calls to std::mutex::<func> with
-cilkrr::mutex::<func>. That namespace will probably change.
+Currently, the provided interface is basically that of
+pthread_spinlock, so just replace calls to pthread_spinlock_<func>
+with porr::spinlock::<func>. That namespace will probably change.
 
 By default, once you've linked, nothing will actually happen. You'll
 need to set the environment variable CILKRR_MODE to tell the library
 to either record or replay. You can record with
 
-	CILKRR_MODE=record ./prog
+    PORR_MODE=record ./prog
 
 which will write out the results to ".cilkrecord". Later, the filename
 will be customizable with an environment variable. To replay, use
 
-	CILKRR_MODE=replay ./prog
+	PORR_MODE=replay ./prog
 
 You'll need to define a "config.mk" file at the top-level. Example file:
 
@@ -36,6 +36,5 @@ You'll need to define a "config.mk" file at the top-level. Example file:
 
 ## TODO
 
-* change CILKRR to PORR
-* Change cilkrr::mutex to porr::spinlock, since that's actually what it is
-* Add porr::mutex functionality -- no record/replay, but locking failure suspends the fiber
+* Implement porr::spinlock::trylock
+* Add porr::mutex -- no record/replay, but locking failure suspends the fiber

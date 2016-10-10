@@ -4,10 +4,19 @@
 #include <cassert>
 #include <cstring>
 
+//#define FAKE_ATOMIC 1
+#ifndef FAKE_ATOMIC
 #include <atomic>
 #define MEM_FENCE std::atomic_thread_fence(std::memory_order_seq_cst)
 #define LOAD_FENCE std::atomic_thread_fence(std::memory_order_acquire)
 #define STORE_FENCE std::atomic_thread_fence(std::memory_order_release)
+#define FAA(loc, val) __sync_fetch_and_add(loc, val)
+#else
+#define MEM_FENCE
+#define LOAD_FENCE
+#define STORE_FENCE
+#define FAA(loc, val) (loc += val)
+#endif
 
 #include <internal/abi.h>
 #include "cilk/cilk_api.h"
@@ -42,6 +51,8 @@ namespace porr {
 #ifdef PORR_STATS
     m_num_acquires++;
 #endif
+    //m_checking = 0;
+    //    m_passed = false;
   }
   
   inline void spinlock::release()
@@ -62,9 +73,9 @@ namespace porr {
     if (get_mode() == REPLAY) {
       // returns locked, but not acquired
       replay_lock(m_acquires.find((const pedigree_t)p));
-    } else {
+    } else
       base_lock(&m_lock);
-    }
+      
     acquire();
     if (get_mode() == RECORD) record_acquire(p);
   }
@@ -79,7 +90,8 @@ namespace porr {
   void spinlock::unlock()
   {
     if (get_mode() == REPLAY) replay_unlock();
-    else release();
+    else
+      release();
     if (get_mode() != NONE)
       __cilkrts_bump_worker_rank();
   }
@@ -94,57 +106,35 @@ namespace porr {
 
   void spinlock::replay_lock(acquire_info* a)
   {
-    // perf debug
-    // pthread_spin_lock(&m_lock);
-    // return;
-    // end perf debug
+    acquire_info *front = m_acquires.current();;
+    void *deque = __cilkrts_get_deque();
     
-    a->suspended_deque = __cilkrts_get_deque();
-    MEM_FENCE;
-
-    acquire_info *front = m_acquires.current();
-
-    if (front == a) {
-
-      while (m_checking) ;
-      LOAD_FENCE;
-      if (front->suspended_deque) {
-        front->suspended_deque = nullptr;
-        base_lock(&m_lock);
-        return; // continue
-      }
+    // FAA returns old value
+    if (front == a || FAA(&a->suspended_deque, deque)) {
+      base_lock(&m_lock);
+      return;
     }
+
+    a->suspended_deque = deque;
     LSTAT_INC(LSTAT_SUS);
     __cilkrts_suspend_deque();
   }
 
   void spinlock::replay_unlock()
   {
-    // for performance debugging
-    // m_acquires.next();
-    // release();
-    // return;
-    // end perf
-    
     void *deque = nullptr;
-    m_checking = true;
-
-    m_acquires.next();
     acquire_info *front = m_acquires.current();
-    
-    MEM_FENCE;
+    if (!front || !front->next)
+      return release();
+    front = m_acquires.next();
 
-    if (front && front->suspended_deque) {
-      deque = front->suspended_deque;
-      front->suspended_deque = nullptr;
-      STORE_FENCE;
-    }
-    m_checking = false;
-    if (deque)
+    // FAA returns old value
+    deque = FAA(&front->suspended_deque, (void*)0x1);
+    if (deque) {
       __cilkrts_resume_suspended(deque, 1);
-    else
+    } else {
       release();
-
+    }
   }
 
 }

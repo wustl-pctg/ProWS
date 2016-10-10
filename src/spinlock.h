@@ -17,7 +17,6 @@ namespace porr {
 #endif
 
     // Record/Replay fields
-    volatile bool m_checking = false; /// For handoff between acquires
     acquire_container m_acquires;
     /* char pad[32]; */
             

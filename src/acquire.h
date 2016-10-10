@@ -14,7 +14,7 @@ namespace porr {
 		/*const*/ pedigree_t ped;
 		full_pedigree_t full = {0, nullptr};
 		acquire_info *chain_next = nullptr;
-		void * volatile suspended_deque = nullptr;
+    void * suspended_deque = nullptr;
 
     // thread local allocator requires this
     acquire_info *next = nullptr;
@@ -61,12 +61,9 @@ namespace porr {
     acquire_info* new_acquire_info();
 
 	public:
-/* #ifdef ACQ_PTR */
-/*     acquire_info *m_first = nullptr; */
-/* #endif */
-    /*union { */ acquire_info *m_it = nullptr;
+    acquire_info *m_it = nullptr;
     size_t m_size = 0; /// Is this necessary?
-    /*union { */ size_t m_index = 0;
+    size_t m_index = 0;
       
     typedef struct chunk {
       size_t size;
@@ -92,7 +89,7 @@ namespace porr {
     inline acquire_info* current() { return m_it; }
 
     // The read of m_it is killing us during replay...
-    inline void next() { m_it = m_it->next; m_index++; }
+    inline acquire_info* next() { m_it = m_it->next; m_index++; return m_it; }
 		
 		acquire_info* add(pedigree_t p); // for record
     acquire_info* add(pedigree_t p, full_pedigree_t full); // for replay

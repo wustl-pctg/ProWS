@@ -170,11 +170,7 @@ namespace porr {
       // finish reading line
       getline(input, line);
 
-#ifdef ACQ_PTR
-      acquire_container* cont = &m_current_chunk->data[i];
-#else
       m_current_chunk->data[i] = nullptr;
-#endif
       
       size_t size = 0;
       size_t start = global_index++;
@@ -260,13 +256,9 @@ namespace porr {
         //output << "{" << i << ":" << cont->size() << std::endl;
         output << "{" << global_index++ << std::endl;
 
-#ifdef ACQ_PTR
-        //acquire_info *a = c->data[i].m_first;
-        acquire_info *a = c->data[i].m_it; // INCORRECT!
-#else
         // First one is fake
         acquire_info *a = c->data[i]->next;
-#endif
+
         while (a) {
           output << '\t' << *a << std::endl;
           a = a->next;
@@ -316,8 +308,8 @@ namespace porr {
   void state::unregister_spinlock(size_t size)
   {
     //m_num_acquires += size;
-    // if (m_mode == RECORD)
-    //   __sync_fetch_and_add(&m_num_acquires, size);
+    if (m_mode == RECORD)
+      __sync_fetch_and_add(&m_num_acquires, size);
   }
 
   /** Since the order of initialization between compilation units is

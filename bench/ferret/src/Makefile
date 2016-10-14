@@ -45,7 +45,7 @@ lib_obj := $(addprefix $(OBJDIR)/, $(lib_src:.c=.o))
 
 $(LIBDIR)/libcass.a:	$(lib_obj)
 	@echo "   A  '$@'"
-	@$(AR) rcs $@ $^
+	@$(AR) $(ARFLAGS) $@ $^
 
 # build the image support library
 libimage_src := image.c extract.c edge.c srm.c
@@ -53,7 +53,7 @@ libimage_obj := $(addprefix $(OBJDIR)/, $(libimage_src:.c=.o))
 
 $(LIBDIR)/libcassimage.a:	$(libimage_obj)
 	@echo "   A  '$@'"
-	@$(AR) rcs $@ $^
+	@$(AR) $(ARFLAGS) $@ $^
 
 # build the tool programs
 tools_src := $(wildcard tools/*.c)

@@ -12,7 +12,7 @@ OPT = -O3 -march=native -DNDEBUG
 
 STATS ?= 0
 PTYPE ?= 1
-STAGE ?= 3
+STAGE ?= 4
 DEFS = -DPTYPE=$(PTYPE) -DSTAGE=$(STAGE) -DSTATS=$(STATS)
 
 LTO ?= 1

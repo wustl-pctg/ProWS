@@ -1,7 +1,15 @@
 # Processor Obvivious Record and Replay
 
 A runtime system to deterministically record lock acquires and replay
-them on an arbitrary number of cores. Currently, you need to build the
+them on an arbitrary number of cores. If you know your program has an
+atomicity bug, this system allows you to record execution repeatedly
+until you see the failure. Then you can replay the system (possibly in
+a debugger) on as many cores as you like, achieving good speedup if
+your program has ample parallelism. Our system ensures weak
+determinism during replay. Specifically, lock acquisitions occur in
+the same order as recording.
+
+Currently, you need to build the
 library and link it statically, although there is no technical reason
 why this couldn't be a dynamically-loaded library.
 

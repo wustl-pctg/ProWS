@@ -7,7 +7,12 @@ until you see the failure. Then you can replay the system (possibly in
 a debugger) on as many cores as you like, achieving good speedup if
 your program has ample parallelism. Our system ensures weak
 determinism during replay. Specifically, lock acquisitions occur in
-the same order as recording.
+the same order as recording. 
+
+However, a weakness of our current system is that your program must be
+data-race-free. You should use existing tools to ensure this before
+using our system. We have plans to integrate data-race detection
+mechanism into this tool.
 
 Currently, you need to build the
 library and link it statically, although there is no technical reason

@@ -58,4 +58,6 @@ You'll need to define a "config.mk" file at the top-level. Example file:
   * Bump pedigree on failures
   * Record number of failures until success?
   * Do we need to record pedigrees at failure?
-* Add porr::mutex -- no record/replay, but locking failure suspends the fiber
+* Add porr::mutex
+  * No record/replay functionality
+  * Locking failure suspends the fiber

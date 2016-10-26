@@ -9,9 +9,6 @@ pindir=$HOME/src/pinplay
 libdir=$pindir/extras/pinplay/bin/intel64
 tool="$pindir/pin -mt -t $libdir/pinplay-driver.so"
 
-# Record only part of the run. Works for logging but replay doesn't output anything ?!
-#pinopts="-log:control start:enter_func:$func,stop:exit_func:$func"
-
 function parse() {
     # echo "$1" | grep "PBBS-time" | tail -1 | cut -d':' -f2 | tr -d " "
     echo "$1" | tail -1

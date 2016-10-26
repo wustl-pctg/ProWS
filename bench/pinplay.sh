@@ -33,8 +33,3 @@ for P in 1; do
 
     rm -rf pinball
 done
-
-# tmp="$(CILK_NWORKERS=$P $tool -replay -replay:basename pinball/$logname -replay:addr_trans -- false)"
-# echo "$tmp"
-# replay_time=$(parse "$tmp")
-# echo "$replay_time"

@@ -9,10 +9,6 @@ pindir=$HOME/src/pinplay
 libdir=$pindir/extras/pinplay/bin/intel64
 tool="$pindir/pin -mt -t $libdir/pinplay-driver.so"
 
-function parse() {
-    echo "$1" | tail -1
-}
-
 for P in 1; do
 
     CILK_NWORKERS=$P /usr/bin/time -f'%E' \

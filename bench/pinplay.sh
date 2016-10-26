@@ -4,7 +4,6 @@ set -e
 logname=drlog
 prog=./refine
 args="-r 1 ../geometryData/data/2DinCubeDelaunay_1000000"
-# args="-r 1 ../geometryData/data/2DinCubeDelaunay_10000"
 func=refine
 pindir=$HOME/src/pinplay
 libdir=$pindir/extras/pinplay/bin/intel64

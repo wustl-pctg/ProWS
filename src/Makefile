@@ -6,15 +6,10 @@ OBJ = spinlock.o porr.o acquire.o
 .PHONY: default
 default: $(LIBNAME)
 
-# Why do I have to do this?!
-%.mk: ;
-
-Makefile: ;
-
 %.a: $(OBJ)
 	$(AR) $(ARFLAGS) $@ $^
 
-%.o: $(%:=.cpp) $(%:=.h) util.h
+%.o: %.cpp %.h util.h
 	$(CXX) $(CFLAGS) $(CILKFLAGS) -c $(*:=.cpp)
 
 clean:

@@ -24,10 +24,10 @@
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
-#include "mutex.h"
+#include "spinlock.h"
 int count = 0;
 
-porr::mutex g_mutex;
+porr::spinlock g_mutex;
 
 int fib(int n) {
 	if (n < 2) {

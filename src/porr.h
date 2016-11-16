@@ -25,6 +25,8 @@ namespace porr {
       { data = (T*) malloc(sizeof(T) * size); }
     };
 
+    size_t num_digits(size_t num);
+
     #define CHUNK_TYPE acquire_info*
     achunk<CHUNK_TYPE> *m_current_chunk = nullptr;
     union {
@@ -43,7 +45,6 @@ namespace porr {
     uint64_t m_num_acquires = 0;
 
 	public:
-    //std::ofstream m_output;
 		enum mode m_mode = NONE;
 
 		state();

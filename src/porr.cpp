@@ -225,6 +225,16 @@ namespace porr {
     input.close();
   }
 
+  size_t state::num_digits(size_t num)
+  {
+    size_t digits = 0;
+    while (num) {
+      num /= 10;
+      digits++;
+    }
+    return digits;
+  }
+
   state::~state()
   {
     if (m_mode != RECORD) return;
@@ -242,10 +252,15 @@ namespace porr {
     std::ofstream output;
     output.open(m_filename);
 
-    // Write out # locks and acquires
-    output << m_num_locks << std::endl;
-    output << m_num_acquires << std::endl;
+    // Reserve space for writing out the number of locks and acquires
+    // This is pretty hackish....
+    for (int i = 0; i < 2; ++i) {
+      for (int j = 0; j < 20; ++j)
+        output << " ";
+      output << std::endl;
+    }
     size_t global_index = 0;
+    size_t num_acquires = 0;
 
     achunk<CHUNK_TYPE> *c = m_first_chunk;
     while (c) {
@@ -253,13 +268,15 @@ namespace porr {
 
         // @TODO{Figure out how to write the number of acquires for
         // this lock...but is this necessary?}
-        //output << "{" << i << ":" << cont->size() << std::endl;
+        // We could reserve space, save the position, then after we're
+        // done seek back to it and write the size...
         output << "{" << global_index++ << std::endl;
 
         // First one is fake
         acquire_info *a = c->data[i]->next;
 
         while (a) {
+          num_acquires++;
           output << '\t' << *a << std::endl;
           a = a->next;
         }
@@ -267,8 +284,23 @@ namespace porr {
       }
       c = c->next;
     }
+
     // output << "---- Stats ----" << std::endl;
     // output << "Conflicts: " << num_conflicts << std::endl;
+
+
+    // Go back to beginning and write number of locks and acquires
+    output.seekp(0, std::ios_base::beg);
+    output << global_index;
+    for (int i = 0; i < 20-num_digits(global_index); ++i)
+      output << " ";
+    output << std::endl;
+    output << num_acquires;
+    for (int i = 0; i < 20-num_digits(num_acquires); ++i)
+      output << " ";
+    output << std::endl;
+
+
     output.close();
   }
 
@@ -308,8 +340,8 @@ namespace porr {
   void state::unregister_spinlock(size_t size)
   {
     //m_num_acquires += size;
-    if (m_mode == RECORD)
-      __sync_fetch_and_add(&m_num_acquires, size);
+    // if (m_mode == RECORD)
+    //   __sync_fetch_and_add(&m_num_acquires, size);
   }
 
   /** Since the order of initialization between compilation units is

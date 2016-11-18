@@ -2,7 +2,7 @@ include ../../bench.mk
 
 PROG = serial lock reducer
 
-LDLIBS += $(LIBS) -lrt -lm -lcass -lgsl -lgslcblas -ljpeg -lstdc++
+LDLIBS += $(LIBS) -lrt -lm -lgsl -lgslcblas -ljpeg -lstdc++ #-lcass
 
 .PHONY:	all clean dirs full_clean lib tools serial lock reducer
 # image server 
@@ -17,6 +17,7 @@ BINDIR = $(ROOT)/build/bin
 LIBDIR = $(ROOT)/build/lib
 OBJDIR = $(ROOT)/build/obj
 
+#CXX += -v
 FLAGS = -I$(INCDIR)
 #CFLAGS += $(BASIC_CFLAGS) -I$(INCDIR)
 CFLAGS += $(FLAGS) $(BASIC_CFLAGS)
@@ -119,7 +120,7 @@ $(BINDIR)/ferret-serial: $(OBJDIR)/ferret-serial.o $(LIBDIR)/libcass.a $(LIBDIR)
 
 $(BINDIR)/ferret-lock: $(OBJDIR)/ferret-lock.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   '$(CC) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
-	@$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(image_tgt): $(BINDIR)/% : $(OBJDIR)/%.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   '$(CXX) $<' ==> '$@'"

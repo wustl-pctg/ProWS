@@ -1,10 +1,12 @@
 # This file defins BASIC_CFLAGS, BASIC_CXXFLAGS, LDFLAGS, LDLIBS, TOOL_FLAGS, TOOL_LDFLAGS
-# Makefile including this file should use these flags 
+# Makefile including this file should use these flags
 
-COMPILER_DIR = $(HOME)/llvm-cilk
-CILKRTS_INSTALL = $(HOME)/llvm-cilk
-PORR_INSTALL = $(HOME)/devel/cilkrecord/
-BENCH_DIR = $(HOME)/devel/cilkrecord/bench
+CURR = $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+PORR_HOME = $(CURR)/..
+BENCH_DIR = $(PORR_HOME)/bench
+COMPILER_DIR = $(PORR_HOME)/llvm-cilk
+CILKRTS_INSTALL = $(PORR_HOME)/llvm-cilk
+PORR_INSTALL = $(PORR_HOME)
 
 CC = $(COMPILER_DIR)/bin/clang 
 CXX = $(COMPILER_DIR)/bin/clang++
@@ -27,7 +29,7 @@ LTO ?= 1
 ifeq ($(LTO),1)
   OPT += -flto
 	LDFLAGS += -flto
-	ARFLAGS += --plugin $(COMPILER_HOME)/lib/LLVMgold.so
+	ARFLAGS += --plugin $(COMPILER_DIR)/lib/LLVMgold.so
 endif
 
 

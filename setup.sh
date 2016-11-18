@@ -8,37 +8,45 @@ function msg() {
     echo "$msg" | tee -a setup.log
 }
 
-msg "Begin PORRidge setup at $(date)"
+# msg "Begin PORRidge setup at $(date)"
 
-: ${BINUTILS_PLUGIN_DIR:="/usr/local/include"}
-if [[ ($BINUTILS_PLUGIN_DIR != "") &&
-          (-e $BINUTILS_PLUGIN_DIR/plugin-api.h) ]]; then
-    export LTO=1
-else
-    export LTO=0
-    echo "Warning: no binutils plugin found, necessary for LTO"
-fi
+# : ${BINUTILS_PLUGIN_DIR:="/usr/local/include"}
+# if [[ ($BINUTILS_PLUGIN_DIR != "") &&
+#           (-e $BINUTILS_PLUGIN_DIR/plugin-api.h) ]]; then
+#     export LTO=1
+# else
+#     export LTO=0
+#     echo "Warning: no binutils plugin found, necessary for LTO"
+# fi
 
-t=$(ldconfig -p | grep tcmalloc)
-if [[ $? != 0 ]]; then
-    echo "tcmalloc not found!"
-fi
+# t=$(ldconfig -p | grep tcmalloc)
+# if [[ $? != 0 ]]; then
+#     echo "tcmalloc not found!"
+# fi
 
-# Setup and compile our compiler
-./build-llvm-linux.sh
+# # Setup and compile our compiler
+# ./build-llvm-linux.sh
 
-msg "Modified clang compiled."
+# msg "Modified clang compiled."
 
-# Build the runtime (ability to suspend/resume deques)
-cd ./cilkrtssuspend
-./remake.sh pre opt lto
+# # Build the runtime (ability to suspend/resume deques)
+# cd ./cilkrtssuspend
+# libtoolize
+# autoreconf -i
+# ./remake.sh pre opt lto
+# cd -
+
+# msg "Suspendable work-stealing runtime built"
+
+# Compile library
+mkdir build
+cd src
+make -j
 cd -
-
-msg "Suspendable work-stealing runtime built"
 
 # Check out our fork of PBBS
 cd bench
-git clone https://robertutterback@gitlab.com/wustl-pctg/cilkplus-tests.git
+# git clone https://robertutterback@gitlab.com/wustl-pctg/cilkplus-tests.git
 
 # Make sure we have exactly the right commit -- I think someone else
 # is working in this repo.

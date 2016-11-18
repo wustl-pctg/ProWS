@@ -5,8 +5,6 @@ EXTRA=""
 OPT=""
 LTO=""
 cd $(dirname $0)
-pwd
-exit
 LLVM_HOME=$(pwd)/../llvm-cilk
 
 # -march=native -m64
@@ -28,6 +26,7 @@ fi
 cmd="./configure --prefix=$LLVM_HOME CC=$LLVM_HOME/bin/clang CXX=$LLVM_HOME/bin/clang++ CFLAGS=\"$NORM $OPT $LTO\" CXXFLAGS=\"$NORM  $OPT  $LTO\" $EXTRA"
 
 #make clean && make distclean
+echo $cmd
 eval $cmd
 make -j
 make install

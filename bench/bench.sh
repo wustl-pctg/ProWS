@@ -6,9 +6,10 @@ if [[ $(sysctl vm.max_map_count | cut -d'=' -f2 | tr -d ' ') -lt 1000000 ]]; the
 fi
 trap "kill -- -$$" SIGINT
 
-: ${BENCH_LOG_FILE:=$HOME/tmp/bench.log}
+scriptdir=$(pwd)
+: ${BENCH_LOG_FILE:=${scriptdir}/bench.log}
 logfile=$BENCH_LOG_FILE
-tmplog=$HOME/tmp/.log
+tmplog=${scriptdir}/.log
 rm -f $logfile $tmplog
 
 echo "********** Begin script: $(realpath $0) **********" >> $logfile
@@ -19,10 +20,11 @@ BASE_ITER=3
 RECORD_ITER=3
 REPLAY_ITER=3
 
-bench=(MIS)
+bench=(MIS matching refine ferret)
+# bench=(ferret dedup)
 source config.sh
 
-errcheck () {
+function errcheck () {
     errcode=$1
     logname=$2
 
@@ -35,19 +37,18 @@ errcheck () {
             printf "Timed out after %s.\n" $MAXTIME
             exit 1
         fi
-        cat log
+        cat $logname
         exit 1
     fi
 }
 
-runcmd() {
-    P=$1
-    mode=$2
-    name=$3
-    args=$4
-    oldargs=$4
-    if [[ "$name" = "run.sh lock" ]]; then
-        args="$4 $P"
+function runcmd() {
+    local P=$1
+    local mode=$2
+    local name=$3
+    local args=$4
+    if [[ "$name" = "run.sh lock"* ]]; then
+        args="$4 log $P"
     fi
 
     cmd="CILK_NWORKERS=$P PORR_MODE=$mode ./$name $args"
@@ -57,8 +58,8 @@ runcmd() {
 }
 
 runreplay() {
-    name=$1
-    args=$2
+    local name=$1
+    local args=$2
     declare -A vals
     
     for P in $CORES; do
@@ -81,14 +82,14 @@ runreplay() {
 
 
 runall () {
-    name=$1
-    cmdname=$2
-    args=$3
-    
+    local name=$1
+    local cmdname=$2
+    local basecmd="${cmdname}_base"
+    local args=$3
+
     printf -- "--- $name $args ---\n"
     header_left="P\tbase\t\trecord"
-    #printf "${header_left}\t\t\treplayP\n"
-    printf "${header_left}\t\t\tOverhead\n"
+    printf "${header_left}\t\t\treplayP\n"
     printf "%${#header_left}s\t\t\t\t\t\t\t\t\t" | tr " " "=" | tr "\t" "====="
     for P in $CORES; do printf "\t\t$P"; done;
     printf "\n"
@@ -99,7 +100,7 @@ runall () {
         printf "$P"
         vals=()
         for i in $(seq $BASE_ITER); do
-            runcmd "$P" "none" "$cmdname" "$args"
+            runcmd "$P" "none" "$basecmd" "$args"
             val=$(errcheck $? $tmplog)
             if [[ $? -ne 0 ]]; then
                 printf "Error\n"
@@ -124,17 +125,16 @@ runall () {
             fi
             vals[$i]=$val
             printf "%.2f\t%d\n" "$val" "$i" >> .recordtimes
-            #mv .cilkrecord .cilkrecord.$i
+            mv .cilkrecord .cilkrecord.$i
         done
         avg=$( echo ${vals[@]} | tr " " "\n" | datamash mean 1 | tr -s " ")
         stdev=$( echo ${vals[@]} | tr " " "\n" | datamash sstdev 1 | tr -s " ")
         printf "\t%.2f(%.2f)" "$avg" "$stdev"
 
-        # median=$(cat .recordtimes | sort | cut -f 2 | datamash median 1)
-        # mv .cilkrecord.$median .cilkrecord
-        #runreplay "$name" "$args"
-        # mv .cilkrecord .cilkrecord-p$P
-        printf "\t%10.2f" $(echo "scale=2; $avg / $base" | bc)
+        median=$(cat .recordtimes | sort | cut -f 2 | datamash median 1)
+        mv .cilkrecord.$median .cilkrecord
+        runreplay "$cmdname" "$args"
+        mv .cilkrecord .cilkrecord-p$P
         printf "\n"
     done
     printf "\n-------------------------"

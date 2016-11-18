@@ -4,7 +4,8 @@ set -e
 EXTRA=""
 OPT=""
 LTO=""
-LLVM_HOME=$HOME/src/llvm-cilk
+cd $(dirname $0)
+LLVM_HOME=$(pwd)/../llvm-cilk
 
 # -march=native -m64
 NORM="-g -fcilk-no-inline"
@@ -28,3 +29,4 @@ make clean && make distclean
 eval $cmd
 make -j
 make install
+cd -

@@ -39,7 +39,15 @@ function msg() {
 # msg "Suspendable work-stealing runtime built"
 
 # Compile library
-mkdir build
+mkdir -p build
+BASE_DIR=$(pwd)
+if [ ! -e config.mk ]; then
+    echo "BUILD_DIR=$BASE_DIR/build" >> config.mk
+    echo "RUNTIME_HOME=$BASE_DIR/cilkrtssuspend" >> config.mk
+    echo "COMPILER_HOME=$BASE_DIR/llvm-cilk" >> config.mk
+    echo "RTS_LIB=\$\(COMPILER_HOME\)/lib/libcilkrts.a" >> config.mk
+    echo "LTO=1" >> config.mk
+fi
 cd src
 make -j
 cd -

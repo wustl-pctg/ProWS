@@ -19,7 +19,7 @@ endif
 
 INC += -I$(COMPILER_HOME)/include -I$(CILKRTS_HOME)/include
 INC += -I$(BENCH_DIR) -I$(PORR_HOME)/src
-LDFLAGS = 
+LDFLAGS = -lrt -ldl -lpthread -ltcmalloc
 ARFLAGS = rcs
 OPT = -O3 -march=native -DNDEBUG
 
@@ -32,7 +32,7 @@ ifeq ($(LTO),1)
 endif
 
 
-LIBS += -lrt -ldl -lpthread -ltcmalloc $(PORR_LIBS) $(CILKRTS_HOME)/lib/libcilkrts.a
+LIBS += $(PORR_LIBS) $(CILKRTS_HOME)/lib/libcilkrts.a
 BASIC_FLAGS = $(OPT) -g -fcilkplus $(PORR_CFLAGS) $(INC) #-Wfatal-errors
 BASIC_CFLAGS += $(BASIC_FLAGS) -std=gnu11
 BASIC_CXXFLAGS = $(BASIC_FLAGS) -std=gnu++11

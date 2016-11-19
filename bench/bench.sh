@@ -4,6 +4,11 @@ if [[ $(sysctl vm.max_map_count | cut -d'=' -f2 | tr -d ' ') -lt 1000000 ]]; the
     echo "vm.max_map_count too low! Must be at least 1M"
     exit 1
 fi
+t=$(which datamash)
+if [[ $? != 0 ]]; then
+    echo "This script requires datamash; (sudo apt-get install datamash)"
+    exit 1
+fi
 trap "kill -- -$$" SIGINT
 
 scriptdir=$(pwd)

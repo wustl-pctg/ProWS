@@ -9,10 +9,11 @@ make clean
 make base -j
 make clean
 make -j
-
 cd -
+
 cd dedup
 make clean
 make base -j
 make clean
 make -j
+cd -

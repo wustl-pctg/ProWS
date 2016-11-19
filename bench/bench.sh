@@ -27,8 +27,8 @@ BASE_ITER=3
 RECORD_ITER=3
 REPLAY_ITER=3
 
-#bench=(MIS matching refine BFS ferret dedup)
-bench=(ferret dedup)
+bench=(refine)
+# bench=(ferret dedup)
 source config.sh
 
 function errcheck () {

@@ -2,7 +2,7 @@
 set -e
 
 # Build all cilkplus-tests benchmarks
-# ./cilkplus-tests/build.sh $@
+./cilkplus-tests/build.sh $@
 
 cd ferret
 make clean

@@ -21,7 +21,8 @@ INC += -I$(COMPILER_HOME)/include -I$(CILKRTS_HOME)/include
 INC += -I$(BENCH_DIR) -I$(PORR_HOME)/src
 LDFLAGS = 
 ARFLAGS = rcs
-OPT = -O3 -march=native -DNDEBUG
+#OPT = -O0 #-O3 -march=native -DNDEBUG
+OPT = -O3
 
 
 LTO ?= 1

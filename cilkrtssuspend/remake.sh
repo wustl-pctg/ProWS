@@ -11,7 +11,7 @@ LLVM_HOME=$(pwd)/../llvm-cilk
 NORM="-g -fcilk-no-inline"
 
 if [[ "$1" = "opt" || "$2" = "opt" || "$3" = "opt" ]]; then
-		OPT=" -O3 -DNDEBUG "
+		OPT=" -O3 " #OPT=" -O3 -DNDEBUG "
 else
     OPT=" -O0 "
 fi

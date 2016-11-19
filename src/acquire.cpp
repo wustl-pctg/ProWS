@@ -102,9 +102,9 @@ namespace porr {
     // acquire_info** debug = m_table;
     // acquire_info* it = m_table[p % m_size];
 
-    if (&m_start[m_index] != m_it) {
-      fprintf(stderr, "Error in find\n");
-    }
+    // if (&m_start[m_index] != m_it) {
+    //   fprintf(stderr, "Error in find\n");
+    // }
 
     full_pedigree_t full;
     for (acquire_info *a = &m_start[m_index]; a != &m_start[m_size]; ++a) {

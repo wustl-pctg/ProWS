@@ -110,6 +110,8 @@ namespace porr {
   {
     char *env;
     g_rr_state = this;
+    m_first_chunk = nullptr;
+    //m_acquires = nullptr;
 
 #if PTYPE != PPRE
     srand(0);

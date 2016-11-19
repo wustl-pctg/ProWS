@@ -1,15 +1,17 @@
 #!/bin/bash
 set -e
+trap "kill -- -$$" SIGINT
+
 if [[ $(sysctl vm.max_map_count | cut -d'=' -f2 | tr -d ' ') -lt 1000000 ]]; then
     echo "vm.max_map_count too low! Must be at least 1M"
     exit 1
 fi
-t=$(which datamash)
-if [[ $? != 0 ]]; then
-    echo "This script requires datamash; (sudo apt-get install datamash)"
-    exit 1
-fi
-trap "kill -- -$$" SIGINT
+type datamash &>/dev/null || { 
+    echo >&2 "This script requries datamash. Aborting. "
+    echo >&2 "On Ubuntu 14+, this can be installed with apt-get."; 
+    exit 1; 
+}
+
 
 scriptdir=$(pwd)
 : ${BENCH_LOG_FILE:=${scriptdir}/bench.log}
@@ -25,8 +27,8 @@ BASE_ITER=3
 RECORD_ITER=3
 REPLAY_ITER=3
 
-bench=(MIS matching refine ferret)
-# bench=(ferret dedup)
+#bench=(MIS matching refine BFS ferret dedup)
+bench=(ferret dedup)
 source config.sh
 
 function errcheck () {

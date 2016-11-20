@@ -8,26 +8,26 @@ function msg() {
     echo "$msg" | tee -a setup.log
 }
 
-# msg "Begin PORRidge setup at $(date)"
+msg "Begin PORRidge setup at $(date)"
 
-# : ${BINUTILS_PLUGIN_DIR:="/usr/local/include"}
-# if [[ ($BINUTILS_PLUGIN_DIR != "") &&
-#           (-e $BINUTILS_PLUGIN_DIR/plugin-api.h) ]]; then
-#     export LTO=1
-# else
-#     export LTO=0
-#     echo "Warning: no binutils plugin found, necessary for LTO"
-# fi
+: ${BINUTILS_PLUGIN_DIR:="/usr/local/include"}
+if [[ ($BINUTILS_PLUGIN_DIR != "") &&
+          (-e $BINUTILS_PLUGIN_DIR/plugin-api.h) ]]; then
+    export LTO=1
+else
+    export LTO=0
+    echo "Warning: no binutils plugin found, necessary for LTO"
+fi
 
-# t=$(ldconfig -p | grep tcmalloc)
-# if [[ $? != 0 ]]; then
-#     echo "tcmalloc not found! Install google-perftools"
-# fi
+t=$(ldconfig -p | grep tcmalloc)
+if [[ $? != 0 ]]; then
+    echo "tcmalloc not found! Install google-perftools"
+fi
 
 # # Setup and compile our compiler
 # ./build-llvm-linux.sh
 
-# msg "Modified clang compiled."
+msg "Modified clang compiled."
 
 # # Build the runtime (ability to suspend/resume deques)
 # cd ./cilkrtssuspend
@@ -36,7 +36,7 @@ function msg() {
 # ./remake.sh pre opt #lto
 # cd -
 
-# msg "Suspendable work-stealing runtime built"
+msg "Suspendable work-stealing runtime built"
 
 # Compile library
 # mkdir -p build
@@ -53,7 +53,7 @@ function msg() {
 # cd -
 
 # Check out our fork of PBBS
-# cd bench
+cd bench
 # git clone https://robertutterback@gitlab.com/wustl-pctg/cilkplus-tests.git
 
 # Make sure we have exactly the right commit -- I think someone else
@@ -61,12 +61,12 @@ function msg() {
 # git checkout 8982abb8
 
 # Compile benchmarks
-# ./build.sh
+./build.sh
 
 # Generate data sets for PBBS benchmarks
-# cd cilkplus-tests
-# ./gendata.sh
-# cd -
+cd cilkplus-tests
+./gendata.sh
+cd -
 
 # Download and setup data sets for dedup and ferret
 cd $BASE_DIR/bench/dedup

@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cstdio>
 #include <fstream>
+#include <cstring> // memset
 
 namespace porr {
 
@@ -61,6 +62,7 @@ namespace porr {
     acquire_info *first;
     if (m == RECORD) {
       first = new_acquire_info();
+      memset(first, 0, sizeof(acquire_info));
       *start_ptr = first;
     } else {
       first = *start_ptr;

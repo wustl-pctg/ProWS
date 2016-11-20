@@ -8,7 +8,7 @@ LIBNAME = $(BUILD_DIR)/libporr.a
 INC = -I$(RUNTIME_HOME)/include
 LDFLAGS = -ldl -lpthread -ltcmalloc
 ARFLAGS = rcs
-OPT = -O3 -march=native -DNDEBUG
+OPT = -O3 #-march=native -DNDEBUG
 
 STATS ?= 0
 PTYPE ?= 1

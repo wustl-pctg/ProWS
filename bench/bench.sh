@@ -21,13 +21,13 @@ rm -f $logfile $tmplog
 
 echo "********** Begin script: $(realpath $0) **********" >> $logfile
 
-MAXTIME="5m"
+MAXTIME="20m"
 CORES="1 2 4 8 12 16"
 BASE_ITER=3
 RECORD_ITER=3
 REPLAY_ITER=3
 
-bench=(refine)
+bench=(MIS matching BFS dict refine chess ferret dedup)
 # bench=(ferret dedup)
 source config.sh
 

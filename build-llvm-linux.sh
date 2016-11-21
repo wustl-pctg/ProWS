@@ -17,9 +17,9 @@ fi
 LLVM_HOME=`pwd`/"$LLVM_NAME"/src
 LLVM_TOP=`pwd`/"$LLVM_NAME"
 
-LLVM_GIT_REPO="https://gitlab.com/wustl-pctg/llvm-cilk.git"
+LLVM_GIT_REPO="https://gitlab.com/wustl-pctg-pub/llvm-cilk.git"
 LLVM_BRANCH="cilkplus"
-CLANG_GIT_REPO="https://gitlab.com/wustl-pctg/clang-cilk.git"
+CLANG_GIT_REPO="https://gitlab.com/wustl-pctg-pub/clang-cilk.git"
 CLANG_BRANCH="compressed_pedigrees"
 # We will use the master branch instead of Cilk Plus branch; we want to
 # install our own runtime instead of using theirs

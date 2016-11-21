@@ -24,41 +24,37 @@ if [[ $? != 0 ]]; then
     echo "tcmalloc not found! Install google-perftools"
 fi
 
-# # Setup and compile our compiler
-# ./build-llvm-linux.sh
+# Setup and compile our compiler
+./build-llvm-linux.sh
 
 msg "Modified clang compiled."
 
 # # Build the runtime (ability to suspend/resume deques)
-# cd ./cilkrtssuspend
-# libtoolize
-# autoreconf -i
-# ./remake.sh pre opt #lto
-# cd -
+cd ./cilkrtssuspend
+libtoolize
+autoreconf -i
+./remake.sh pre opt lto
+cd -
 
 msg "Suspendable work-stealing runtime built"
 
 # Compile library
-# mkdir -p build
-# BASE_DIR=$(pwd)
-# if [ ! -e config.mk ]; then
-#     echo "BUILD_DIR=$BASE_DIR/build" >> config.mk
-#     echo "RUNTIME_HOME=$BASE_DIR/cilkrtssuspend" >> config.mk
-#     echo "COMPILER_HOME=$BASE_DIR/llvm-cilk" >> config.mk
-#     echo "RTS_LIB=\$(COMPILER_HOME)/lib/libcilkrts.a" >> config.mk
-#     echo "LTO=$LTO" >> config.mk
-# fi
-# cd src
-# make -j
-# cd -
+mkdir -p build
+BASE_DIR=$(pwd)
+if [ ! -e config.mk ]; then
+    echo "BUILD_DIR=$BASE_DIR/build" >> config.mk
+    echo "RUNTIME_HOME=$BASE_DIR/cilkrtssuspend" >> config.mk
+    echo "COMPILER_HOME=$BASE_DIR/llvm-cilk" >> config.mk
+    echo "RTS_LIB=\$(COMPILER_HOME)/lib/libcilkrts.a" >> config.mk
+    echo "LTO=$LTO" >> config.mk
+fi
+cd src
+make -j
+cd -
 
 # Check out our fork of PBBS
 cd bench
-# git clone https://robertutterback@gitlab.com/wustl-pctg/cilkplus-tests.git
-
-# Make sure we have exactly the right commit -- I think someone else
-# is working in this repo.
-# git checkout 8982abb8
+git clone https://gitlab.com/robertutterback/cilkplus-tests.git
 
 # Compile benchmarks
 ./build.sh

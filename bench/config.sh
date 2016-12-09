@@ -46,7 +46,7 @@ makecmds["MIS"]="make CILK=1 PORR=1 -j"
 cmdnames["MIS"]="MIS"
 
 dirs["matching"]=${pbbsdir}/maximalMatching/lockingMatching
-args["matching"]="-r 1 ../graphData/data/randLocalGraph_E_5_5000000"
+args["matching"]="-r 1 ../graphData/data/randLocalGraph_E_5_1000000"
 # args["matching"]="-r 1 ../graphData/data/randLocalGraph_E_5_10000"
 makecmds["matching"]="make CILK=1 PORR=1 -j"
 cmdnames["matching"]="matching"
@@ -58,7 +58,7 @@ makecmds["BFS"]="make CILK=1 PORR=1 -j"
 cmdnames["BFS"]="BFS"
 
 dirs["refine"]=${pbbsdir}/delaunayRefine/lockingRefine
-args["refine"]="-r 1 ../geometryData/data/2DinCubeDelaunay_1000000"
+args["refine"]="-r 1 ../geometryData/data/2DinCubeDelaunay_100000"
 # args["refine"]="-r 1 ../geometryData/data/2DinCubeDelaunay_10000"
 makecmds["refine"]="make CILK=1 PORR=1 -j"
 cmdnames["refine"]="refine"

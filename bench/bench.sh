@@ -27,7 +27,7 @@ BASE_ITER=3
 RECORD_ITER=3
 REPLAY_ITER=3
 
-bench=(chess ferret dedup MIS matching refine)
+bench=(matching refine)
 source config.sh
 
 function errcheck () {

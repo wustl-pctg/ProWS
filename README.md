@@ -7,12 +7,8 @@ until you see the failure. Then you can replay the system (possibly in
 a debugger) on as many cores as you like, achieving good speedup if
 your program has ample parallelism. Our system ensures weak
 determinism during replay. Specifically, lock acquisitions occur in
-the same order as recording. 
-
-However, a weakness of our current system is that your program must be
-data-race-free. You should use existing tools to ensure this before
-using our system. We have plans to integrate data-race detection
-mechanism into this tool.
+the same order as recording. You can find more details in the PPoPP
+2017 paper *Processor-Oblivious Record and Replay*.
 
 Currently, you need to build the library and link it statically,
 although there is no technical reason why this couldn't be a
@@ -22,7 +18,46 @@ as well as a special compiler that won't inline some Cilk helper
 functions. You can find such a compiler
 [here](https://gitlab.com/wustl-pctg/llvm-cilk).
 
+## License
+
+The code in this repository is licensed under The MIT License (see
+LICENSE) except for the runtime modifications in cilkrtssupend, which
+is separately licensed. Note that some scripts in this repository
+access other open source projects, which are licensed separately.
+
+## Dependencies
+
+A relatively recent version of Linux is recommended, with a C++11
+version of the C++ standard library. PORRidge was tested on Ubuntu
+16.04, but is expected to run correctly in other Linux distributions.
+
+To reproduce performance results, Google's _tcmalloc_ should be
+installed. Also, the GNU _gold_ linker should be installed as
+_ld_. This requirement may be eliminated as the project is
+refactored. The benchmark script requires GNU _datamash_. Compiling
+the _dedup_ and _ferret_ benchmarks requires additional dependencies.
+
+## Installation
+
+The script _setup.sh_ should build the modified compiler, the modified
+Cilk Plus runtime, and all benchmarks.
+
+Before running, make sure to install GNU _gold_ as your linker -- the
+system _ld_ should point to _gold_. Installing _gold_ also installs a
+header called plugin-api.h, usually in either /usr/include or
+/usr/local/include. Find this file and replace the BINUTILS_PLUGIN_DIR
+variable in _setup.sh_ with this path.
+
+Some of the benchmarks require many _mmap_ calls when replaying on large data sets. To account for this, you may need to change the number of _mmap_ calls allowed, e.g.:
+
+	sudo sysctl -w vm.max_map_count=1000000
+
 ## Using
+
+The _bench/bench.sh_ script will run all benchmarks using
+PORRidge. You can change the variable CORES to a list of cores to run
+the benchmarks on. By default it runs on 1,2,4,8,12, and 16 cores. The
+results are printed directly to the screen by default.
 
 Currently, the provided interface is basically that of
 pthread\_spinlock, so just replace calls to pthread\_spinlock\_<func>
@@ -41,25 +76,13 @@ which will write out the results to ".cilkrecord". To replay, use
 You can use the PORR_FILE environment variable to change this
 filename used by both recording and replaying.
 
-## Compiling
+If you dynamically allocate memory for locks, you should call the
 
-You'll need to define a "config.mk" file at the top-level. Example file:
+	porr::reserve_locks(<num locks>)
+	
+function beforehand. For any cilk_for loops you should also manually specify the cilk grainsize, e.g.:
 
-	BUILD_DIR=$(BASE_DIR)/build
-	RUNTIME_HOME=$(BASE_DIR)/cilkrtssuspend
-	COMPILER_HOME=$(HOME)/src/llvm-cilk
-	RTS_LIB=$(COMPILER_HOME)/lib/libcilkrts.a
-	LTO=0
-
-
-## TODO
-
-* Implement porr::spinlock::trylock
-  * Bump pedigree on failures
-  * Record number of failures until success?
-  * Do we need to record pedigrees at failure?
-* Implement compare and swap
-  * Basically the same as trylock, right?
-* Add porr::mutex
-  * No record/replay functionality
-  * Locking failure suspends the fiber
+	#pragma cilk grainsize = 1024
+	
+These restrictions allowed for an easier implementation; they are no
+inherent to the design of PORRidge.

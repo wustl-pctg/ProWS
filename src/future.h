@@ -21,19 +21,18 @@ extern void __my_cilk_spawn_future(std::function<void(void)> func);
 
 namespace cilk {
 
-
-#define reuse_future(T,fut, loc,func,...)  \
+#define reuse_future(T,fut, loc,func,args...)  \
   { \
-  auto functor = std::bind(func, ##__VA_ARGS__ );  \
+  auto functor = std::bind(func, ##args);  \
   fut = new (loc) cilk::future<T>();  \
   cilk_spawn fut->put(functor()); \
   }
 
 #define cilk_future_get(fut)              (fut)->get()
 
-#define cilk_future_create(T,fut,func,...) \
+#define cilk_future_create(T,fut,func,args...) \
   { \
-  auto functor = std::bind(func, ##__VA_ARGS__ );  \
+  auto functor = std::bind(func, ##args);  \
   fut = new cilk::future<T>();  \
   cilk_spawn fut->put(functor()); \
   }

@@ -1,6 +1,6 @@
 include ../common.mk
 
-OBJ = spinlock.o porr.o acquire.o future.o
+OBJ = spinlock.o porr.o acquire.o
 .SECONDARY: $(OBJ)
 
 .PHONY: default

@@ -25,7 +25,7 @@ if [[ $? != 0 ]]; then
 fi
 
 # Setup and compile our compiler
-./build-llvm-linux.sh
+#./build-llvm-linux.sh
 
 msg "Modified clang compiled."
 
@@ -54,7 +54,7 @@ cd -
 
 # Check out our fork of PBBS
 cd bench
-git clone https://gitlab.com/robertutterback/cilkplus-tests2.git cilkplus-tests
+#git clone https://gitlab.com/robertutterback/cilkplus-tests2.git cilkplus-tests
 
 # Compile benchmarks
 ./build.sh

@@ -1,5 +1,6 @@
 #include <iostream>
-#include <cilk/cilk.h>
+#include <stdio.h>
+#include "cilk/cilk.h"
 #include "../src/future.h"
 
 #include <cstdint>
@@ -12,6 +13,10 @@ volatile int dummy2 = 0;
 
 int helloFuture(void);
 int helloMoreFutures(void);
+void thread1(void);
+void thread2(void);
+void thread3(void);
+void thread4(void);
 
 int helloFuture() {
   for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
@@ -30,16 +35,6 @@ int helloMoreFutures() {
   fflush(stdout);
   return 84;
 }
-
-#define SPAWNING_FUNC_PREAMBLE
-
-#define kcilk_spawn(func)   \
-    cilk_spawn func();
-
-#define kcilk_sync  \
-    cilk_sync;
-
-#define SPAWNING_FUNC_EPILOGUE 
 
 void thread1() {
   printf("Creating future\n");
@@ -96,24 +91,21 @@ int main(int argc, char * args[]) {
 }
 
 void run() {
-    SPAWNING_FUNC_PREAMBLE;
-
-    kcilk_spawn(thread1);
+    cilk_spawn thread1();
 
     for (int i = 0; i < 64; i++) {
-        kcilk_spawn(thread2);
+        cilk_spawn thread2();
     }
 
-    kcilk_sync;
+    cilk_sync;
 
     printf("Moving right along...\n");
     fflush(stdout);
-    kcilk_spawn(thread3);
+    cilk_spawn thread3();
     for (int i = 0; i < 64; i++) {
-        kcilk_spawn(thread4);
+        cilk_spawn thread4();
     }
 
-    kcilk_sync;
+    cilk_sync;
     delete test_future2;
-    SPAWNING_FUNC_EPILOGUE;
 }

@@ -58,7 +58,7 @@ GENERAL_FLAGS += -fpic -O3
 GENERAL_FLAGS += -fcilkplus
 
 AM_CFLAGS = $(XCFLAGS) $(GENERAL_FLAGS) -std=c99
-AM_CPPFLAGS = $(GENERAL_FLAGS)
+AM_CPPFLAGS = $(GENERAL_FLAGS) -std=c++11
 AM_LDFLAGS = $(XLDFLAGS)
 
 # Target list.
@@ -82,6 +82,7 @@ libcilkrts_la_SOURCES =            \
   runtime/sslib/strnlen_s.c           \
   runtime/bug.cpp                  \
   runtime/cilk-abi.c               \
+  runtime/cilk-abi-future.cpp    \
   runtime/cilk-abi-cilk-for.cpp    \
   runtime/cilk-abi-vla-internal.c  \
   runtime/cilk_api.c               \

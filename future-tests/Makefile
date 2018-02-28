@@ -1,16 +1,19 @@
-include ../bench/bench.mk
+include ../common.mk
 
-RTSLIB=../cilkrtssuspend/.libs/libcilkrts.a
-LIBNAME=../build/libporr.a
-CILKFLAGS=-fcilkplus -fcilk-no-inline
+OBJ = simple_future_cilkr.o
+APP = simple-future
+.SECONDARY: $(OBJ)
 
 .PHONY = default
-default: simple_future_cilkr.cpp
-	$(CXX) $(CILKFLAGS) $(INC) -std=c++11 simple_future_cilkr.cpp $(LIBNAME) $(LDFLAGS) -o simple_future_cilkr
+default: $(APP)
 
-old: main.cpp
-	$(CXX) -fcilkplus -std=c++11 main.cpp
+.PHONY = $(APP)
+$(APP): $(OBJ)
+	$(CXX) $^ -o $@  $(LDFLAGS) $(LIBS)
+
+%.o: %.cpp
+	$(CXX) $(CFLAGS) $(CILKFLAGS) -c $(*:=.cpp)
 
 .PHONY = clean
 clean:
-	rm -f simple_future_cilkr a.out
+	rm -f *.o a.out simple-future

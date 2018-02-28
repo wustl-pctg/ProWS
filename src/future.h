@@ -20,7 +20,7 @@ void __my_cilk_spawn_future(std::function<void(void)> func);
 //}
 
 namespace cilk {
-
+/*
 #define reuse_future(T,fut, loc,func,args...)  \
   { \
   auto functor = std::bind(func, ##args);  \
@@ -30,6 +30,13 @@ namespace cilk {
     __temp_fut->put(functor()); \
   }); \
   }
+*/
+#define reuse_future(T,fut, loc,func,args...)  \
+  { \
+  auto functor = std::bind(func, ##args);  \
+  fut = new (loc) cilk::future<T>();  \
+  cilk_spawn fut->put(functor()); \
+  }
 
 #define cilk_future_get(fut)              (fut)->get()
 
@@ -37,15 +44,11 @@ namespace cilk {
   { \
   auto functor = std::bind(func, ##args);  \
   fut = new cilk::future<T>();  \
-  fut->put(func(args)); \
-  }
-/*
   auto __temp_fut = fut; \
   __my_cilk_spawn_future([__temp_fut,functor]() -> void { \
     __temp_fut->put(functor()); \
   }); \
   }
-*/
 
 template<typename T>
 class future {

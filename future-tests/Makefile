@@ -1,18 +1,24 @@
 include ../common.mk
 
 OBJ = simple_future_cilkr.o
+MY_LDFLAGS=-L../cilkrtssuspend/.libs -lpthread -lcilkrts
+MY_CXXFLAGS=-g -std=c++11 -Wfatal-errors -I/home/kdsinger/porridge/cilkrtssuspend/include -fcilkplus -fcilk-no-inline
 APP = simple-future
 .SECONDARY: $(OBJ)
 
 .PHONY = default
-default: $(APP)
+#default: $(APP)
+default:
+	$(CXX) -O3 -flto -g -fcilkplus -DPORR -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
+	$(CXX) simple_future_cilkr.o -o simple-future -lrt -ldl -lpthread -ltcmalloc -flto /home/kdsinger/porridge/build/libporr.a /home/kdsinger/porridge/llvm-cilk/lib/libcilkrts.a -lpthread -lm -lrt
 
-.PHONY = $(APP)
-$(APP): $(OBJ)
-	$(CXX) $^ -o $@  $(LDFLAGS) $(LIBS)
+#.PHONY = $(APP)
+#$(APP): $(OBJ)
+#	$(CXX) $^ -o $@  -fcilkplus $(MY_LDFLAGS)
 
-%.o: %.cpp
-	$(CXX) $(CFLAGS) $(CILKFLAGS) -c $(*:=.cpp)
+#%.o: %.cpp ../src/future.h
+	#$(CXX) -E $(CFLAGS) $(CILKFLAGS) -c $(*:=.cpp) > test.cpp
+#	$(CXX) $(MY_CXXFLAGS) -c $(*:=.cpp)
 
 .PHONY = clean
 clean:

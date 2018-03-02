@@ -12,7 +12,7 @@ extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_pop_frame(struct __cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
 
-static CILK_ABI_VOID __spawn_future(std::function<void(void)> func) {
+static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void(void)> func) {
     alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
@@ -24,7 +24,7 @@ static CILK_ABI_VOID __spawn_future(std::function<void(void)> func) {
     __cilkrts_leave_frame(&sf);
 }
 
-void __my_cilk_spawn_future(std::function<void(void)> func) {
+void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> func) {
     alloca(ZERO);
   // BEGIN Setup current stack frame information...
   __cilkrts_stack_frame sf;

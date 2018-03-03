@@ -93,7 +93,7 @@ int main(int argc, char * args[]) {
 void run() {
     cilk_spawn thread1();
 
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < 4; i++) {
         cilk_spawn thread2();
     }
 

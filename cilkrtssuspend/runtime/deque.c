@@ -248,6 +248,8 @@ void detach_for_steal(__cilkrts_worker *w,
     child_ff = make_child(w, loot_ff, 0, fiber);
 
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
+      // If we stole the parent of a future, update the appropriate
+      // fields in the loot_sf, loot_ff, and the child_ff
       if (loot_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
         child_ff->is_future = true;
         loot_ff->future_counter++;

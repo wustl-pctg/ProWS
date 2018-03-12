@@ -42,6 +42,10 @@ void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> 
   if(!CILK_SETJMP(sf.ctx)) { 
     __spawn_future(func);
   }
+  if (original_worker != __cilkrts_get_tls_worker()) {
+    assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->rightmost_child->is_future);
+    printf("Continuation of future_spawn stolen!\n"); fflush(stdout);
+  }
 
   // TODO: Do not need to do this for futures.
   if (sf.flags & CILK_FRAME_UNSYNCHED) {

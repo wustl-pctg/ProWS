@@ -623,15 +623,6 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
         make_unrunnable(w, ff, child_sf, child_sf == loot_sf, "steal 2");
     }
     #undef child_sf
-    // The last full_frame is the most recent stack_frame before a detach;
-    // handle the case that the detach was a future.
-    if (ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
-        // Unset the future parent flag so we don't double count the future
-        ff->call_stack->flags &= ~CILK_FRAME_FUTURE_PARENT;
-        // Increment the number of children that are futures.
-        ff->future_counter++;
-    }
-   
 
     /* XXX What if the leafmost frame does not contain a sync
        and this steal is from promote own deque? */
@@ -1219,7 +1210,8 @@ static void finalize_child_for_call(__cilkrts_worker *w,
 
         /* continue with the parent. */
         unconditional_steal(w, parent_ff);
-        __cilkrts_destroy_full_frame(w, child_ff);
+    // KYLE_TODO: Fix cleanup.
+        //__cilkrts_destroy_full_frame(w, child_ff);
     } STOP_INTERVAL(w, INTERVAL_FINALIZE_CHILD);
 }
 
@@ -2421,8 +2413,10 @@ static void do_return_from_spawn(__cilkrts_worker *w,
         BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
             BEGIN_WITH_FRAME_LOCK(w, ff) {
                 decjoin(ff);
-                if (ff->future_counter) {
+                if (!ff->is_future && ff->future_counter) {
                     parent_ff->future_counter++;
+                } else if (ff->is_future && ff->future_counter == 0) {
+                    parent_ff->future_counter--;
                 }
             } END_WITH_FRAME_LOCK(w, ff);
 
@@ -2455,7 +2449,8 @@ static void do_return_from_spawn(__cilkrts_worker *w,
 #endif  // CILK_RECORD_REPLAY
 
     // Cleanup the child frame.
-    __cilkrts_destroy_full_frame(w, ff);
+    // KYLE_TODO: Fix cleanup.
+    //__cilkrts_destroy_full_frame(w, ff);
     return;
 }
 
@@ -2549,10 +2544,11 @@ void __cilkrts_return(__cilkrts_worker *w)
             // however, because ff is a dying leaf full frame.
             parent_ff = disown(w, ff, 0, "return");
             if (ff->future_counter) {
-                
                 BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
                     parent_ff->future_counter++;
                 } END_WITH_FRAME_LOCK(w, parent_ff);
+            } else if (ff->is_future) {
+                printf("Hello, sonny!\n"); fflush(stdout);
             }
             decjoin(ff);
 
@@ -2717,7 +2713,8 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
                 rm,
                 ff);
 #endif
-        __cilkrts_destroy_full_frame(w, ff);
+    // KYLE_TODO: Fix cleanup.
+        //__cilkrts_destroy_full_frame(w, ff);
 
 
         /* Work is never done. w->g->work_done = 1; __cilkrts_fence(); */
@@ -2984,7 +2981,8 @@ void __cilkrts_deinit_internal(global_state_t *g)
 
     w = g->workers[0];
     if (*w->l->frame_ff) {
-        __cilkrts_destroy_full_frame(w, *w->l->frame_ff);
+    // KYLE_TODO: Fix cleanup.
+        //__cilkrts_destroy_full_frame(w, *w->l->frame_ff);
         *w->l->frame_ff = 0;
     }
 

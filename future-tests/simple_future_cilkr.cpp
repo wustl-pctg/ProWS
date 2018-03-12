@@ -11,6 +11,7 @@ extern void __assert_future_counter(int count);
 
 cilk::future<int>* test_future = NULL;
 cilk::future<int>* test_future2 = NULL;
+cilk::future<int>* test_future3 = NULL;
 volatile int dummy = 0;
 volatile int dummy2 = 0;
 //porr::spinlock output_lock;
@@ -26,6 +27,10 @@ int helloFuture() {
   for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
     dummy += i;
   }
+ // cilk_future_create(int,test_future3,helloMoreFutures);
+  //cilk_future_get(test_future3);
+  //delete test_future3;
+ // __assert_future_counter(1);
   printf("Returning value!\n");
   fflush(stdout);
   return 42;
@@ -97,22 +102,22 @@ int main(int argc, char * args[]) {
 void run() {
     cilk_spawn thread1();
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) {
         cilk_spawn thread2();
     }
 
     cilk_sync;
-    __assert_future_counter(1);
+    __assert_future_counter(0);
 
     printf("Moving right along...\n");
     fflush(stdout);
     cilk_spawn thread3();
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 2; i++) {
         cilk_spawn thread4();
     }
 
     cilk_sync;
-    __assert_future_counter(2);
+    __assert_future_counter(0);
 
     delete test_future2;
 }

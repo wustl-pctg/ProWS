@@ -67,6 +67,7 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
 
         ff->full_frame_magic_0 = FULL_FRAME_MAGIC_0;
         ff->join_counter = 0;
+        ff->future_counter = 0;
         ff->parent = 0;
         ff->rightmost_child = 0;
         ff->left_sibling = ff->right_sibling = 0;

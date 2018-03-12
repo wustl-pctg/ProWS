@@ -182,10 +182,20 @@ struct full_frame
     struct mutex lock;
 
     /**
-     * Count of outstanding children running in parallel
+     * Count of outstanding spawned children running in parallel
      * [self-locked]
      */
     int join_counter;
+
+    /**
+     * Count of children branches with outstanding future computations.
+     * Either the child is a future, or there is a path from the child
+     * to one or more futures in the full frame tree. In the latter case,
+     * the child with a path to a future has otherwise completed its
+     * work and returned.
+     * [self-locked]
+     */
+    int future_counter;
 
     /**
      * If TRUE: frame was called by the parent.

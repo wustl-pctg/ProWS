@@ -4,6 +4,8 @@
 #include <iostream>
 #include <functional>
 #include <assert.h>
+#include "local_state.h"
+#include "full_frame.h"
 
 extern "C" {
 
@@ -30,6 +32,8 @@ void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> 
   __cilkrts_enter_frame_1(&sf);
 
   sf.flags |= CILK_FRAME_FUTURE_PARENT;
+
+  __cilkrts_worker* original_worker = __cilkrts_get_tls_worker();
   if(!CILK_SETJMP(sf.ctx)) { 
     __spawn_future(func);
   }

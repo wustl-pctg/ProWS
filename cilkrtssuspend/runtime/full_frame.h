@@ -205,6 +205,12 @@ struct full_frame
     int is_call_child;
 
     /**
+     * If TRUE: frame is a future.
+     * If FALSE: frame is NOT a future.
+     */
+    int is_future;
+
+    /**
      * TRUE if this frame is the loot of a simulated steal.
      *
      * This situation never happens in normal execution.  However,

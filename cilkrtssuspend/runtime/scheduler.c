@@ -580,47 +580,64 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
                               full_frame *ff, 
                               __cilkrts_stack_frame *const loot_sf)
 {
-    __cilkrts_stack_frame *sf = loot_sf;
-    __cilkrts_stack_frame *rev_sf = 0;
-    __cilkrts_stack_frame *t_sf;
+    __cilkrts_stack_frame *curr_sf = loot_sf;
+    __cilkrts_stack_frame *prev_sf = 0;
+    __cilkrts_stack_frame *parent_sf;
 
-    CILK_ASSERT(sf);
-    /*CILK_ASSERT(sf->call_parent != sf);*/
+    CILK_ASSERT(curr_sf);
+    /*CILK_ASSERT(curr_sf->call_parent != sf);*/
 
     /* The leafmost frame is unsynched. */
 
     /// @todo{ I think each stack frame should hold a deque pointer, not a worker pointer.}
-    if (sf->worker != w || w->l->active_deque->frame_ff != ff)
-        sf->flags |= CILK_FRAME_UNSYNCHED;
+    if (curr_sf->worker != w || w->l->active_deque->frame_ff != ff)
+        curr_sf->flags |= CILK_FRAME_UNSYNCHED;
 
     /* Reverse the call stack to make a linked list ordered from parent
-       to child.  sf->call_parent points to the child of SF instead of
+       to child.  curr_sf->call_parent points to the child of SF instead of
        the parent.  */
     int mask = CILK_FRAME_DETACHED | CILK_FRAME_STOLEN
         | CILK_FRAME_LAST;
     do {
-        t_sf = (sf->flags & mask) ? 0 : sf->call_parent;
-        sf->call_parent = rev_sf;
-        rev_sf = sf;
-        sf = t_sf;
-    } while (sf);
-    sf = rev_sf;
+        parent_sf = (curr_sf->flags & mask) ? 0 : curr_sf->call_parent;
+        // Reverse the call stack by changing the parent to point to the
+        // child (prev_sf)
+        curr_sf->call_parent = prev_sf;
+        prev_sf = curr_sf;
+        curr_sf = parent_sf;
+    } while (curr_sf);
+    // Make curr_sf point to the youngest stolen frame
+    curr_sf = prev_sf;
 
     /* Promote each stack frame to a full frame in order from parent
        to child, following the reversed list we just built. */
-    make_unrunnable(w, ff, sf, sf == loot_sf, "steal 1");
-    /* T is the *child* of SF, because we have reversed the list */
-    for (t_sf = __cilkrts_advance_frame(sf); t_sf;
-         sf = t_sf, t_sf = __cilkrts_advance_frame(sf)) {
-        ff = make_child(w, ff, t_sf, NULL);
-        make_unrunnable(w, ff, t_sf, t_sf == loot_sf, "steal 2");
+    make_unrunnable(w, ff, curr_sf, curr_sf == loot_sf, "steal 1");
+    /* 
+     * Parent is now the *child* of curr_sf, because we have reversed the list;
+     * alias the variable for efficiency and readability
+     */
+    #define child_sf parent_sf
+    for (child_sf = __cilkrts_advance_frame(curr_sf); child_sf;
+         curr_sf = child_sf, child_sf = __cilkrts_advance_frame(curr_sf)) {
+        ff = make_child(w, ff, child_sf, NULL);
+        make_unrunnable(w, ff, child_sf, child_sf == loot_sf, "steal 2");
     }
+    #undef child_sf
+    // The last full_frame is the most recent stack_frame before a detach;
+    // handle the case that the detach was a future.
+    if (ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
+        // Unset the future parent flag so we don't double count the future
+        ff->call_stack->flags &= ~CILK_FRAME_FUTURE_PARENT;
+        // Increment the number of children that are futures.
+        ff->future_counter++;
+    }
+   
 
     /* XXX What if the leafmost frame does not contain a sync
        and this steal is from promote own deque? */
-    /*sf->flags |= CILK_FRAME_UNSYNCHED;*/
+    /*curr_sf->flags |= CILK_FRAME_UNSYNCHED;*/
 
-    CILK_ASSERT(!sf->call_parent);
+    CILK_ASSERT(!curr_sf->call_parent);
     return ff;
 }
 

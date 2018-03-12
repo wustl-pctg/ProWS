@@ -28,7 +28,7 @@ int helloFuture() {
 }
 
 int helloMoreFutures() {
-  for (volatile uint32_t j = 0; j < UINT32_MAX/8; j++) {
+  for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
     dummy2 += j;
   }
   printf("Returning value!\n");
@@ -102,7 +102,7 @@ void run() {
     printf("Moving right along...\n");
     fflush(stdout);
     cilk_spawn thread3();
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < 8; i++) {
         cilk_spawn thread4();
     }
 

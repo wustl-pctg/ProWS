@@ -13,6 +13,11 @@ extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_pop_frame(struct __cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
 
+// TODO: This is temporary.
+void __assert_future_counter(int count) {
+    assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->future_counter == count);
+}   
+
 static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void(void)> func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);

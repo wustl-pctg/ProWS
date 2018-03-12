@@ -5,6 +5,10 @@
 
 #include <cstdint>
 
+extern "C" {
+extern void __assert_future_counter(int count);
+}
+
 cilk::future<int>* test_future = NULL;
 cilk::future<int>* test_future2 = NULL;
 volatile int dummy = 0;
@@ -98,6 +102,7 @@ void run() {
     }
 
     cilk_sync;
+    __assert_future_counter(1);
 
     printf("Moving right along...\n");
     fflush(stdout);
@@ -107,5 +112,7 @@ void run() {
     }
 
     cilk_sync;
+    __assert_future_counter(2);
+
     delete test_future2;
 }

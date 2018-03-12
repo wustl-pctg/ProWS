@@ -2417,11 +2417,15 @@ static void do_return_from_spawn(__cilkrts_worker *w,
         CILK_ASSERT(sf == NULL);
         parent_ff = ff->parent;
     
-        BEGIN_WITH_FRAME_LOCK(w, ff) {
-            decjoin(ff);
-        } END_WITH_FRAME_LOCK(w, ff);
 
         BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
+            BEGIN_WITH_FRAME_LOCK(w, ff) {
+                decjoin(ff);
+                if (ff->future_counter) {
+                    parent_ff->future_counter++;
+                }
+            } END_WITH_FRAME_LOCK(w, ff);
+
             if (parent_ff->simulated_stolen)
                 unconditional_steal(w, parent_ff);
             else
@@ -2544,6 +2548,12 @@ void __cilkrts_return(__cilkrts_worker *w)
             // Technically, w will "own" ff until ff is freed,
             // however, because ff is a dying leaf full frame.
             parent_ff = disown(w, ff, 0, "return");
+            if (ff->future_counter) {
+                
+                BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
+                    parent_ff->future_counter++;
+                } END_WITH_FRAME_LOCK(w, parent_ff);
+            }
             decjoin(ff);
 
 #ifdef _WIN32

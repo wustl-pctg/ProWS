@@ -633,9 +633,9 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
 }
 
 /**
- * @brief cilk_fiber_proc that resumes user code after a successful
- * random steal.
-
+ * @brief cilk_fiber_proc that resumes user code on the specified fiber,
+ *        rather than on the original fiber.
+ *
  * This function longjmps back into the user code whose state is
  * stored in cilk_fiber_get_data(fiber)->resume_sf.  The stack pointer
  * is adjusted so that the code resumes on the specified fiber stack
@@ -645,10 +645,9 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
  * pool.
  *
  * @param fiber   The fiber being used to resume user code.
- * @param arg     Unused.
  */
 static
-void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber)
+void resume_user_code_on_another_fiber(cilk_fiber *fiber)
 {
     cilk_fiber_data *data = cilk_fiber_get_data(fiber);
     __cilkrts_stack_frame* sf = data->resume_sf;
@@ -974,7 +973,7 @@ done:
         // Since our steal was successful, finish initialization of
         // the fiber.
         cilk_fiber_reset_state(fiber,
-                               fiber_proc_to_resume_user_code_for_random_steal);
+                               resume_user_code_on_another_fiber);
         // Record the pedigree of the frame that w has stolen.
         // record only if CILK_RECORD_LOG is set
         replay_record_steal(w, victim_id);
@@ -1211,7 +1210,7 @@ static void finalize_child_for_call(__cilkrts_worker *w,
         /* continue with the parent. */
         unconditional_steal(w, parent_ff);
     // KYLE_TODO: Fix cleanup.
-        //__cilkrts_destroy_full_frame(w, child_ff);
+        __cilkrts_destroy_full_frame(w, child_ff);
     } STOP_INTERVAL(w, INTERVAL_FINALIZE_CHILD);
 }
 
@@ -2450,7 +2449,7 @@ static void do_return_from_spawn(__cilkrts_worker *w,
 
     // Cleanup the child frame.
     // KYLE_TODO: Fix cleanup.
-    //__cilkrts_destroy_full_frame(w, ff);
+    __cilkrts_destroy_full_frame(w, ff);
     return;
 }
 
@@ -2714,7 +2713,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
                 ff);
 #endif
     // KYLE_TODO: Fix cleanup.
-        //__cilkrts_destroy_full_frame(w, ff);
+        __cilkrts_destroy_full_frame(w, ff);
 
 
         /* Work is never done. w->g->work_done = 1; __cilkrts_fence(); */
@@ -2982,7 +2981,7 @@ void __cilkrts_deinit_internal(global_state_t *g)
     w = g->workers[0];
     if (*w->l->frame_ff) {
     // KYLE_TODO: Fix cleanup.
-        //__cilkrts_destroy_full_frame(w, *w->l->frame_ff);
+        __cilkrts_destroy_full_frame(w, *w->l->frame_ff);
         *w->l->frame_ff = 0;
     }
 

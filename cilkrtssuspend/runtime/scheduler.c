@@ -1478,13 +1478,14 @@ static void enter_runtime_transition_proc(cilk_fiber *fiber)
  * calling @c user_code_resume_after_switch_into_runtime.
  */
 static inline NORETURN
-cilkrts_resume(__cilkrts_stack_frame *sf, full_frame *ff)
+cilkrts_resume_stack_frame(__cilkrts_stack_frame *sf, full_frame *ff)
 {
     // Save the sync stack pointer, and do the bookkeeping
     char* sync_sp = ff->sync_sp;
     __cilkrts_take_stack(ff, sync_sp);  // leaves ff->sync_sp null
 
     sf->flags &= ~CILK_FRAME_SUSPENDED;
+    // KYLE_TODO: Go to a new fiber if there is a future
     // Actually longjmp to the user code.
     // We may have exceptions to deal with, since we are resuming
     // a previous-suspended frame.
@@ -1497,7 +1498,7 @@ cilkrts_resume(__cilkrts_stack_frame *sf, full_frame *ff)
  * (sf/ff).
  *
  * This method pulls sf/ff out of the worker, and then calls
- * cilkrts_resume to jump to user code.
+ * cilkrts_resume_stack_frame to jump to user code.
  */
 static NORETURN
 user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
@@ -1523,7 +1524,7 @@ user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
     cilk_fiber_invoke_tbb_stack_op(fiber, CILK_TBB_STACK_ADOPT);
 
     // Actually jump to user code.
-    cilkrts_resume(sf, ff);
+    cilkrts_resume_stack_frame(sf, ff);
 }
 
 
@@ -1563,7 +1564,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
         setup_for_execution(w, ff2, 0);
         scheduling_fiber_prepare_to_resume_user_code(w, ff2, w->current_stack_frame);
-        cilkrts_resume(w->current_stack_frame, ff2);
+        cilkrts_resume_stack_frame(w->current_stack_frame, ff2);
         
 // Suppress clang warning that the expression result is unused
 #if defined(__clang__) && (! defined(__INTEL_COMPILER))
@@ -1571,7 +1572,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
 #   pragma clang diagnostic ignored "-Wunused-value"
 #endif // __clang__
         /* no return */
-        CILK_ASSERT(((void)"returned from __cilkrts_resume", 0));
+        CILK_ASSERT(((void)"returned from cilkrts_resume_stack_frame", 0));
 #if defined(__clang__) && (! defined(__INTEL_COMPILER))
 #   pragma clang diagnostic pop
 #endif // __clang__
@@ -2523,7 +2524,8 @@ __cilkrts_stack_frame *simulate_pop_tail(__cilkrts_worker *w)
 /* Return from a call, not a spawn. */
 void __cilkrts_return(__cilkrts_worker *w)
 {
-    full_frame *ff, *parent_ff;
+    full_frame *ff;
+    full_frame *parent_ff;
 
     // Count time during the return as in the runtime.
     STOP_INTERVAL(w, INTERVAL_WORKING);

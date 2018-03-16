@@ -2521,7 +2521,7 @@ __cilkrts_stack_frame *simulate_pop_tail(__cilkrts_worker *w)
 #endif
 
 
-/* Return from a call, not a spawn. */
+/* Return from a full frame representing a call, not a spawn. */
 void __cilkrts_return(__cilkrts_worker *w)
 {
     full_frame *ff;
@@ -2548,8 +2548,6 @@ void __cilkrts_return(__cilkrts_worker *w)
                 BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
                     parent_ff->future_counter++;
                 } END_WITH_FRAME_LOCK(w, parent_ff);
-            } else if (ff->is_future) {
-                printf("Hello, sonny!\n"); fflush(stdout);
             }
             decjoin(ff);
 

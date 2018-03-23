@@ -60,6 +60,7 @@ public:
   };
 
   void put(T result) {
+    assert(m_status != status::DONE);
     m_result = result;
     m_status = status::DONE;
   };

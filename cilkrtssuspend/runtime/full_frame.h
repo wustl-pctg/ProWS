@@ -355,6 +355,11 @@ struct full_frame
     cilk_fiber *fiber_child;
 
     /**
+     * Fibers that were allocated for futures.
+     */
+    cilk_fiber *future_fiber;
+
+    /**
      * If the sync_master is set, this function can only be sync'd by the team
      * leader, who first entered Cilk.  This is set by the first worker to steal
      * from the user worker.

@@ -931,6 +931,7 @@ void cilk_fiber::suspend_self_and_resume_other(cilk_fiber* other)
   this->assert_ref_count_at_least(1);
 
   // Pass along my owner.
+  CILK_ASSERT(this->owner);
   other->owner = this->owner;
   this->owner  = NULL;
 

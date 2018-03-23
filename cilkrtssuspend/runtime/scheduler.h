@@ -442,6 +442,8 @@ void make_unrunnable(__cilkrts_worker *w, full_frame *ff,
                      int is_loot, const char *why);
 void make_runnable(__cilkrts_worker *w, full_frame *ff, deque* d);
 
+void resume_user_code_on_another_fiber(cilk_fiber *fiber);
+
 #endif
 
 __CILKRTS_END_EXTERN_C

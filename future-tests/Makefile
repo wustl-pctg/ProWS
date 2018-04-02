@@ -9,7 +9,7 @@ APP = simple-future
 .PHONY = default
 #default: $(APP)
 default:
-	$(CXX) -O3 -flto -g -fcilkplus -DPORR -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
+	$(CXX) -O0 -flto -g -fcilkplus -DPORR -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
 	$(CXX) simple_future_cilkr.o -o simple-future -lrt -ldl -lpthread -ltcmalloc -flto /home/kdsinger/porridge/build/libporr.a /home/kdsinger/porridge/llvm-cilk/lib/libcilkrts.a -lpthread -lm -lrt
 
 #.PHONY = $(APP)

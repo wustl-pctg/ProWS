@@ -687,6 +687,7 @@ void resume_user_code_on_another_fiber(cilk_fiber *fiber)
         // eventually.
         cilk_fiber_invoke_tbb_stack_op(fiber, CILK_TBB_STACK_ADOPT);
         
+        CILK_ASSERT(sf);
         sf->flags &= ~CILK_FRAME_SUSPENDED;
 
         // longjmp to user code.  Don't process exceptions here,
@@ -1598,14 +1599,16 @@ longjmp_into_runtime(__cilkrts_worker *w,
                                   w->l->frame_ff[0]->future_fiber :
                                   w->l->fiber_to_free ?
                                   w->l->fiber_to_free :
-                                  //w->l->frame_ff[0]->future_fiber ?
-                                  //w->l->frame_ff[0]->future_fiber :
                                   (*w->l->frame_ff)->parent->fiber_child
     );
 
+    if (w->l->frame_ff[0]->future_fiber) {
+        printf("Future fiber are here!\n");
+        CILK_ASSERT(w->l->fiber_to_free == NULL);
+    }
+
     CILK_ASSERT(current_fiber == w->l->frame_ff[0]->future_fiber
         || w->l->frame_ff[0]->future_fiber == NULL);
-        //printf("Howdy, y'all!\n"); fflush(stdout);
 
     cilk_fiber_data* fdata = cilk_fiber_get_data(current_fiber);
     CILK_ASSERT(fdata);
@@ -1625,12 +1628,17 @@ longjmp_into_runtime(__cilkrts_worker *w,
                                     enter_runtime_transition_proc);
     cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_ORPHAN);
     
-    if (w->l->fiber_to_free == current_fiber) {
+    //if (w->l->fiber_to_free == current_fiber) {
+    if (current_fiber == w->l->frame_ff[0]->future_fiber || current_fiber == w->l->fiber_to_free) {
 
         //fprintf(stderr, "(w: %d) about to free %p\n", w->self, w->l->fiber_to_free);
         // Case 1: we are freeing this fiber.  We never
         // resume this fiber again after jumping into the runtime.
-        w->l->fiber_to_free = NULL;
+        if (current_fiber == w->l->fiber_to_free) {
+            w->l->fiber_to_free = NULL;
+        } else {
+            w->l->frame_ff[0]->future_fiber = NULL;
+        }
 
         // Extra check. Normally, the fiber we are about to switch to
         // should have a NULL owner.

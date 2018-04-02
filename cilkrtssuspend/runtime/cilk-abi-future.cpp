@@ -25,11 +25,11 @@ void __assert_future_counter(int count) {
 
 
 static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
-    //STOP_INTERVAL(w, INTERVAL_WORKING);
-    //START_INTERVAL(w, INTERVAL_IN_RUNTIME);
     __cilkrts_worker* curr_worker = __cilkrts_get_tls_worker();
     cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
+    // TODO: Handle the case that it is null more gracefully
     CILK_ASSERT(new_exec_fiber != NULL);
+    CILK_ASSERT(first_frame);
     cilk_fiber_data* new_exec_fiber_data = cilk_fiber_get_data(new_exec_fiber);
     printf("future create: %p\n", new_exec_fiber_data); fflush(stdout);
     printf("Me in future: %p\n", curr_worker);
@@ -46,21 +46,18 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame)
     curr_fiber = curr_worker->l->frame_ff[0]->fiber_self;
     __cilkrts_worker_unlock(curr_worker);
     // Should I be "running" instead of resuming? The resume at least jumps to a new fiber...
+    printf("Going to new fiber from worker %d\n", curr_worker->self);
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
-    // TODO: The suspend_self_and_resume_other DOES return! :o
-    CILK_ASSERT(! "Uh-oh, spaghettios!"); // We should not make it here...
+    // TODO: I think that ideally I do not make it here...
+    printf("Back from new fiber in worker %d\n", __cilkrts_get_tls_worker()->self); fflush(stdout);
 }
 
 static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void(void)>* func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
     __cilkrts_detach(&sf);
-    assert(sf.call_parent->flags & CILK_FRAME_FUTURE_PARENT);
-    if (!CILK_SETJMP(sf.ctx)) {
-        __cilkrts_switch_fibers(&sf);
-        // We should not make it here
-        CILK_ASSERT(0);
-    }
+
+    CILK_ASSERT(sf.call_parent->flags & CILK_FRAME_FUTURE_PARENT);
 
     (*func)();
     delete func;
@@ -76,15 +73,24 @@ static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void
 void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> func) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
-
   sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
   __cilkrts_worker* original_worker = __cilkrts_get_tls_worker();
   cilk_fiber* orig_fiber = original_worker->l->frame_ff[0]->fiber_self;
   if(!CILK_SETJMP(sf.ctx)) { 
-    std::function<void(void)>* heap_func = new std::function<void(void)>(func);
-    __spawn_future(heap_func);
+    CILK_ASSERT(sf.ctx);
+    __cilkrts_switch_fibers(&sf);
+    // TODO: What is the correct thing to do here??? This happens after the future is finished...
+    //CILK_ASSERT(! "Returned after switching fibers :(");
+  } else {
+    printf("Hi guys!\n"); fflush(stdout);
+    if(!CILK_SETJMP(sf.ctx)) { 
+      std::function<void(void)>* heap_func = new std::function<void(void)>(func);
+      __spawn_future(heap_func);
+      CILK_ASSERT(! "Should not be returning from spawn future right now...");
+    }
   }
+
   if (original_worker != __cilkrts_get_tls_worker()) {
     assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->rightmost_child->is_future);
     assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->fiber_self != orig_fiber);
@@ -92,17 +98,23 @@ void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> 
     printf("Continuation of future_spawn stolen!\n"); fflush(stdout);
   }
 
+  printf("sf: %p\n", &sf);
+
   // TODO: Do not need to do this for futures.
   if (sf.flags & CILK_FRAME_UNSYNCHED) {
     if (!CILK_SETJMP(sf.ctx)) {
       printf("Syncing future!\n"); fflush(stdout);
       __cilkrts_sync(&sf);
-      printf("Done syncing future!\n"); fflush(stdout);
     }
+    printf("Done syncing future!\n"); fflush(stdout);
   }
+  printf("Past syncing future!\n"); fflush(stdout);
+  CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff[0]->is_future == 0);
 
   __cilkrts_pop_frame(&sf);
+  printf("Popped frame for my_spawn_future!\n"); fflush(stdout);
   __cilkrts_leave_frame(&sf);
+  printf("Left frame for my_spawn_future!\n"); fflush(stdout);
 }
 
 }

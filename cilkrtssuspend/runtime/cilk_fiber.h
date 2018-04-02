@@ -253,6 +253,7 @@ cilk_fiber* cilk_fiber_allocate_from_heap(size_t stack_size);
  *                     null, the fiber can be used with cilk_fiber_run_proc()
  *                     but not with cilk_fiber_resume().
  */
+
 void cilk_fiber_reset_state(cilk_fiber* fiber,
                             cilk_fiber_proc start_proc);
 

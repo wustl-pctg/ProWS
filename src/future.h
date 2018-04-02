@@ -57,6 +57,7 @@ public:
 
  future() {
     m_status = status::CREATED;
+    printf("Called future constructor!\n");
   };
 
   void put(T result) {

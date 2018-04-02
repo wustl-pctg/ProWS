@@ -31,6 +31,7 @@ int helloFuture() {
   //cilk_future_get(test_future3);
   //delete test_future3;
  // __assert_future_counter(1);
+  printf("This one is helloFuture!\n");
   printf("Returning value!\n");
   fflush(stdout);
   return 42;
@@ -40,6 +41,7 @@ int helloMoreFutures() {
   for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
     dummy2 += j;
   }
+  printf("This one is helloMoreFutures!\n");
   printf("Returning value!\n");
   fflush(stdout);
   return 84;
@@ -49,10 +51,10 @@ void thread1() {
   printf("Creating future\n");
   fflush(stdout);
   cilk_future_create(int,test_future,helloFuture);
-  printf("Continuing");
+  printf("Continuing\n");
   fflush(stdout);
   auto result = cilk_future_get(test_future);
-  printf("%d\n", result);
+  printf("Thread 1 finished: %d\n", result);
   fflush(stdout);
 }
 void thread2() {
@@ -90,16 +92,16 @@ void thread4() {
   //output_lock.unlock();
 }
 
-void run(void);
+//void run(void);
 
-extern "C" {
+/*extern "C" {
 int main(int argc, char * args[]) {
     run();
     return 0;
 }
-}
+}*/
 
-void run() {
+int main() {
     cilk_spawn thread1();
 
     for (int i = 0; i < 2; i++) {
@@ -107,8 +109,9 @@ void run() {
     }
 
     cilk_sync;
-    __assert_future_counter(0);
-
+    printf("Round 2\n");
+    //__assert_future_counter(0);
+/*
     printf("Moving right along...\n");
     fflush(stdout);
     cilk_spawn thread3();
@@ -119,5 +122,6 @@ void run() {
     cilk_sync;
     __assert_future_counter(0);
 
-    delete test_future2;
+    delete test_future2;*/
+    return 0;
 }

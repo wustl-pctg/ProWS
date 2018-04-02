@@ -182,7 +182,7 @@ NORETURN cilk_fiber_sysdep::jump_to_resume_other_sysdep(cilk_fiber_sysdep* other
 	resume_other_sysdep(other);
 
 	// We should never come back here...
-	__cilkrts_bug("Should not get here");
+	__cilkrts_bug("cilk_fiber_sysdep::jump_to_resume_other_sysdep Should not get here");
 }
 
 // GCC doesn't allow us to call __builtin_longjmp in the same function that
@@ -259,7 +259,7 @@ NORETURN cilk_fiber_sysdep::run()
 	*dummy = 0xface;
 
 	// User proc should never return.
-	__cilkrts_bug("Should not get here");
+	__cilkrts_bug("cilk_fiber_sysdep::run() Should not get here");
 }
 
 void cilk_fiber_sysdep::make_stack(size_t stack_size)

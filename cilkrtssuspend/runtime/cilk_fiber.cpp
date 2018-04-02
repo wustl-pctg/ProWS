@@ -817,6 +817,7 @@ cilk_fiber* cilk_fiber::allocate(cilk_fiber_pool* pool)
 int cilk_fiber::remove_reference(cilk_fiber_pool* pool)
 {
   int ref_count = this->dec_ref_count();
+  printf("Ref count: %d\n", ref_count);
   if (ref_count == 0) {
     if (pool) {
       deallocate_self(pool);
@@ -993,6 +994,7 @@ void cilk_fiber::deallocate_to_heap()
 
 void cilk_fiber::deallocate_self(cilk_fiber_pool* pool)
 {
+  printf("Deallocating self to pool (%p)\n", this); fflush(stdout);
   this->set_resumable(false);
 
   CILK_ASSERT(NULL != pool);

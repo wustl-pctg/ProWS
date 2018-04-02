@@ -27,7 +27,7 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame,
     cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
     new_fiber_data->resume_sf = first_frame;
 
-    cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_fiber);
+    cilk_fiber_remove_reference_from_self_and_resume_other(curr_fiber, &(__cilkrts_get_tls_worker()->l->fiber_pool), new_fiber);
 }
 
 static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {

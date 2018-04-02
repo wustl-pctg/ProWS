@@ -110,8 +110,8 @@ int main() {
 
     cilk_sync;
     printf("Round 2\n");
-    //__assert_future_counter(0);
-/*
+    __assert_future_counter(0);
+
     printf("Moving right along...\n");
     fflush(stdout);
     cilk_spawn thread3();
@@ -122,6 +122,6 @@ int main() {
     cilk_sync;
     __assert_future_counter(0);
 
-    delete test_future2;*/
+    delete test_future2;
     return 0;
 }

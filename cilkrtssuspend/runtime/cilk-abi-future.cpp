@@ -23,6 +23,12 @@ void __assert_future_counter(int count) {
     assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->future_counter == count);
 }   
 
+static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
+    cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
+    new_fiber_data->resume_sf = first_frame;
+
+    cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_fiber);
+}
 
 static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     __cilkrts_worker* curr_worker = __cilkrts_get_tls_worker();
@@ -67,7 +73,7 @@ static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void
     printf("About to leave the future frame!\n"); fflush(stdout);
     __cilkrts_leave_frame(&sf);
     // If we get here, then out parent was not stolen!
-    CILK_ASSERT(! "Leaving future frame when unstolen parent path not yet supported!");
+    //CILK_ASSERT(! "Leaving future frame when unstolen parent path not yet supported!");
 }
 
 void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> func) {
@@ -87,7 +93,9 @@ void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> 
     if(!CILK_SETJMP(sf.ctx)) { 
       std::function<void(void)>* heap_func = new std::function<void(void)>(func);
       __spawn_future(heap_func);
-      CILK_ASSERT(! "Should not be returning from spawn future right now...");
+      // Jump back into the old frame!
+      __cilkrts_switch_fibers(&sf, original_worker->l->frame_ff[0]->future_fiber, original_worker->l->frame_ff[0]->fiber_self);
+      //CILK_ASSERT(! "Should not be returning from spawn future right now...");
     }
   }
 
@@ -108,6 +116,7 @@ void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> 
     }
     printf("Done syncing future!\n"); fflush(stdout);
   }
+
   printf("Past syncing future!\n"); fflush(stdout);
   CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff[0]->is_future == 0);
 

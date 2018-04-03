@@ -20,12 +20,17 @@ typedef void (*void_func_t)(void);
 
 // TODO: This is temporary.
 void __assert_future_counter(int count) {
-    assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->future_counter == count);
+    CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff[0]->future_counter == count);
 }   
 
 static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
     cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
     new_fiber_data->resume_sf = first_frame;
+    long test = 1;
+    asm("\t mov %%rsp,%0" : "=r"(test));
+    printf("Future rsp: %lX\n", test);
+    asm("\t mov %%rbp,%0" : "=r"(test));
+    printf("Future rbp: %lX\n", test);
 
     cilk_fiber_remove_reference_from_self_and_resume_other(curr_fiber, &(__cilkrts_get_tls_worker()->l->fiber_pool), new_fiber);
 }
@@ -53,27 +58,29 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame)
     __cilkrts_worker_unlock(curr_worker);
     // Should I be "running" instead of resuming? The resume at least jumps to a new fiber...
     printf("Going to new fiber from worker %d\n", curr_worker->self);
+    long test = 1;
+    asm("\t mov %%rsp,%0" : "=r"(test));
+    printf("Pre-future rsp: %lX\n", test);
+    asm("\t mov %%rbp,%0" : "=r"(test));
+    printf("Pre-future rbp: %lX\n", test);
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
     // TODO: I think that ideally I do not make it here...
     printf("Back from new fiber in worker %d\n", __cilkrts_get_tls_worker()->self); fflush(stdout);
 }
 
-static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void(void)>* func) {
+static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void(void)> func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
     __cilkrts_detach(&sf);
 
     CILK_ASSERT(sf.call_parent->flags & CILK_FRAME_FUTURE_PARENT);
 
-    (*func)();
-    delete func;
+    func();
 
     printf("Func finished!\n"); fflush(stdout);
     __cilkrts_pop_frame(&sf);
     printf("About to leave the future frame!\n"); fflush(stdout);
     __cilkrts_leave_frame(&sf);
-    // If we get here, then out parent was not stolen!
-    //CILK_ASSERT(! "Leaving future frame when unstolen parent path not yet supported!");
 }
 
 void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> func) {
@@ -81,26 +88,30 @@ void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> 
   __cilkrts_enter_frame_1(&sf);
   sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
+  printf("initial fiber: %p\n", __cilkrts_get_tls_worker()->l->frame_ff[0]->fiber_self);
+
   __cilkrts_worker* original_worker = __cilkrts_get_tls_worker();
   cilk_fiber* orig_fiber = original_worker->l->frame_ff[0]->fiber_self;
   if(!CILK_SETJMP(sf.ctx)) { 
     CILK_ASSERT(sf.ctx);
     __cilkrts_switch_fibers(&sf);
-    // TODO: What is the correct thing to do here??? This happens after the future is finished...
-    //CILK_ASSERT(! "Returned after switching fibers :(");
+    printf("Hello! I am returning from the first fiber switch!\n");
   } else {
-    printf("Hi guys!\n"); fflush(stdout);
     if(!CILK_SETJMP(sf.ctx)) { 
-      std::function<void(void)>* heap_func = new std::function<void(void)>(func);
-      __spawn_future(heap_func);
+      __spawn_future(func);
+
       // Jump back into the old frame!
-      __cilkrts_switch_fibers(&sf, original_worker->l->frame_ff[0]->future_fiber, original_worker->l->frame_ff[0]->fiber_self);
-      //CILK_ASSERT(! "Should not be returning from spawn future right now...");
+      cilk_fiber* future_fiber = original_worker->l->frame_ff[0]->future_fiber;
+      CILK_ASSERT(future_fiber != NULL);
+      original_worker->l->frame_ff[0]->future_fiber = NULL;
+      printf("About to return from the fiber...\n");
+      __cilkrts_switch_fibers(&sf, future_fiber, original_worker->l->frame_ff[0]->fiber_self);
+      CILK_ASSERT(! "Should be returning to the previous fiber!");
     }
   }
 
   if (original_worker != __cilkrts_get_tls_worker()) {
-    assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->rightmost_child->is_future);
+    //assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->rightmost_child->is_future);
     assert(__cilkrts_get_tls_worker()->l->frame_ff[0]->fiber_self != orig_fiber);
 
     printf("Continuation of future_spawn stolen!\n"); fflush(stdout);
@@ -111,14 +122,11 @@ void __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> 
   // TODO: Do not need to do this for futures.
   if (sf.flags & CILK_FRAME_UNSYNCHED) {
     if (!CILK_SETJMP(sf.ctx)) {
-      printf("Syncing future!\n"); fflush(stdout);
       __cilkrts_sync(&sf);
     }
-    printf("Done syncing future!\n"); fflush(stdout);
   }
 
   printf("Past syncing future!\n"); fflush(stdout);
-  CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff[0]->is_future == 0);
 
   __cilkrts_pop_frame(&sf);
   printf("Popped frame for my_spawn_future!\n"); fflush(stdout);

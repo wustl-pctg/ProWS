@@ -222,7 +222,7 @@ static void push_child(full_frame *parent_ff, full_frame *child_ff)
 }
 
 /* unlink CHILD from the list of all children of PARENT */
-static void unlink_child(full_frame *parent_ff, full_frame *child_ff)
+void unlink_child(full_frame *parent_ff, full_frame *child_ff)
 {
     double_link(child_ff->left_sibling, child_ff->right_sibling);
 
@@ -1486,7 +1486,6 @@ cilkrts_resume_stack_frame(__cilkrts_stack_frame *sf, full_frame *ff)
     __cilkrts_take_stack(ff, sync_sp);  // leaves ff->sync_sp null
 
     sf->flags &= ~CILK_FRAME_SUSPENDED;
-    // KYLE_TODO: Go to a new fiber if there is a future
     // Actually longjmp to the user code.
     // We may have exceptions to deal with, since we are resuming
     // a previous-suspended frame.
@@ -1511,7 +1510,7 @@ user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
     ff = *sf->worker->l->frame_ff;
 
 /* #if FIBER_DEBUG >= 1     */
-    CILK_ASSERT(ff->fiber_self == fiber || ff->future_fiber == fiber);
+    CILK_ASSERT(ff->fiber_self == fiber);
     cilk_fiber_data *fdata = cilk_fiber_get_data(fiber);
     DBGPRINTF ("%d-%p: resume_after_switch_into_runtime, fiber=%p\n",
                w->self, w, fiber);
@@ -1595,20 +1594,10 @@ longjmp_into_runtime(__cilkrts_worker *w,
     // Current fiber is either the (1) one we are about to free,
     // or (2) it has been passed up to the parent.
     cilk_fiber *current_fiber = ( 
-                                  w->l->frame_ff[0]->future_fiber ?
-                                  w->l->frame_ff[0]->future_fiber :
                                   w->l->fiber_to_free ?
                                   w->l->fiber_to_free :
                                   (*w->l->frame_ff)->parent->fiber_child
     );
-
-    if (w->l->frame_ff[0]->future_fiber) {
-        printf("Future fiber are here!\n");
-        CILK_ASSERT(w->l->fiber_to_free == NULL);
-    }
-
-    CILK_ASSERT(current_fiber == w->l->frame_ff[0]->future_fiber
-        || w->l->frame_ff[0]->future_fiber == NULL);
 
     cilk_fiber_data* fdata = cilk_fiber_get_data(current_fiber);
     CILK_ASSERT(fdata);
@@ -1629,16 +1618,12 @@ longjmp_into_runtime(__cilkrts_worker *w,
     cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_ORPHAN);
     
     //if (w->l->fiber_to_free == current_fiber) {
-    if (current_fiber == w->l->frame_ff[0]->future_fiber || current_fiber == w->l->fiber_to_free) {
+    if (current_fiber == w->l->fiber_to_free) {
 
         //fprintf(stderr, "(w: %d) about to free %p\n", w->self, w->l->fiber_to_free);
         // Case 1: we are freeing this fiber.  We never
         // resume this fiber again after jumping into the runtime.
-        if (current_fiber == w->l->fiber_to_free) {
-            w->l->fiber_to_free = NULL;
-        } else {
-            w->l->frame_ff[0]->future_fiber = NULL;
-        }
+        w->l->fiber_to_free = NULL;
 
         // Extra check. Normally, the fiber we are about to switch to
         // should have a NULL owner.
@@ -1958,7 +1943,7 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     scheduling_fiber_prepare_to_resume_user_code(w, ff, sf);
 
     CILK_ASSERT(*w->l->frame_ff);
-    cilk_fiber *other = (*w->l->frame_ff)->future_fiber ? (*w->l->frame_ff)->future_fiber : (*w->l->frame_ff)->fiber_self;
+    cilk_fiber *other = (*w->l->frame_ff)->fiber_self;
     cilk_fiber_data* other_data = cilk_fiber_get_data(other);
     cilk_fiber_data* current_fiber_data = cilk_fiber_get_data(current_fiber);
 

@@ -255,9 +255,15 @@ void detach_for_steal(__cilkrts_worker *w,
       if (loot_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
         //CILK_ASSERT(child_ff->future_fiber);
         //CILK_ASSERT(loot_ff->future_fiber);
+        child_ff->fiber_self = child_ff->future_fiber;
+        child_ff->future_fiber = NULL;
         child_ff->is_future = true;
         loot_ff->future_counter++;
+        //loot_ff->join_counter--;
         loot_ff->call_stack->flags &= ~CILK_FRAME_FUTURE_PARENT;
+        // KYLE_TODO: Don't link them in the first place!
+        //unlink_child(loot_ff, child_ff);
+        //CILK_ASSERT(loot_ff->fiber_self);
       }
       /* install child in the victim's work queue, taking
          the parent_ff's place */
@@ -287,7 +293,7 @@ void __cilkrts_promote_own_deque(__cilkrts_worker *w)
 {
   // Remember the fiber we start this method on.
   CILK_ASSERT(*w->l->frame_ff);
-  cilk_fiber* starting_fiber = (*w->l->frame_ff)->future_fiber ? (*w->l->frame_ff)->future_fiber : (*w->l->frame_ff)->fiber_self;
+  cilk_fiber* starting_fiber = (*w->l->frame_ff)->fiber_self;
   deque* d = ((deque*)(w->tail));
     
   BEGIN_WITH_WORKER_LOCK(w) {
@@ -317,7 +323,7 @@ void __cilkrts_promote_own_deque(__cilkrts_worker *w)
   // In any case, we should be finishing the promotion process with
   // the same fiber with.
   CILK_ASSERT(*w->l->frame_ff);
-  CILK_ASSERT((*w->l->frame_ff)->fiber_self == starting_fiber || (*w->l->frame_ff)->future_fiber == starting_fiber);
+  CILK_ASSERT((*w->l->frame_ff)->fiber_self == starting_fiber);
 }
 
 int deque_init(deque *d, size_t ltqsize)
@@ -456,7 +462,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     { // d is no longer accessible
 
       CILK_ASSERT(d->frame_ff);
-      fiber = d->frame_ff->future_fiber ? d->frame_ff->future_fiber : d->frame_ff->fiber_self;
+      fiber = d->frame_ff->fiber_self;
       CILK_ASSERT(fiber);
       d->fiber = fiber;
 

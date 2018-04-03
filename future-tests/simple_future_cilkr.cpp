@@ -101,19 +101,41 @@ int main(int argc, char * args[]) {
 }
 }*/
 
-int main() {
+void is_only_printf_crashing() {
+    int* dummy = (int*)alloca(sizeof(int) + (size_t)(test_future));
+    *dummy = 0xf00dface; 
+    //printf("Hi!\n");
+}
+
+int main(int argc, char** argv) {
+    long test;
+    asm("\t mov %%rbp,%0" : "=r"(test));
+    printf("rbp 1: %lX\n", test); fflush(stdout);
+    asm("\t mov %%rsp,%0" : "=r"(test));
+    printf("rsp 1: %lX\n", test); fflush(stdout);
+
     cilk_spawn thread1();
 
     for (int i = 0; i < 2; i++) {
         cilk_spawn thread2();
     }
 
+    asm("\t mov %%rbp,%0" : "=r"(test));
+    printf("rbp 2: %lX\n", test); fflush(stdout);
+    asm("\t mov %%rsp,%0" : "=r"(test));
+    printf("rsp 2: %lX\n", test); fflush(stdout);
     cilk_sync;
-    printf("Round 2\n");
+    test = 1;
+    is_only_printf_crashing();
     __assert_future_counter(0);
+    //asm("\t mov %%rbp,%0" : "=r"(test));
+    //printf("rbp 3: %lX\n", test); fflush(stdout);
+    //asm("\t mov %%rsp,%0" : "=r"(test));
+    //printf("rsp 3: %lX\n", test); fflush(stdout);
+    //printf("----------------Round 2----------------\n");
 
-    printf("Moving right along...\n");
-    fflush(stdout);
+    //printf("Moving right along...\n");
+    //fflush(stdout);
     cilk_spawn thread3();
     for (int i = 0; i < 2; i++) {
         cilk_spawn thread4();
@@ -122,6 +144,10 @@ int main() {
     cilk_sync;
     __assert_future_counter(0);
 
+    int* dummy = (int*)alloca(sizeof(int) + (size_t)(test_future2));
+    *dummy = 0xf00dface; 
     delete test_future2;
+
+
     return 0;
 }

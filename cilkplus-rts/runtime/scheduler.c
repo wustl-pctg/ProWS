@@ -1650,9 +1650,19 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
     // Current fiber is either the (1) one we are about to free,
     // or (2) it has been passed up to the parent.
-    cilk_fiber *current_fiber = ( w->l->fiber_to_free ?
-                                  w->l->fiber_to_free :
-                                  w->l->frame_ff->parent->fiber_child );
+    //cilk_fiber *current_fiber = ( w->l->fiber_to_free ?
+    //                              w->l->fiber_to_free :
+    //                              w->l->frame_ff->parent->fiber_child );
+    cilk_fiber *current_fiber = w->l->fiber_to_free;
+    if (current_fiber == NULL) {
+        if (w->l->frame_ff->parent != NULL) {
+            current_fiber = w->l->frame_ff->parent->fiber_child;
+        } else {
+            current_fiber = w->l->frame_ff->future_fiber;
+            w->l->frame_ff->fiber_self = NULL;
+        }
+    }
+
     cilk_fiber_data* fdata = cilk_fiber_get_data(current_fiber);
     CILK_ASSERT(NULL == w->l->frame_ff->fiber_self);
 
@@ -1982,7 +1992,8 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     //
     // 2. Resuming code on a steal.  In this case, since we
     //    grabbed a new fiber, resume_sf should be NULL.
-    CILK_ASSERT(NULL == other_data->resume_sf);
+    //KYLE_TODO: Why?
+    //CILK_ASSERT(NULL == other_data->resume_sf);
         
 #if FIBER_DEBUG >= 2
     fprintf(stderr, "W=%d: other fiber=%p, setting resume_sf to %p\n",
@@ -2482,12 +2493,20 @@ static void do_return_from_spawn(__cilkrts_worker *w,
             decjoin(ff);
         } END_WITH_FRAME_LOCK(w, ff);
 
+        if (parent_ff) {
         BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
             if (parent_ff->simulated_stolen)
                 unconditional_steal(w, parent_ff);
             else
                 steal_result = provably_good_steal(w, parent_ff);
         } END_WITH_FRAME_LOCK(w, parent_ff);
+        } else {
+            CILK_ASSERT(ff->is_future);
+            //CILK_ASSERT(NULL == ff->pending_exception);
+            ff->pending_exception = w->l->pending_exception;
+            w->l->pending_exception = NULL;
+            w->reducer_map = NULL;
+        }
 
     } END_WITH_WORKER_LOCK_OPTIONAL(w);
 
@@ -3747,6 +3766,7 @@ execute_reductions_for_spawn_return(__cilkrts_worker *w,
     // w's deque.
     restore_frame_for_spawn_return_reduction(w, ff, returning_sf);
 
+    if (ff->parent) {
     // Step A2 and A3: Execute reductions on user stack.
     BEGIN_WITH_FRAME_LOCK(w, ff->parent) {
         struct cilkred_map **left_map_ptr;
@@ -3770,6 +3790,9 @@ execute_reductions_for_spawn_return(__cilkrts_worker *w,
         // WARNING: the use of this lock macro is deceptive.
         // The worker may have changed here.
     } END_WITH_FRAME_LOCK(w, ff->parent);
+    } else {
+        CILK_ASSERT(ff->is_future);
+    }
     return w;
 }
 

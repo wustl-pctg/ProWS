@@ -142,7 +142,7 @@ CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf)
 static inline
 void enter_frame_fast_internal(__cilkrts_stack_frame *sf, uint32_t version)
 {
-fprintf(stderr, "XXX enter frame.\n");
+//fprintf(stderr, "XXX enter frame.\n");
     __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
     sf->flags = version << 24;
     sf->call_parent = w->current_stack_frame;

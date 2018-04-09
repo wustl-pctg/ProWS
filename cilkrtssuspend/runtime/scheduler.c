@@ -538,6 +538,7 @@ full_frame *make_child(__cilkrts_worker *w,
     if (child_ff->is_call_child) {
         /* Cause segfault on any attempted access.  The parent gets
            the child map and stack when the child completes. */
+        CILK_ASSERT(parent_ff->fiber_self != NULL);
         parent_ff->fiber_self = 0;
     } else {
         parent_ff->fiber_self = fiber;
@@ -1020,6 +1021,7 @@ static void provably_good_steal_exceptions(__cilkrts_worker *w,
 static void provably_good_steal_stacks(__cilkrts_worker *w, full_frame *ff)
 {
     CILK_ASSERT(NULL == ff->fiber_self);
+    CILK_ASSERT(ff->fiber_child != NULL);
     ff->fiber_self = ff->fiber_child;
     ff->fiber_child = NULL;
 }
@@ -1037,6 +1039,7 @@ enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w,
     // ASSERT: we hold w->lock and ff->lock
 
     enum provably_good_steal_t result = ABANDON_EXECUTION;
+    if (*w->l->frame_ff && w->l->frame_ff[0]->is_future) return result;
 
     // If the current replay entry is a sync record matching the worker's
     // pedigree, AND this isn't the last child to the sync, return
@@ -1210,7 +1213,6 @@ static void finalize_child_for_call(__cilkrts_worker *w,
 
         /* continue with the parent. */
         unconditional_steal(w, parent_ff);
-    // KYLE_TODO: Fix cleanup.
         __cilkrts_destroy_full_frame(w, child_ff);
     } STOP_INTERVAL(w, INTERVAL_FINALIZE_CHILD);
 }
@@ -1593,11 +1595,20 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
     // Current fiber is either the (1) one we are about to free,
     // or (2) it has been passed up to the parent.
-    cilk_fiber *current_fiber = ( 
-                                  w->l->fiber_to_free ?
-                                  w->l->fiber_to_free :
-                                  (*w->l->frame_ff)->parent->fiber_child
-    );
+    cilk_fiber *current_fiber = w->l->fiber_to_free; 
+    if (current_fiber == NULL && w->l->frame_ff[0]->parent != NULL) {
+        current_fiber = (*w->l->frame_ff)->parent->fiber_child;
+    } else if (current_fiber == NULL) {
+        printf("Hi!\n");
+        CILK_ASSERT((*w->l->frame_ff)->is_future);
+        CILK_ASSERT((*w->l->frame_ff)->future_fiber);
+        current_fiber = (*w->l->frame_ff)->fiber_self;
+        (*w->l->frame_ff)->fiber_self = NULL;
+    }
+    if (w->l->frame_ff[0]->is_future) {
+        w->l->frame_ff[0]->fiber_self = NULL;
+        CILK_ASSERT(current_fiber == w->l->fiber_to_free);
+    }
 
     cilk_fiber_data* fdata = cilk_fiber_get_data(current_fiber);
     CILK_ASSERT(fdata);
@@ -1636,6 +1647,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
 #endif
         cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_RELEASE);
         NOTE_INTERVAL(w, INTERVAL_DEALLOCATE_RESUME_OTHER);
+        printf("I'm a switchin m stackzor!\n");
         cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber,
                                                                &w->l->fiber_pool,
                                                                w->l->scheduling_fiber);
@@ -1957,6 +1969,8 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     //
     // 2. Resuming code on a steal.  In this case, since we
     //    grabbed a new fiber, resume_sf should be NULL.
+    printf("frame ff: %p\n", *w->l->frame_ff);
+    CILK_ASSERT(other != NULL);
     CILK_ASSERT(NULL == other_data->resume_sf);
         
 #if FIBER_DEBUG >= 2
@@ -2351,7 +2365,12 @@ __cilkrts_c_THE_exception_check(__cilkrts_worker *w,
 
     if (stolen_p)
     {
-        w = execute_reductions_for_spawn_return(w, ff, returning_sf);
+        if (!ff->is_future) {
+            w = execute_reductions_for_spawn_return(w, ff, returning_sf);
+        } else {
+            w->l->fiber_to_free = ff->future_fiber;
+            printf("Future stuff!\n");
+        }
 
         // "Mr. Policeman?  My parent always told me that if I was in trouble
         // I should ask a nice policeman for help.  I can't find my parent
@@ -2399,6 +2418,7 @@ NORETURN __cilkrts_exception_from_spawn(__cilkrts_worker *w,
     CILK_ASSERT(*w->head == *w->tail);
     w = execute_reductions_for_spawn_return(w, ff, returning_sf);
 
+    printf("I'm excepting from the spawn, yo!\n");
     longjmp_into_runtime(w, do_return_from_spawn, 0);
     CILK_ASSERT(0);
 }
@@ -2407,6 +2427,7 @@ static void do_return_from_spawn(__cilkrts_worker *w,
                                  full_frame *ff,
                                  __cilkrts_stack_frame *sf)
 {
+    printf("Hi, guys!\n");
     full_frame *parent_ff;
     enum provably_good_steal_t steal_result = ABANDON_EXECUTION;
 
@@ -2417,21 +2438,32 @@ static void do_return_from_spawn(__cilkrts_worker *w,
         parent_ff = ff->parent;
     
 
+        if (parent_ff) {
         BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
+            // KYLE_TODO: I think this is a rare deadlock?
             BEGIN_WITH_FRAME_LOCK(w, ff) {
+    //printf("Howdy, pardner!\n");
                 decjoin(ff);
                 if (!ff->is_future && ff->future_counter) {
                     parent_ff->future_counter++;
                 } else if (ff->is_future && ff->future_counter == 0) {
-                    parent_ff->future_counter--;
+                    //parent_ff->future_counter--;
                 }
             } END_WITH_FRAME_LOCK(w, ff);
 
             if (parent_ff->simulated_stolen)
                 unconditional_steal(w, parent_ff);
-            else
+            else if (!ff->is_future) // KYLE_TODO: I'm pretty sure this is correct...our parent abandoned us
                 steal_result = provably_good_steal(w, parent_ff);
         } END_WITH_FRAME_LOCK(w, parent_ff);
+        } else {
+            BEGIN_WITH_FRAME_LOCK(w, ff) {
+                decjoin(ff);
+                ff->pending_exception = NULL;
+                //ff->reducer_map = NULL;
+                w->reducer_map = NULL;
+            } END_WITH_FRAME_LOCK(w, ff);
+        }
 
     } END_WITH_WORKER_LOCK_OPTIONAL(w);
 
@@ -2488,6 +2520,7 @@ void __cilkrts_migrate_exception(__cilkrts_stack_frame *sf) {
         w = execute_reductions_for_spawn_return(w, ff, sf);
     }
 
+    printf("I'm migrating exceptions, yo\n");
     longjmp_into_runtime(w, do_return_from_spawn, 0); /* does not return. */
     CILK_ASSERT(! "Shouldn't be here...");
 }
@@ -2551,11 +2584,11 @@ void __cilkrts_return(__cilkrts_worker *w)
             // Technically, w will "own" ff until ff is freed,
             // however, because ff is a dying leaf full frame.
             parent_ff = disown(w, ff, 0, "return");
-            if (ff->future_counter) {
-                BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
-                    parent_ff->future_counter++;
-                } END_WITH_FRAME_LOCK(w, parent_ff);
-            }
+            //if (ff->future_counter) {
+            //    BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
+            //        parent_ff->future_counter++;
+            //    } END_WITH_FRAME_LOCK(w, parent_ff);
+            //}
             decjoin(ff);
 
 #ifdef _WIN32
@@ -3441,7 +3474,7 @@ void finish_spawn_return_on_user_stack(__cilkrts_worker *w,
     CILK_ASSERT(w->l->fiber_to_free == NULL);
 
     // Execute left-holder logic for stacks.
-    if (child_ff->left_sibling || parent_ff->fiber_child) {
+    if (child_ff->left_sibling || parent_ff->fiber_child && parent_ff->fiber_child != parent_ff->fiber_self) {
         // Case where we are not the leftmost stack.
         CILK_ASSERT(parent_ff->fiber_child != child_ff->fiber_self);
 
@@ -3453,6 +3486,7 @@ void finish_spawn_return_on_user_stack(__cilkrts_worker *w,
     else {
         // We are leftmost, pass stack/fiber up to parent.
         // Thus, no stack/fiber to free.
+        CILK_ASSERT(!child_ff->is_future);
         parent_ff->fiber_child = child_ff->fiber_self;
         w->l->fiber_to_free = NULL;
     }

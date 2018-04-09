@@ -998,6 +998,11 @@ void cilk_fiber::deallocate_self(cilk_fiber_pool* pool)
   this->set_resumable(false);
 
   CILK_ASSERT(NULL != pool);
+  if (this->is_allocated_from_thread()) {
+    printf("ERR: Hack\n");
+    this->inc_ref_count();
+    return;
+  }
   CILK_ASSERT(!this->is_allocated_from_thread());
   this->assert_ref_count_equals(0);
     

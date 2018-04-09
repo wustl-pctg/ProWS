@@ -247,22 +247,37 @@ void detach_for_steal(__cilkrts_worker *w,
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
     child_ff->future_fiber = parent_ff->future_fiber;
-    parent_ff->future_fiber = NULL;
+    loot_ff->future_fiber = NULL;
 
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
       // If we stole the parent of a future, update the appropriate
       // fields in the loot_sf, loot_ff, and the child_ff
+      //KYLE_TODO: Perform this stuff in make_child
       if (loot_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
+        printf("I'm a firin' ma lazor!\n");
+        CILK_ASSERT(child_ff->future_fiber);
         //CILK_ASSERT(child_ff->future_fiber);
         //CILK_ASSERT(loot_ff->future_fiber);
+        loot_ff->fiber_self = child_ff->fiber_self;
+        //loot_ff->fiber_child = fiber;
+        loot_ff->future_fiber = NULL;
+        //loot_ff->fiber_child = child_ff->fiber_self;
         child_ff->fiber_self = child_ff->future_fiber;
-        child_ff->future_fiber = NULL;
+        //child_ff->future_fiber = NULL;
         child_ff->is_future = true;
         loot_ff->future_counter++;
-        //loot_ff->join_counter--;
+        // Don't want to treat future spawns as futures...
         loot_ff->call_stack->flags &= ~CILK_FRAME_FUTURE_PARENT;
         // KYLE_TODO: Don't link them in the first place!
-        //unlink_child(loot_ff, child_ff);
+        // KYLE_TODO: Why does this cause odd fiber behavior?
+        printf("loot %p child %p\n", loot_ff, child_ff);
+        unlink_child(loot_ff, child_ff);
+        //loot_ff->fiber_child = NULL;
+        child_ff->fiber_child = child_ff->fiber_self;
+        child_ff->parent = NULL;
+        //CILK_ASSERT(loot_ff->child_fiber);
+        loot_ff->join_counter--;
+        CILK_ASSERT(fiber != PLACEHOLDER_FIBER);
         //CILK_ASSERT(loot_ff->fiber_self);
       }
       /* install child in the victim's work queue, taking

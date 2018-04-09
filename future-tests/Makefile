@@ -1,7 +1,7 @@
 include ../common.mk
 
 OBJ = simple_future_cilkr.o
-MY_LDFLAGS=-L../cilkrtssuspend/.libs -lpthread -lcilkrts
+MY_LDFLAGS=-R=../cilkrtssuspend/.libs -lpthread -lcilkrts
 MY_CXXFLAGS=-g -std=c++11 -Wfatal-errors -I/home/kdsinger/porridge/cilkrtssuspend/include -fcilkplus -fcilk-no-inline
 APP = simple-future
 .SECONDARY: $(OBJ)
@@ -9,8 +9,8 @@ APP = simple-future
 .PHONY = default
 #default: $(APP)
 default:
-	$(CXX) -O0 -flto -g -fcilkplus -DPORR -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
-	$(CXX) simple_future_cilkr.o -o simple-future -lrt -ldl -lpthread -ltcmalloc -flto /home/kdsinger/porridge/build/libporr.a /home/kdsinger/porridge/llvm-cilk/lib/libcilkrts.a -lpthread -lm -lrt
+	$(CXX) -O0 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
+	$(CXX) simple_future_cilkr.o -o simple-future -Wl,-rpath=../cilkrtssuspend/.libs/cilkrts -lcilkrts -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 #.PHONY = $(APP)
 #$(APP): $(OBJ)

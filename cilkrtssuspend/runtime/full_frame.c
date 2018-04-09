@@ -176,6 +176,7 @@ void __cilkrts_destroy_full_frame(__cilkrts_worker *w, full_frame *ff)
 COMMON_PORTABLE void validate_full_frame(full_frame *ff)
 {
     /* check the magic numbers, for debugging purposes */
+    CILK_ASSERT(ff);
     if (ff->full_frame_magic_0 != FULL_FRAME_MAGIC_0 ||
         ff->full_frame_magic_1 != FULL_FRAME_MAGIC_1)
         abort_because_rts_is_corrupted();

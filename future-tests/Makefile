@@ -10,7 +10,7 @@ APP = simple-future
 #default: $(APP)
 default:
 	$(CXX) -O0 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
-	$(CXX) simple_future_cilkr.o -o simple-future -Wl,-rpath=../cilkrtssuspend/.libs/cilkrts -lcilkrts -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+	$(CXX) simple_future_cilkr.o -o simple-future /home/kdsinger/porridge/cilkplus-rts/.libs/libcilkrts.a -lcilkrts -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 #.PHONY = $(APP)
 #$(APP): $(OBJ)

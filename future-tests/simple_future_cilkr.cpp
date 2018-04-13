@@ -1,12 +1,15 @@
 #include <iostream>
 #include <stdio.h>
 #include "cilk/cilk.h"
+#include "../cilkplus-rts/include/internal/abi.h"
 #include "../src/future.h"
 
 #include <cstdint>
 
 extern "C" {
 extern void __assert_future_counter(int count);
+extern void __print_curr_stack(char*);
+extern void __assert_not_on_scheduling_fiber(void);
 }
 
 cilk::future<int>* test_future = NULL;
@@ -27,13 +30,12 @@ int helloFuture() {
   for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
     dummy += i;
   }
+  __assert_not_on_scheduling_fiber();
  // cilk_future_create(int,test_future3,helloMoreFutures);
   //cilk_future_get(test_future3);
   //delete test_future3;
  // __assert_future_counter(1);
-  printf("This one is helloFuture!\n");
-  printf("Returning value!\n");
-  fflush(stdout);
+  __print_curr_stack("\nhello future");
   return 42;
 }
 
@@ -41,21 +43,20 @@ int helloMoreFutures() {
   for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
     dummy2 += j;
   }
-  printf("This one is helloMoreFutures!\n");
-  printf("Returning value!\n");
-  fflush(stdout);
+  __assert_not_on_scheduling_fiber();
+  __print_curr_stack("\nhello more futures");
   return 84;
 }
 
 void thread1() {
-  printf("Creating future\n");
-  fflush(stdout);
+  __print_curr_stack("\nthread1 p1");
+  __assert_not_on_scheduling_fiber();
   cilk_future_create(int,test_future,helloFuture);
-  printf("Continuing\n");
-  fflush(stdout);
+  __assert_not_on_scheduling_fiber();
+  __print_curr_stack("\nthread1 p2");
   auto result = cilk_future_get(test_future);
-  printf("Thread 1 finished: %d\n", result);
-  fflush(stdout);
+  __assert_not_on_scheduling_fiber();
+  __print_curr_stack("\nthread1 p3");
 }
 void thread2() {
   printf("thread 2\n");
@@ -70,15 +71,15 @@ void thread2() {
 }
 
 void thread3() {
-  printf("Reusing future\n");
-  fflush(stdout);
+  __assert_not_on_scheduling_fiber();
+  __print_curr_stack("\nthread3 p1");
   //cilk_future_create(int,test_future2,helloMoreFutures);
   reuse_future(int,test_future2,test_future,helloMoreFutures);
-  //test_future = test_future2;
-  printf("Continuing\n");
-  fflush(stdout);
+  __assert_not_on_scheduling_fiber();
+  __print_curr_stack("\nthread3 p2");
   printf("%d\n", cilk_future_get(test_future2));
-  fflush(stdout);
+  __assert_not_on_scheduling_fiber();
+  __print_curr_stack("\nthread3 p3");
 }
 void thread4() {
   printf("thread 4\n");
@@ -109,45 +110,66 @@ void is_only_printf_crashing() {
 }
 
 int main(int argc, char** argv) {
-    long test;
-    asm("\t mov %%rbp,%0" : "=r"(test));
-    printf("rbp 1: %lX\n", test); fflush(stdout);
-    asm("\t mov %%rsp,%0" : "=r"(test));
-    printf("rsp 1: %lX\n", test); fflush(stdout);
+    __print_curr_stack("initial");
 
+
+    //long test;
+    //asm("\t mov %%rbp,%0" : "=r"(test));
+    //printf("rbp 1: %lX\n", test); fflush(stdout);
+    //asm("\t mov %%rsp,%0" : "=r"(test));
+    //printf("rsp 1: %lX\n", test); fflush(stdout);
+
+  __assert_not_on_scheduling_fiber();
     cilk_spawn thread1();
+  __assert_not_on_scheduling_fiber();
+    printf("\n\nSimple Future Phase I Syncing\n\n");
 
     //for (int i = 0; i < 1; i++) {
     //    cilk_spawn thread2();
     //}
+    __print_curr_stack("pre-sync");
 
-    asm("\t mov %%rbp,%0" : "=r"(test));
-    printf("rbp 2: %lX\n", test); fflush(stdout);
-    asm("\t mov %%rsp,%0" : "=r"(test));
-    printf("rsp 2: %lX\n", test); fflush(stdout);
+    //__print_curr_stack();
+    //asm("\t mov %%rbp,%0" : "=r"(test));
+    //printf("rbp 2: %lX\n", test);
+    //fflush(stdout);
+    //asm("\t mov %%rsp,%0" : "=r"(test));
+    //printf("rsp 2: %lX\n", test);
+    //fflush(stdout);
     cilk_sync;
+  __assert_not_on_scheduling_fiber();
+    int* dummy1 = (int*)alloca(sizeof(int)*10);
+    *dummy1 = 0xf00dface; 
+    printf("\n\nSimple Future Phase II Commencing\n\n");
+    __print_curr_stack("\nphase II");
     //printf("Hello, matey!\n");
-    test = 1;
-    asm("\t mov %%rbp,%0" : "=r"(test));
-    printf("rbp 3: %lX\n", test); fflush(stdout);
-    asm("\t mov %%rsp,%0" : "=r"(test));
-    printf("rsp 3: %lX\n", test); fflush(stdout);
+    //__print_curr_stack();
+    //test = 1;
+    //asm("\t mov %%rbp,%0" : "=r"(test));
+    //printf("rbp 3: %lX\n", test); //fflush(stdout);
+    //asm("\t mov %%rsp,%0" : "=r"(test));
+    //printf("rsp 3: %lX\n", test); //fflush(stdout);
     //printf("----------------Round 2----------------\n");
 
-    is_only_printf_crashing();
-    __assert_future_counter(0);
+    //is_only_printf_crashing();
+    //__assert_future_counter(0);
 
     //printf("Moving right along...\n");
     //fflush(stdout);
     cilk_spawn thread3();
-    for (int i = 0; i < 2; i++) {
-        cilk_spawn thread4();
-    }
+  __assert_not_on_scheduling_fiber();
+    //for (int i = 0; i < 2; i++) {
+    //    cilk_spawn thread4();
+    //}
+    __print_curr_stack("\nphase II pre-sync");
 
+    //__print_curr_stack();
     cilk_sync;
-    __assert_future_counter(0);
+  __assert_not_on_scheduling_fiber();
+    __print_curr_stack("end");
+    //__assert_future_counter(0);
 
-    int* dummy = (int*)alloca(sizeof(int));
+    int* dummy = (int*)alloca(sizeof(int)*10);
     *dummy = 0xf00dface; 
     delete test_future2;
 

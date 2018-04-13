@@ -200,6 +200,7 @@ NON_COMMON void* scheduler_thread_proc_for_system_worker(void *arg)
     START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE_FROM_THREAD) {
         w->l->scheduling_fiber = cilk_fiber_allocate_from_thread();
         cilk_fiber_set_owner(w->l->scheduling_fiber, w);
+            printf("Setting sched_fib owner in sysdep-unix!\n");
     } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE_FROM_THREAD);
 
     STOP_INTERVAL(w, INTERVAL_INIT_WORKER);

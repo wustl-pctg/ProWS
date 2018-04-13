@@ -76,6 +76,10 @@
 #   include "except-win32.h"
 #endif  // _WIN32
 
+extern void __print_curr_stack(char*);
+static NORETURN
+user_code_resume_after_switch_into_runtime(cilk_fiber *fiber);
+
 // ICL: Don't complain about conversion from pointer to same-sized integral
 // type in __cilkrts_put_stack.  That's why we're using ptrdiff_t
 #ifdef _WIN32
@@ -133,7 +137,6 @@ enum provably_good_steal_t
                         // which continued.  Loop until we are the last worker
                         // to the sync.
 };
-
 
 // Verify that "w" is the worker we are currently executing on.
 // Because this check is expensive, this method is usually a no-op.
@@ -429,7 +432,10 @@ void __cilkrts_push_next_frame(__cilkrts_worker *w, full_frame *ff)
     CILK_ASSERT(ff);
     CILK_ASSERT(!w->l->next_frame_ff);
     incjoin(ff);
-    w->l->next_frame_ff = ff;
+    // KYLE_TODO: Change this back to the old way...or figure out what to do for futures
+    //            (I think this will break if we nest parallelism in the future)
+    CILK_ASSERT(__sync_bool_compare_and_swap(&w->l->next_frame_ff, NULL, ff));
+    //w->l->next_frame_ff = ff;
 }
 
 /* Get the next full-frame to be made active in this worker.  The join count
@@ -647,11 +653,13 @@ static full_frame *make_child(__cilkrts_worker *w,
     child_ff->fiber_self = parent_ff->fiber_self;
     child_ff->sync_master = NULL;
 
+    // KYLE_TODO: Technically, don't we only need the second path?
     if (child_ff->is_call_child) {
         /* Cause segfault on any attempted access.  The parent gets
            the child map and stack when the child completes. */
         parent_ff->fiber_self = 0;
     } else {
+        // This should be true by definition of how is_call_child is set...
         parent_ff->fiber_self = fiber;
     }
 
@@ -695,41 +703,57 @@ static full_frame *unroll_call_stack(__cilkrts_worker *w,
     /*CILK_ASSERT(sf->call_parent != sf);*/
 
     /* The leafmost frame is unsynched. */
+    // KYLE_ALERT: Change this to check if parent is a "future_parent" as well?
+    //             Not necessary in the SHH version.
     if (sf->worker != w)
         sf->flags |= CILK_FRAME_UNSYNCHED;
+
+    #define current_sf t_sf
+    #define prev_sf    sf
+    #define reversed_stack rev_sf
 
     /* Reverse the call stack to make a linked list ordered from parent
        to child.  sf->call_parent points to the child of SF instead of
        the parent.  */
     do {
-        t_sf = (sf->flags & (CILK_FRAME_DETACHED|CILK_FRAME_STOLEN|CILK_FRAME_LAST))? 0 : sf->call_parent;
-        sf->call_parent = rev_sf;
-        rev_sf = sf;
-        sf = t_sf;
-    } while (sf);
-    sf = rev_sf;
+        current_sf = (prev_sf->flags & (CILK_FRAME_DETACHED|CILK_FRAME_STOLEN|CILK_FRAME_LAST))? 0 : prev_sf->call_parent;
+        prev_sf->call_parent = reversed_stack;
+        reversed_stack = prev_sf;
+        prev_sf = current_sf;
+    } while (prev_sf);
+    sf = reversed_stack;
+
+    #undef prev_sf
+    #define next_sf sf
 
     /* Promote each stack frame to a full frame in order from parent
        to child, following the reversed list we just built. */
-    make_unrunnable(w, ff, sf, sf == loot_sf, "steal 1");
+    make_unrunnable(w, ff, next_sf, next_sf == loot_sf, "steal 1");
     /* T is the *child* of SF, because we have reversed the list */
-    for (t_sf = __cilkrts_advance_frame(sf); t_sf;
-         sf = t_sf, t_sf = __cilkrts_advance_frame(sf)) {
-        ff = make_child(w, ff, t_sf, NULL);
-        make_unrunnable(w, ff, t_sf, t_sf == loot_sf, "steal 2");
+    for (current_sf = __cilkrts_advance_frame(next_sf);
+         current_sf != NULL;
+         next_sf = current_sf, current_sf = __cilkrts_advance_frame(next_sf)) {
+
+            ff = make_child(w, ff, current_sf, NULL);
+            make_unrunnable(w, ff, current_sf, current_sf == loot_sf, "steal 2");
     }
 
     /* XXX What if the leafmost frame does not contain a sync
        and this steal is from promote own deque? */
     /*sf->flags |= CILK_FRAME_UNSYNCHED;*/
 
-    CILK_ASSERT(!sf->call_parent);
+    CILK_ASSERT(!next_sf->call_parent);
+
+    #undef current_sf
+    #undef reversed_stack
+    #undef next_sf
+
     return ff;
 }
 
 /* detach the top of the deque frame from the VICTIM and install a new
    CHILD frame in its place */
-static void detach_for_steal(__cilkrts_worker *w,
+static cilk_fiber* detach_for_steal(__cilkrts_worker *w,
                              __cilkrts_worker *victim,
                              cilk_fiber* fiber)
 {
@@ -779,6 +803,7 @@ static void detach_for_steal(__cilkrts_worker *w,
             // 
             // This call is a shared access to
             // victim->l->last_full_frame.
+            // KYLE_TODO: Do I need to do something here?
             set_sync_master(victim, loot_ff);
         }
 
@@ -790,25 +815,44 @@ static void detach_for_steal(__cilkrts_worker *w,
             /* Pretend that frame has been stolen */
             loot_ff->call_stack->flags |= CILK_FRAME_UNSYNCHED;
             loot_ff->simulated_stolen = 1;
-        }
-        else
+        } else {
             __cilkrts_push_next_frame(w, loot_ff);
+        }
 
         // After this "push_next_frame" call, w now owns loot_ff.
         child_ff = make_child(w, loot_ff, 0, fiber);
         child_ff->future_fiber = parent_ff->future_fiber;
+        // loot_ff can be the same as parent_ff, but it is not always
         loot_ff->future_fiber = NULL;
 
         BEGIN_WITH_FRAME_LOCK(w, child_ff) {
             if (loot_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
                 CILK_ASSERT(child_ff->future_fiber);
+                //unset_sync_master(victim, loot_ff);
+
+                // the stolen frame can continue on the old fiber!
                 loot_ff->fiber_self = child_ff->fiber_self;
+                //loot_ff->fiber_child = child_ff->fiber_self;
+    
+                // we are actually on the future fiber!
                 child_ff->fiber_self = child_ff->future_fiber;
-                child_ff->is_future = true;
-                loot_ff->call_stack->flags &= ~CILK_FRAME_FUTURE_PARENT;
+                //child_ff->future_fiber = NULL;
+                // 1 -> I am the future
+                child_ff->is_future = 1;
+
+                // 2 -> I am the future parent
+                loot_ff->is_future = 2;
+                // Remove the future parent signifier; I am also NOT unsynched (when using SHH)!
+                loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT|CILK_FRAME_UNSYNCHED);
+                //loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+                // Unlink the child and the parent!
                 unlink_child(loot_ff, child_ff);
                 child_ff->parent = NULL;
-                loot_ff->join_counter--;
+
+                // Don't wait for the "child"
+                decjoin(loot_ff);
+                fiber = loot_ff->fiber_self;
             }
             /* install child in the victim's work queue, taking
                the parent_ff's place */
@@ -828,6 +872,7 @@ static void detach_for_steal(__cilkrts_worker *w,
             make_runnable(victim, child_ff);
         } END_WITH_FRAME_LOCK(w, child_ff);
     } END_WITH_FRAME_LOCK(w, parent_ff);
+    return fiber;
 }
 
 /**
@@ -859,6 +904,7 @@ void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber)
     data->resume_sf = NULL;
     CILK_ASSERT(sf->worker == data->owner);
     ff = sf->worker->l->frame_ff;
+    printf("nulling resume_sf of %p (ff->fiber_self %p) [896]\n", ff->fiber_self);
 
     // For Win32, we need to overwrite the default exception handler
     // in this function, so that when the OS exception handling code
@@ -947,7 +993,10 @@ static void random_steal(__cilkrts_worker *w)
         fiber = cilk_fiber_allocate(&w->l->fiber_pool);
     } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
 
+    cilk_fiber* fiber_to_use = fiber;
 
+    // KYLE_TODO: This isn't *necessarily* required if there
+    //            are outstanding futures or suspended deques.
     if (NULL == fiber) {
 #if FIBER_DEBUG >= 2
         fprintf(stderr, "w=%d: failed steal because we could not get a fiber\n",
@@ -1011,7 +1060,7 @@ static void random_steal(__cilkrts_worker *w)
                 {
                     START_INTERVAL(w, INTERVAL_STEAL_SUCCESS) {
                         success = 1;
-                        detach_for_steal(w, victim, fiber);
+                        fiber_to_use = detach_for_steal(w, victim, fiber);
                         victim_id = victim->self;
 
                         #if REDPAR_DEBUG >= 1
@@ -1056,10 +1105,29 @@ static void random_steal(__cilkrts_worker *w)
     }
     else
     {
-        // Since our steal was successful, finish initialization of
-        // the fiber.
-        cilk_fiber_reset_state(fiber,
-                               fiber_proc_to_resume_user_code_for_random_steal);
+
+        if (fiber == fiber_to_use) {
+            // Since our steal was successful, finish initialization of
+            // the fiber.
+            cilk_fiber_reset_state(fiber,
+                                   fiber_proc_to_resume_user_code_for_random_steal);
+        } else {
+            //CILK_ASSERT(0);
+            //cilk_fiber_reset_state(w->l->next_frame_ff->fiber_self,
+            //                       fiber_proc_to_resume_user_code_for_random_steal);
+            //w->l->next_frame_ff->is_future = 0;
+            
+            //CILK_ASSERT(cilk_fiber_get_data(fiber_to_use)->resume_sf);
+            //cilk_fiber_get_data(fiber_to_use)->resume_sf = w->l->next_frame_ff->call_stack;
+            cilk_fiber_set_post_switch_proc(fiber_to_use, fiber_proc_to_resume_user_code_for_random_steal);
+            //user_code_resume_after_switch_into_runtime(current_fiber);
+            START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
+                int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
+                // Fibers we use when trying to steal should not be active,
+                // and thus should not have any other references.
+                CILK_ASSERT(0 == ref_count);
+            } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+        }
         // Record the pedigree of the frame that w has stolen.
         // record only if CILK_RECORD_LOG is set
         replay_record_steal(w, victim_id);
@@ -1148,13 +1216,22 @@ enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w,
                 // the frame is if the original user worker is spinning without
                 // work.
 
+                //printf("Howdy, fellas!\n");
+                //printf("Pushing to %d\n", w->l->team->self);
                 unset_sync_master(w->l->team, ff);
+                printf("Pushing provably good steal!\n");
                 __cilkrts_push_next_frame(w->l->team, ff);
+                //__cilkrts_push_next_frame(w, ff);
 
                 // If this is the team leader we're not abandoning the work
-                if (w == w->l->team)
+                if (w == w->l->team) {
+                    printf("My provably good steal!\n");
                     result = CONTINUE_EXECUTION;
+                } else {
+                    printf("Somebody else's! (%d)\n", w->l->team->self);
+                }
             } else {
+                printf("Successful provably good steal!\n");
                 __cilkrts_push_next_frame(w, ff);
                 result = CONTINUE_EXECUTION;  // Continue working on this thread
             }
@@ -1255,6 +1332,12 @@ static inline void splice_stacks_for_call(__cilkrts_worker *w,
        ignored until sync. */
     CILK_ASSERT(!parent_ff->fiber_self);
     parent_ff->fiber_self = child_ff->fiber_self;
+    //if (child_ff->is_future == 2) {
+    //    CILK_ASSERT(parent_ff->fiber_self != NULL);
+    //    child_ff->is_future = 0;
+    //    printf("We did it! or something!\n");
+    //    printf("Stack: %p\n", parent_ff->fiber_self);
+    //}
     child_ff->fiber_self = NULL;
 }
 
@@ -1444,6 +1527,8 @@ void scheduling_fiber_prepare_to_resume_user_code(__cilkrts_worker *w,
                                                   full_frame *ff,
                                                   __cilkrts_stack_frame *sf)
 {
+    CILK_ASSERT(cilk_fiber_get_current_fiber() == w->l->scheduling_fiber);
+
     w->current_stack_frame = sf;
     sf->worker = w;
 
@@ -1505,8 +1590,15 @@ static void enter_runtime_transition_proc(cilk_fiber *fiber)
     //      a scheduling stack function to run.
     __cilkrts_worker* w = cilk_fiber_get_owner(fiber);
     if (w->l->post_suspend) {
+        if (w->l->post_suspend == do_return_from_spawn) {
+            //printf("Hello there, %p!\n", w);
+        }
+        printf("In rt trans proc...num refs: %d (w=%d)\n", cilk_fiber_get_ref_count(w->l->scheduling_fiber), w->self);
         // Run the continuation function passed to longjmp_into_runtime
         run_scheduling_stack_fcn(w);
+        if (w->l->post_suspend == do_return_from_spawn) {
+            //printf("%p, Top o' the mornin' to ye!\n", w);
+        }
 
         // After we have jumped into the runtime and run the
         // scheduling function, any reducer map the worker had before entering the runtime
@@ -1525,6 +1617,7 @@ static void enter_runtime_transition_proc(cilk_fiber *fiber)
         //
         // TBD: Is this check also safe to do on Windows? 
         CILKBUG_ASSERT_NO_UNCAUGHT_EXCEPTION();
+        //printf("Where does %p go from here?\n", w);
     }
 }
 
@@ -1587,7 +1680,7 @@ user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
 
     // Actually jump to user code.
     cilkrts_resume(sf, ff);
- }
+}
 
 
 /* The current stack is about to either be suspended or destroyed.  This
@@ -1650,18 +1743,13 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
     // Current fiber is either the (1) one we are about to free,
     // or (2) it has been passed up to the parent.
-    //cilk_fiber *current_fiber = ( w->l->fiber_to_free ?
-    //                              w->l->fiber_to_free :
-    //                              w->l->frame_ff->parent->fiber_child );
-    cilk_fiber *current_fiber = w->l->fiber_to_free;
-    if (current_fiber == NULL) {
-        if (w->l->frame_ff->parent != NULL) {
-            current_fiber = w->l->frame_ff->parent->fiber_child;
-        } else {
-            current_fiber = w->l->frame_ff->future_fiber;
-            w->l->frame_ff->fiber_self = NULL;
-        }
-    }
+    cilk_fiber *current_fiber = ( w->l->fiber_to_free ?
+                                  w->l->fiber_to_free :
+                                  w->l->frame_ff->is_future == 1 ?
+                                  w->l->frame_ff->fiber_self :
+                                  w->l->frame_ff->parent->fiber_child );
+
+    w->l->frame_ff->fiber_self = NULL;
 
     cilk_fiber_data* fdata = cilk_fiber_get_data(current_fiber);
     CILK_ASSERT(NULL == w->l->frame_ff->fiber_self);
@@ -1671,7 +1759,8 @@ longjmp_into_runtime(__cilkrts_worker *w,
     // Technically, resume_sf gets overwritten for a fiber when
     // we are about to resume it anyway.
     fdata->resume_sf = NULL;
-    CILK_ASSERT(fdata->owner == w);
+    printf("nulling resume_sf of %p [1747]\n", current_fiber);
+    //CILK_ASSERT(fdata->owner == w);
 
     // Set the function to execute immediately after switching to the
     // scheduling fiber, but before freeing any fibers.
@@ -1686,6 +1775,10 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
         // Extra check. Normally, the fiber we are about to switch to
         // should have a NULL owner.
+        // KYLE_TODO: Why? Why does the scheduling fiber currently have an owner when returning from a future???
+        //CILK_ASSERT(NULL == cilk_fiber_get_data(w->l->scheduling_fiber)->owner || w == cilk_fiber_get_data(w->l->scheduling_fiber)->owner);
+        CILK_ASSERT(cilk_fiber_get_current_fiber() != w->l->scheduling_fiber);
+        printf("Num refs to scheduler: %d (w = %d)\n", cilk_fiber_get_ref_count(w->l->scheduling_fiber), w->self);
         CILK_ASSERT(NULL == cilk_fiber_get_data(w->l->scheduling_fiber)->owner);
 #if FIBER_DEBUG >= 4
         fprintf(stderr, "ThreadId=%p, W=%d: about to switch into runtime.. current_fiber = %p, deallcoate, switch to fiber %p\n",
@@ -1695,6 +1788,9 @@ longjmp_into_runtime(__cilkrts_worker *w,
 #endif
         cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_RELEASE);
         NOTE_INTERVAL(w, INTERVAL_DEALLOCATE_RESUME_OTHER);
+        if (w->l->frame_ff->is_future == 1) {
+            //printf("Freeing fiber & heading back to the scheduler for future!\n");
+        }
         cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber,
                                                                &w->l->fiber_pool,
                                                                w->l->scheduling_fiber);
@@ -1714,7 +1810,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
         // have already moved the current fiber into our parent full
         // frame.
 #if FIBER_DEBUG >= 2
-        fprintf(stderr, "ThreadId=%p, W=%d: about to suspend self into runtime.. current_fiber = %p, deallcoate, switch to fiber %p\n",
+        fprintf(stderr, "ThreadId=%p, W=%d: about to suspend self into runtime.. current_fiber = %p, deallocate, switch to fiber %p\n",
                 cilkos_get_current_thread_id(),
                 w->self,
                 current_fiber, w->l->scheduling_fiber);
@@ -1722,6 +1818,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
         NOTE_INTERVAL(w, INTERVAL_SUSPEND_RESUME_OTHER);
 
+        //CILK_ASSERT(NULL == cilk_fiber_get_data(w->l->scheduling_fiber)->owner);// || w == cilk_fiber_get_data(w->l->scheduling_fiber)->owner);
         cilk_fiber_suspend_self_and_resume_other(current_fiber,
                                                  w->l->scheduling_fiber);
         // Resuming this fiber returns control back to
@@ -1787,6 +1884,9 @@ static full_frame* check_for_work(__cilkrts_worker *w)
 {
     full_frame *ff = NULL;
     ff = pop_next_frame(w);
+    if (ff) {
+        //printf("%p This time I did pop a frame!\n", w);
+    }
     // If there is no work on the queue, try to steal some.
     if (NULL == ff) {
         START_INTERVAL(w, INTERVAL_STEALING) {
@@ -1802,18 +1902,23 @@ static full_frame* check_for_work(__cilkrts_worker *w)
             // If we are about to do a random steal, we should have no
             // full frame...
             CILK_ASSERT(NULL == w->l->frame_ff);
+            //printf("%p Randomly stealing!\n", w);
             random_steal(w);
+            //printf("%p Done randomly stealing!\n", w);
         } STOP_INTERVAL(w, INTERVAL_STEALING);
 
         // If the steal was successful, then the worker has populated its next
         // frame with the work to resume.
+        //printf("%p trying to pop next frame!\n", w);
         ff = pop_next_frame(w);
         if (NULL == ff) {
+            //printf("%p steal unsuccessful!\n", w);
             // Punish the worker for failing to steal.
             // No quantum for you!
             __cilkrts_yield();
             w->l->steal_failure_count++;
         } else {
+            //printf("%p stole something! go me!\n", w);
             // Reset steal_failure_count since there is obviously still work to
             // be done.
             w->l->steal_failure_count = 0;
@@ -1835,7 +1940,7 @@ static full_frame* search_until_work_found_or_done(__cilkrts_worker *w)
     // or because we pull it off w's 1-element queue).
     while (!ff) {
         // Check worker state to figure out our next action.
-        switch (worker_runnable(w))    
+        switch (worker_runnable(w))
         {
         case SCHEDULE_RUN:             // One attempt at checking for work.
             ff = check_for_work(w);
@@ -1931,8 +2036,14 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     // an associated full frame.
     CILK_ASSERT(NULL == w->l->frame_ff);
 
+    //printf("%p are here!\n", w);
     // Stage 2.  First do a quick check of our 1-element queue.
     full_frame *ff = pop_next_frame(w);
+    if (ff) {
+        //printf("%p popped a frame!\n", w);
+    } else {
+        //printf("%p did not pop a frame!\n", w);
+    }
 
     if (!ff) {
         // Stage 3.  We didn't find anything from our 1-element
@@ -1992,8 +2103,9 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     //
     // 2. Resuming code on a steal.  In this case, since we
     //    grabbed a new fiber, resume_sf should be NULL.
-    //KYLE_TODO: Why?
-    //CILK_ASSERT(NULL == other_data->resume_sf);
+    // KYLE_TODO: Why does this keep failing??
+    CILK_ASSERT(NULL == other_data->resume_sf);
+    //other_data->resume_sf = NULL;
         
 #if FIBER_DEBUG >= 2
     fprintf(stderr, "W=%d: other fiber=%p, setting resume_sf to %p\n",
@@ -2001,8 +2113,10 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
 #endif
     // Update our own fiber's data.
     current_fiber_data->resume_sf = NULL;
+    printf("nulling resume_sf of %p [2097]\n", current_fiber);
     // The scheduling fiber should have the right owner from before.
     CILK_ASSERT(current_fiber_data->owner == w);
+    printf("setting %p's resume_sf (w=%d)\n", other, w->self);
     other_data->resume_sf = sf;
         
 
@@ -2093,6 +2207,7 @@ static void worker_scheduler_function(__cilkrts_worker *w)
     // The main scheduling loop body.
 
     while (!w->g->work_done) {    
+        //printf("Then here!\n");
         // Execute the "body" of the scheduling loop, and figure
         // out the fiber to jump to next.
         START_INTERVAL(w, INTERVAL_SCHED_LOOP);
@@ -2108,8 +2223,10 @@ static void worker_scheduler_function(__cilkrts_worker *w)
             // the runtime, and start working.
             STOP_INTERVAL(w, INTERVAL_IN_RUNTIME);
             START_INTERVAL(w, INTERVAL_WORKING);
+            printf("Worker %d about to resume on %p (%d refs)\n", w->self, fiber_to_resume, cilk_fiber_get_ref_count(fiber_to_resume));
             cilk_fiber_suspend_self_and_resume_other(w->l->scheduling_fiber,
                                                      fiber_to_resume);
+            //printf("I think I go here!\n");
             // Return here only when this (scheduling) fiber is
             // resumed (i.e., this worker wants to reenter the runtime).
 
@@ -2209,7 +2326,6 @@ void restore_frame_for_spawn_return_reduction(__cilkrts_worker *w,
     // executing the reduction.
     make_runnable(w, ff);
 }
-
 
 NORETURN __cilkrts_c_sync(__cilkrts_worker *w,
                           __cilkrts_stack_frame *sf_at_sync)
@@ -2494,6 +2610,7 @@ static void do_return_from_spawn(__cilkrts_worker *w,
         } END_WITH_FRAME_LOCK(w, ff);
 
         if (parent_ff) {
+        CILK_ASSERT(ff->is_future != 1);
         BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
             if (parent_ff->simulated_stolen)
                 unconditional_steal(w, parent_ff);
@@ -2501,11 +2618,17 @@ static void do_return_from_spawn(__cilkrts_worker *w,
                 steal_result = provably_good_steal(w, parent_ff);
         } END_WITH_FRAME_LOCK(w, parent_ff);
         } else {
-            CILK_ASSERT(ff->is_future);
-            //CILK_ASSERT(NULL == ff->pending_exception);
-            ff->pending_exception = w->l->pending_exception;
-            w->l->pending_exception = NULL;
-            w->reducer_map = NULL;
+            //printf("Doing return from future spawn!\n");
+            CILK_ASSERT(ff->is_future == 1);
+            //CILK_ASSERT(w->l->next_frame_ff == NULL);
+            //while (w->self == 1 && w->l->next_frame_ff == NULL);
+            //if (w->l->next_frame_ff) {
+                //printf("\n\nHi guys.... :(\n\n");
+                //incjoin(w->l->next_frame_ff);
+                //CILK_ASSERT(w->l->next_frame_ff->is_future == 0);
+                //CILK_ASSERT(w->l->next_frame_ff->call_stack->flags & CILK_FRAME_LAST);
+            //}
+            //printf("Still doing return from future spawn!\n");
         }
 
     } END_WITH_WORKER_LOCK_OPTIONAL(w);
@@ -3422,10 +3545,16 @@ splice_left_ptrs compute_left_ptrs_for_spawn_return(__cilkrts_worker *w,
         left_ptrs.map_ptr = &ff->left_sibling->right_reducer_map;
         left_ptrs.exception_ptr = &ff->left_sibling->right_pending_exception;
     }
-    else {
+    else if (ff->parent) {
         full_frame *parent_ff = ff->parent;
         left_ptrs.map_ptr = &parent_ff->children_reducer_map;
         left_ptrs.exception_ptr = &parent_ff->child_pending_exception;
+    } else {
+        // KYLE_TODO: WTF! I know this is wrong at least. Continue skipping this..
+        // KYLE_NOTE: The else if can change to else <if this gets removed>
+        CILK_ASSERT(ff->is_future == 1);
+        left_ptrs.map_ptr = NULL;
+        left_ptrs.exception_ptr = NULL;
     }
     return left_ptrs;
 }
@@ -3791,7 +3920,14 @@ execute_reductions_for_spawn_return(__cilkrts_worker *w,
         // The worker may have changed here.
     } END_WITH_FRAME_LOCK(w, ff->parent);
     } else {
-        CILK_ASSERT(ff->is_future);
+        CILK_ASSERT(ff->is_future==1);
+        // TODO: The setting of things to null is wrong...should at least clean them up somehow?
+        ff->right_pending_exception = ff->pending_exception = NULL;
+        w->reducer_map = NULL;
+        CILK_ASSERT(w->l->fiber_to_free == NULL);
+        w->l->fiber_to_free = ff->fiber_self;
+        //cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;
+        ff->fiber_self = NULL;
     }
     return w;
 }
@@ -4008,11 +4144,164 @@ execute_reductions_for_sync(__cilkrts_worker *w,
 
     // At a nontrivial sync, we should always free the current fiber,
     // because it can not be leftmost.
+    //CILK_ASSERT(ff->is_future != 2);
     w->l->fiber_to_free = ff->fiber_self;
     ff->fiber_self = NULL;
     return w;
 }
 
+static void do_future_parent_sync(__cilkrts_worker *w, full_frame *ff,
+                    __cilkrts_stack_frame *sf)
+{
+    //int abandoned = 1;
+    enum provably_good_steal_t steal_result = ABANDON_EXECUTION;
+
+    START_INTERVAL(w, INTERVAL_SYNC_CHECK) {
+        BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) {
+
+            CILK_ASSERT(ff);
+            BEGIN_WITH_FRAME_LOCK(w, ff) {
+                CILK_ASSERT(sf->call_parent == 0);
+
+                // Before switching into the scheduling fiber, we should have
+                // already taken care of deallocating the current
+                // fiber. 
+                CILK_ASSERT(NULL == ff->fiber_self);
+
+                // Update the frame's pedigree information if this is an ABI 1
+                // or later frame
+                if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1)
+                {
+                    sf->parent_pedigree.rank = w->pedigree.rank;
+                    sf->parent_pedigree.parent = w->pedigree.parent;
+
+                    // Note that the pedigree rank needs to be updated
+                    // when setup_for_execution_pedigree runs
+                    sf->flags |= CILK_FRAME_SF_PEDIGREE_UNSYNCHED;
+                }
+
+                /* the decjoin() occurs in provably_good_steal() */
+                steal_result = provably_good_steal(w, ff);
+
+            } END_WITH_FRAME_LOCK(w, ff);
+            // set w->l->frame_ff = NULL after checking abandoned
+            if (WAIT_FOR_CONTINUE != steal_result) {
+                w->l->frame_ff = NULL;
+            }
+        } END_WITH_WORKER_LOCK_OPTIONAL(w);
+    } STOP_INTERVAL(w, INTERVAL_SYNC_CHECK);
+
+    // Now, if we are in a replay situation and provably_good_steal() returned
+    // WAIT_FOR_CONTINUE, we should sleep, reacquire locks, call
+    // provably_good_steal(), and release locks until we get a value other
+    // than WAIT_FOR_CONTINUE from the function.
+#ifdef CILK_RECORD_REPLAY
+    // We don't have to explicitly check for REPLAY_LOG below because
+    // steal_result can only be set to WAIT_FOR_CONTINUE during replay
+    while(WAIT_FOR_CONTINUE == steal_result)
+    {
+        __cilkrts_sleep();
+        BEGIN_WITH_WORKER_LOCK_OPTIONAL(w)
+        {
+            ff = w->l->frame_ff;
+            BEGIN_WITH_FRAME_LOCK(w, ff)
+            {
+                steal_result = provably_good_steal(w, ff);
+            } END_WITH_FRAME_LOCK(w, ff);
+            if (WAIT_FOR_CONTINUE != steal_result)
+                w->l->frame_ff = NULL;
+        } END_WITH_WORKER_LOCK_OPTIONAL(w);
+    }
+#endif  // CILK_RECORD_REPLAY
+
+#ifdef ENABLE_NOTIFY_ZC_INTRINSIC
+    // If we can't make any further progress on this thread, tell Inspector
+    // that we're abandoning the work and will go find something else to do.
+    if (ABANDON_EXECUTION == steal_result)
+    {
+        NOTIFY_ZC_INTRINSIC("cilk_sync_abandon", 0);
+    }
+#endif // defined ENABLE_NOTIFY_ZC_INTRINSIC
+
+    return; /* back to scheduler loop */
+}
+
+NORETURN __cilkrts_c_future_parent_sync(__cilkrts_worker *w,
+                                        __cilkrts_stack_frame *sf_at_sync) {
+    full_frame *ff;
+
+    if (CILK_FRAME_VERSION_VALUE(sf_at_sync->flags) >= 1) {
+        sf_at_sync->parent_pedigree.rank = w->pedigree.rank;
+        sf_at_sync->parent_pedigree.parent = w->pedigree.parent;
+    }
+
+    STOP_INTERVAL(w, INTERVAL_WORKING);
+    START_INTERVAL(w, INTERVAL_IN_RUNTIME);
+
+    ff = w->l->frame_ff;
+
+    CILK_ASSERT(NULL == ff->pending_exception);
+    ff->pending_exception = w->l->pending_exception;
+    w->l->pending_exception = NULL;
+
+    ff->call_stack = NULL;
+
+    // Normally, "make_unrunnable" would add CILK_FRAME_STOLEN and
+    // CILK_FRAME_SUSPENDED to sf_at_sync->flags and save the state of
+    // the stack so that a worker can resume the frame in the correct
+    // place.
+    //
+    // But on this path, CILK_FRAME_STOLEN should already be set.
+    // Also, we technically don't want to suspend the frame until
+    // the reduction finishes.
+    // We do, however, need to save the stack before
+    // we start any reductions, since the reductions might push more
+    // data onto the stack.
+    CILK_ASSERT(sf_at_sync->flags | CILK_FRAME_STOLEN);
+
+    __cilkrts_put_stack(ff, sf_at_sync);
+    __cilkrts_make_unrunnable_sysdep(w, ff, sf_at_sync, 1,
+                                     "execute_reductions_for_sync");
+    CILK_ASSERT(w->l->frame_ff == ff);
+
+    // Step B2: Execute reductions on user stack.
+    // Check if we have any "real" reductions to do.
+    int finished_reductions = fast_path_reductions_for_sync(w, ff);
+    
+    if (!finished_reductions) {
+        // Still have some real reductions to execute.
+        // Run them here.
+
+        // This method may acquire/release the lock on ff.
+        w = slow_path_reductions_for_sync(w, ff);
+
+        // The previous call may return on a different worker.
+        // than what we started on.
+        verify_current_wkr(w);
+    }
+
+#if REDPAR_DEBUG >= 0
+    CILK_ASSERT(w->l->frame_ff == ff);
+    CILK_ASSERT(ff->call_stack == NULL);
+#endif
+
+    // Now we suspend the frame ff (since we've
+    // finished the reductions).  Roughly, we've split apart the 
+    // "make_unrunnable" call here --- we've already saved the
+    // stack info earlier before the reductions execute.
+    // All that remains is to restore the call stack back into the
+    // full frame, and mark the frame as suspended.
+    ff->call_stack = sf_at_sync;
+    sf_at_sync->flags |= CILK_FRAME_SUSPENDED;
+
+    // At a nontrivial sync, we should always free the current fiber,
+    // because it can not be leftmost.
+    CILK_ASSERT(ff->is_future == 2);
+    ff->parent->fiber_child = ff->fiber_self;
+    ff->fiber_self = NULL;
+
+    longjmp_into_runtime(w, do_future_parent_sync, sf_at_sync);
+}
 
 /*
   Local Variables: **

@@ -152,6 +152,10 @@ COMMON_PORTABLE
 NORETURN __cilkrts_c_sync(__cilkrts_worker *w,
                           __cilkrts_stack_frame *sf);
 
+COMMON_PORTABLE
+NORETURN __cilkrts_c_future_parent_sync(__cilkrts_worker *w,
+                          __cilkrts_stack_frame *sf);
+
 /**
  * @brief Worker @c w completely promotes its own deque, simulating the case
  * where the whole deque is stolen.

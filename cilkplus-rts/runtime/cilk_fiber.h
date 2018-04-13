@@ -87,10 +87,12 @@
  * @brief Flag to determine whether fibers support reference counting.
  * We require reference counting only on Windows, for exception
  * processing.  Unix does not need reference counting.
+ *
+ * KYLE_TODO: Unix needs it for futures!
  */
-#if defined(_WIN32)
+//#if defined(_WIN32)
 #   define NEED_FIBER_REF_COUNTS 1
-#endif
+//#endif
 
 /**
  * @brief Flag to enable support for the
@@ -100,7 +102,7 @@
  * on being able to call this method.
  */
 #if !defined(SUPPORT_GET_CURRENT_FIBER)
-#   define SUPPORT_GET_CURRENT_FIBER 0
+#   define SUPPORT_GET_CURRENT_FIBER 1
 #endif
 
 /**

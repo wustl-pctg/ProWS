@@ -628,8 +628,6 @@ cilk_fiber* cilk_fiber::allocate_from_heap(std::size_t stack_size)
     cilk_fiber_sysdep* ret =
         (cilk_fiber_sysdep*) __cilkrts_malloc(sizeof(cilk_fiber_sysdep));
 
-    //printf("Allocated fiber %p from heap\n", ret);
-
     // Error condition. If we failed to allocate a fiber from the
     // heap, we are in trouble though...
     if (!ret)
@@ -760,10 +758,8 @@ cilk_fiber* cilk_fiber::allocate(cilk_fiber_pool* pool)
             // When we pull a fiber out of the pool, set its reference
             // count just in case.
             ret->init_ref_count(1);
-            //printf("Allocated fiber %p from pool\n", ret);
             return ret;
         }
-        //printf("Allocated fiber %p from heap for pool\n", ret);
     }
 
     // 3. Check whether we can allocate from the heap.
@@ -787,7 +783,6 @@ cilk_fiber* cilk_fiber::allocate(cilk_fiber_pool* pool)
         ret = allocate_from_heap(pool->stack_size);
         // If we got something from the heap, just return it.
         if (ret) {
-            //printf("Allocated fiber %p from heap for pool\n", ret);
             return ret;
         }
 
@@ -806,8 +801,7 @@ cilk_fiber* cilk_fiber::allocate(cilk_fiber_pool* pool)
     // 6. If we get here, then searching this pool failed.  Go search
     // the parent instead if we have one.
     if (pool->parent) {
-        ret = allocate(pool->parent);
-        //printf("Allocated fiber %p from parent's pool\n", ret);
+        return allocate(pool->parent);
     }
     
     return ret;
@@ -894,15 +888,12 @@ cilk_fiber* cilk_fiber::get_current_fiber()
 
 void cilk_fiber::do_post_switch_actions()
 {
-    printf("Handling post switch actions on %p (w = %d)\n", this, __cilkrts_get_tls_worker()->self);
     if (m_post_switch_proc) 
     {
         cilk_fiber_proc proc = m_post_switch_proc;
         m_post_switch_proc = NULL;
-        //printf("Running post switch proc %p on %p\n", proc, this);
         proc(this);
     }
-    //printf("Past post switch procs (if any) %p\n", this);
 
     if (m_pending_remove_ref)
     {
@@ -912,7 +903,6 @@ void cilk_fiber::do_post_switch_actions()
         m_pending_remove_ref = NULL;
         m_pending_pool   = NULL;
     }
-    //printf("Past pending remove ref inside %p\n", this);
 }
 
 void cilk_fiber::suspend_self_and_resume_other(cilk_fiber* other)

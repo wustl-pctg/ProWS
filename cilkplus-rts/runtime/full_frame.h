@@ -194,8 +194,6 @@ struct full_frame
      */
     int is_call_child;
 
-    int is_future;
-
     /**
      * TRUE if this frame is the loot of a simulated steal.
      *
@@ -339,8 +337,6 @@ struct full_frame
      * [self-locked]
      */
     cilk_fiber *fiber_child;
-
-    cilk_fiber *future_fiber;
 
     /**
      * If the sync_master is set, this function can only be sync'd by the team

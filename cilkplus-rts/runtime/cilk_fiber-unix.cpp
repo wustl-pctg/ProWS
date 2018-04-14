@@ -133,7 +133,6 @@ inline void cilk_fiber_sysdep::resume_other_sysdep(cilk_fiber_sysdep* other)
 {
     if (other->is_resumable()) {
         other->set_resumable(false);
-        printf("Longjmping to %p (jmpbuf: %p)\n", other, *other->m_resume_jmpbuf);
         // Resume by longjmp'ing to the place where we suspended.
         CILK_LONGJMP(other->m_resume_jmpbuf);
     }
@@ -156,7 +155,6 @@ void cilk_fiber_sysdep::suspend_self_and_resume_other_sysdep(cilk_fiber_sysdep* 
     if (! CILK_SETJMP(m_resume_jmpbuf)) {
         resume_other_sysdep(other);
     }
-    printf("Resumed fiber %p\n", this);
 
     // Return here when another fiber resumes me.
     // If the fiber that switched to me wants to be deallocated, do it now.

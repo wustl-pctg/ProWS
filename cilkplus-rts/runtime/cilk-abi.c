@@ -142,7 +142,7 @@ CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf)
 static inline
 void enter_frame_fast_internal(__cilkrts_stack_frame *sf, uint32_t version)
 {
-//fprintf(stderr, "XXX enter frame.\n");
+    //fprintf(stderr, "XXX enter frame.\n");
     __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
     sf->flags = version << 24;
     sf->call_parent = w->current_stack_frame;
@@ -224,7 +224,7 @@ static int __cilkrts_undo_detach(__cilkrts_stack_frame *sf)
     sf->flags &= ~CILK_FRAME_DETACHED;
 #endif
 
-    return __builtin_expect(t < w->exc, 1);
+    return __builtin_expect(t < w->exc, 0);
 }
 
 CILK_ABI_VOID __cilkrts_leave_frame(__cilkrts_stack_frame *sf)
@@ -323,7 +323,6 @@ CILK_ABI_VOID __cilkrts_leave_frame(__cilkrts_stack_frame *sf)
 /* Caller must have called setjmp. */
 CILK_ABI_VOID __cilkrts_sync(__cilkrts_stack_frame *sf)
 {
-    printf("In sync!\n");
     __cilkrts_worker *w = sf->worker;
 
     if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1) {
@@ -336,7 +335,6 @@ CILK_ABI_VOID __cilkrts_sync(__cilkrts_stack_frame *sf)
         __cilkrts_bug("W%u: double sync %p\n", w->self, sf);
 #ifndef _WIN32
     if (__builtin_expect(sf->flags & CILK_FRAME_EXCEPTING, 0)) {
-        printf("Going to c_sync_except!\n");
         __cilkrts_c_sync_except(w, sf);
     }
 #endif
@@ -527,7 +525,6 @@ CILK_ABI_WORKER_PTR BIND_THREAD_RTN(void)
                 cilk_fiber_allocate_from_heap(CILK_SCHEDULING_STACK_SIZE);
             cilk_fiber_reset_state(w->l->scheduling_fiber,
                                    scheduler_fiber_proc_for_user_worker);
-            printf("Setting sched_fib owner in cilk_abi!\n");
             cilk_fiber_set_owner(w->l->scheduling_fiber, w);
         } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
     }

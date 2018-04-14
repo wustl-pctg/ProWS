@@ -110,64 +110,36 @@ void is_only_printf_crashing() {
 }
 
 int main(int argc, char** argv) {
-    __print_curr_stack("initial");
+    //__print_curr_stack("initial");
 
 
-    //long test;
-    //asm("\t mov %%rbp,%0" : "=r"(test));
-    //printf("rbp 1: %lX\n", test); fflush(stdout);
-    //asm("\t mov %%rsp,%0" : "=r"(test));
-    //printf("rsp 1: %lX\n", test); fflush(stdout);
-
-  __assert_not_on_scheduling_fiber();
     cilk_spawn thread1();
-  __assert_not_on_scheduling_fiber();
     printf("\n\nSimple Future Phase I Syncing\n\n");
 
     //for (int i = 0; i < 1; i++) {
     //    cilk_spawn thread2();
     //}
-    __print_curr_stack("pre-sync");
+    //__print_curr_stack("pre-sync");
 
-    //__print_curr_stack();
-    //asm("\t mov %%rbp,%0" : "=r"(test));
-    //printf("rbp 2: %lX\n", test);
-    //fflush(stdout);
-    //asm("\t mov %%rsp,%0" : "=r"(test));
-    //printf("rsp 2: %lX\n", test);
-    //fflush(stdout);
     cilk_sync;
-  __assert_not_on_scheduling_fiber();
+
     int* dummy1 = (int*)alloca(sizeof(int)*10);
     *dummy1 = 0xf00dface; 
+
     printf("\n\nSimple Future Phase II Commencing\n\n");
-    __print_curr_stack("\nphase II");
-    //printf("Hello, matey!\n");
-    //__print_curr_stack();
-    //test = 1;
-    //asm("\t mov %%rbp,%0" : "=r"(test));
-    //printf("rbp 3: %lX\n", test); //fflush(stdout);
-    //asm("\t mov %%rsp,%0" : "=r"(test));
-    //printf("rsp 3: %lX\n", test); //fflush(stdout);
-    //printf("----------------Round 2----------------\n");
+    //__print_curr_stack("\nphase II");
 
-    //is_only_printf_crashing();
-    //__assert_future_counter(0);
-
-    //printf("Moving right along...\n");
-    //fflush(stdout);
     cilk_spawn thread3();
-  __assert_not_on_scheduling_fiber();
+
     //for (int i = 0; i < 2; i++) {
     //    cilk_spawn thread4();
     //}
-    __print_curr_stack("\nphase II pre-sync");
 
-    //__print_curr_stack();
+    //__print_curr_stack("\nphase II pre-sync");
+
     cilk_sync;
-  __assert_not_on_scheduling_fiber();
-    __print_curr_stack("end");
-    //__assert_future_counter(0);
+
+    //__print_curr_stack("end");
 
     int* dummy = (int*)alloca(sizeof(int)*10);
     *dummy = 0xf00dface; 

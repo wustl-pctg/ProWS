@@ -72,7 +72,6 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
         ff->left_sibling = ff->right_sibling = 0;
         ff->call_stack = sf;
         ff->is_call_child = 0;
-        ff->is_future = 0;
         ff->simulated_stolen = 0;
 	ff->children_reducer_map = ff->right_reducer_map = 0;
         ff->pending_exception = 
@@ -88,7 +87,6 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
 	ff->frame_size = 0;
         ff->fiber_self = 0;
         ff->fiber_child = 0;
-        ff->future_fiber = 0;
 
         ff->sync_master = 0;
 

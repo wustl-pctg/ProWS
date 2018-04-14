@@ -11,7 +11,7 @@
 
 extern "C" {
 
-extern void __my_cilk_spawn_future(std::function<void(void)> func);
+extern void __spawn_future_helper_helper(std::function<void(void)> func);
 
 }
 //__attribute__((weak)) void __cilk_spawn_future(std::function<void()> func) {
@@ -25,7 +25,7 @@ namespace cilk {
   auto functor = std::bind(func, ##args);  \
   fut = new (loc) cilk::future<T>();  \
   auto __temp_fut = fut; \
-  __my_cilk_spawn_future([__temp_fut,functor]() -> void { \
+  __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
     __temp_fut->put(functor()); \
   }); \
   }
@@ -37,7 +37,7 @@ namespace cilk {
   auto functor = std::bind(func, ##args);  \
   fut = new cilk::future<T>();  \
   auto __temp_fut = fut; \
-  __my_cilk_spawn_future([__temp_fut,functor]() -> void { \
+  __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
     __temp_fut->put(functor()); \
   }); \
   }

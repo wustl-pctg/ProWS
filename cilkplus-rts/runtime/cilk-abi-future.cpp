@@ -71,39 +71,42 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame)
     //printf("Back from new fiber in worker %d\n", __cilkrts_get_tls_worker()->self); fflush(stdout);
 }*/
 
-static CILK_ABI_VOID __attribute__((noinline)) __spawn_future(std::function<void(void)> func) {
+#include "modified-future-sync.cpp"
+
+static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::function<void(void)> func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
 
         func();
 
-    CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_flags == CILK_FUTURE);
-
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_frame(&sf);
 }
 
-CILK_ABI_VOID __attribute__((noinline)) __my_cilk_spawn_future(std::function<void(void)> func) {
+CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
   CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_flags == 0);
+  CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
 
   //CILK_ASSERT(cilk_fiber_get_data(orig_fiber)->resume_sf == NULL);
   if(!CILK_SETJMP(sf.ctx)) { 
-      __spawn_future(func);
+      __spawn_future_helper(func);
   }
 
-  CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_flags == CILK_FUTURE_PARENT);
+  if (sf.flags & CILK_FRAME_STOLEN) {
+      CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_flags == CILK_FUTURE_PARENT);
+  }
 
   // TODO: Do not need to do this for futures.
   if (sf.flags & CILK_FRAME_UNSYNCHED) {
     if (!CILK_SETJMP(sf.ctx)) {
-      __cilkrts_sync(&sf);
+      __cilkrts_future_sync(&sf);
     }
-  } 
+  }
 
   __cilkrts_pop_frame(&sf);
   __cilkrts_leave_frame(&sf);

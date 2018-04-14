@@ -194,6 +194,8 @@ struct full_frame
      */
     int is_call_child;
 
+    int future_flags;
+
     /**
      * TRUE if this frame is the loot of a simulated steal.
      *
@@ -360,6 +362,9 @@ struct full_frame
      */
     ff_magic_t full_frame_magic_1;
 };
+
+#define CILK_FUTURE         (0x01)
+#define CILK_FUTURE_PARENT  (0x02)
 
 /* The functions __cilkrts_put_stack and __cilkrts_take_stack keep track of
  * changes in the stack's depth between when the point at which a frame is

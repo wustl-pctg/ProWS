@@ -380,6 +380,8 @@ struct __cilkrts_stack_frame
  */
 #define CILK_FRAME_SF_PEDIGREE_UNSYNCHED 0x20
 
+#define CILK_FRAME_FUTURE_PARENT         0x40
+
 /** Is this the last (oldest) Cilk frame? */
 #define CILK_FRAME_LAST	     0x80
 

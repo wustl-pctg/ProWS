@@ -791,8 +791,9 @@ static void detach_for_steal(__cilkrts_worker *w,
             loot_ff->call_stack->flags |= CILK_FRAME_UNSYNCHED;
             loot_ff->simulated_stolen = 1;
         }
-        else
+        else {
             __cilkrts_push_next_frame(w, loot_ff);
+        }
 
         // After this "push_next_frame" call, w now owns loot_ff.
         child_ff = make_child(w, loot_ff, 0, fiber);
@@ -802,6 +803,10 @@ static void detach_for_steal(__cilkrts_worker *w,
                the parent_ff's place */
             /* child is referenced by victim */
             incjoin(child_ff);
+            if (loot_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
+                child_ff->future_flags = CILK_FUTURE;
+                loot_ff->future_flags = CILK_FUTURE_PARENT;
+            }
 
             // With this call, w is bestowing ownership of the newly
             // created frame child_ff to the victim, and victim is

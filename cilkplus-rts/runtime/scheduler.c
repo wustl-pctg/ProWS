@@ -806,6 +806,7 @@ static void detach_for_steal(__cilkrts_worker *w,
             if (loot_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
                 child_ff->future_flags = CILK_FUTURE;
                 loot_ff->future_flags = CILK_FUTURE_PARENT;
+                loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT);
             }
 
             // With this call, w is bestowing ownership of the newly

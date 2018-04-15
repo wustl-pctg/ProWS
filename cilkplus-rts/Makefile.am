@@ -83,6 +83,8 @@ libcilkrts_la_SOURCES =            \
   runtime/bug.cpp                  \
   runtime/cilk-abi.c               \
   runtime/cilk-abi-future.cpp      \
+  runtime/modified-future-sync.cpp \
+  runtime/modified-future-leave-frame.cpp \
   runtime/cilk-abi-cilk-for.cpp    \
   runtime/cilk-abi-vla-internal.c  \
   runtime/cilk_api.c               \

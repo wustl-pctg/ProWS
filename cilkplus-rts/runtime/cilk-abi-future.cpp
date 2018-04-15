@@ -10,6 +10,8 @@
 #include "scheduler.h"
 #include "os.h"
 
+extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
 extern "C" {
 
 extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
@@ -71,7 +73,9 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame)
     //printf("Back from new fiber in worker %d\n", __cilkrts_get_tls_worker()->self); fflush(stdout);
 }*/
 
-#include "modified-future-sync.cpp"
+//#include "modified-future-leave-frame.cpp"
+//#include "modified-future-sync.cpp"
+
 
 static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::function<void(void)> func) {
     __cilkrts_stack_frame sf;
@@ -81,7 +85,7 @@ static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::functi
         func();
 
     __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
 }
 
 CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {

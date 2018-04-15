@@ -1,6 +1,10 @@
 #include "except.h"
 #include "cilk-ittnotify.h"
 #include "sysdep.h"
+#include "local_state.h"
+#include "record-replay.h"
+#include "reducer_impl.h"
+#include "scheduler.h"
 
 #define verify_current_wkr(w)   ;
 

@@ -6,16 +6,22 @@
 
 #include <cstdint>
 
+extern unsigned long ZERO;
+
 extern "C" {
-extern void __assert_future_counter(int count);
-extern void __print_curr_stack(char*);
-extern void __assert_not_on_scheduling_fiber(void);
+//extern void __assert_future_counter(int count);
+//extern void __print_curr_stack(char*);
+//extern void __assert_not_on_scheduling_fiber(void);
 }
+
+void __assert_future_counter(int count) {}
+void __print_curr_stack(char*){}
+void __assert_not_on_scheduling_fiber(void){}
 
 cilk::future<int>* test_future = NULL;
 cilk::future<int>* test_future2 = NULL;
 cilk::future<int>* test_future3 = NULL;
-volatile int dummy = 0;
+volatile int gdummy = 0;
 volatile int dummy2 = 0;
 //porr::spinlock output_lock;
 
@@ -27,8 +33,9 @@ void thread3(void);
 void thread4(void);
 
 int helloFuture() {
+  int* dummy = (int*) alloca(ZERO);
   for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
-    dummy += i;
+    gdummy += i;
   }
   __assert_not_on_scheduling_fiber();
  // cilk_future_create(int,test_future3,helloMoreFutures);
@@ -40,6 +47,7 @@ int helloFuture() {
 }
 
 int helloMoreFutures() {
+  int* dummy = (int *) alloca(ZERO);
   for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
     dummy2 += j;
   }
@@ -49,16 +57,23 @@ int helloMoreFutures() {
 }
 
 void thread1() {
+  int* dummy = (int *)alloca(ZERO);
   __print_curr_stack("\nthread1 p1");
   __assert_not_on_scheduling_fiber();
+  printf("In thread1, creating future!\n");
+  //cilk_spawn thread2();
   cilk_future_create(int,test_future,helloFuture);
+  //cilk_sync;
+  printf("I'm in thread1 again!\n");
   __assert_not_on_scheduling_fiber();
   __print_curr_stack("\nthread1 p2");
   auto result = cilk_future_get(test_future);
   __assert_not_on_scheduling_fiber();
   __print_curr_stack("\nthread1 p3");
+  printf("Leaving thread1!\n");
 }
 void thread2() {
+  int* dummy = (int *)alloca(ZERO);
   printf("thread 2\n");
   //output_lock.lock();
   //output_lock.unlock();
@@ -71,6 +86,7 @@ void thread2() {
 }
 
 void thread3() {
+  int* dummy = (int *)alloca(ZERO);
   __assert_not_on_scheduling_fiber();
   __print_curr_stack("\nthread3 p1");
   //cilk_future_create(int,test_future2,helloMoreFutures);
@@ -82,6 +98,7 @@ void thread3() {
   __print_curr_stack("\nthread3 p3");
 }
 void thread4() {
+  int* dummy = (int *)alloca(ZERO);
   printf("thread 4\n");
   //output_lock.lock();
   //output_lock.unlock();
@@ -110,6 +127,7 @@ void is_only_printf_crashing() {
 }
 
 int main(int argc, char** argv) {
+    int* dummy = (int *)alloca(ZERO);
     //__print_curr_stack("initial");
 
 
@@ -141,8 +159,8 @@ int main(int argc, char** argv) {
 
     //__print_curr_stack("end");
 
-    int* dummy = (int*)alloca(sizeof(int)*10);
-    *dummy = 0xf00dface; 
+    //int* dummy = (int*)alloca(sizeof(int)*10);
+    //*dummy = 0xf00dface; 
     delete test_future2;
 
     printf("That's all there is, and there isn't anymore...\n\n\n");

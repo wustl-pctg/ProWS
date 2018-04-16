@@ -119,6 +119,9 @@ extern __attribute__((noreturn))
 #   define ASSERT_WORKER_LOCK_OWNED(w)
 #endif // DEBUG_LOCKS
 
+// KYLE_TODO: Remove this...
+unsigned long ZERO = 0;
+
 // Options for the scheduler.
 enum schedule_t { SCHEDULE_RUN,
                   SCHEDULE_WAIT,
@@ -429,7 +432,8 @@ void __cilkrts_push_next_frame(__cilkrts_worker *w, full_frame *ff)
     CILK_ASSERT(ff);
     CILK_ASSERT(!w->l->next_frame_ff);
     incjoin(ff);
-    w->l->next_frame_ff = ff;
+    //w->l->next_frame_ff = ff;
+    CILK_ASSERT( __sync_bool_compare_and_swap(&(w->l->next_frame_ff), NULL, ff));
 }
 
 /* Get the next full-frame to be made active in this worker.  The join count
@@ -797,6 +801,8 @@ static void detach_for_steal(__cilkrts_worker *w,
 
         // After this "push_next_frame" call, w now owns loot_ff.
         child_ff = make_child(w, loot_ff, 0, fiber);
+        child_ff->future_fiber = parent_ff->future_fiber;
+        parent_ff->future_fiber = NULL;
 
         BEGIN_WITH_FRAME_LOCK(w, child_ff) {
             /* install child in the victim's work queue, taking
@@ -807,6 +813,12 @@ static void detach_for_steal(__cilkrts_worker *w,
                 child_ff->future_flags = CILK_FUTURE;
                 loot_ff->future_flags = CILK_FUTURE_PARENT;
                 loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT);
+                CILK_ASSERT(child_ff->fiber_self);
+                loot_ff->fiber_child = child_ff->fiber_self;
+                child_ff->fiber_self = child_ff->future_fiber;
+                //child_ff->future_fiber = NULL;
+                //printf("%p fiber_child\n", loot_ff->fiber_child);
+                printf("%p future parent\n", loot_ff);
             }
 
             // With this call, w is bestowing ownership of the newly
@@ -1050,10 +1062,20 @@ static void random_steal(__cilkrts_worker *w)
     }
     else
     {
-        // Since our steal was successful, finish initialization of
-        // the fiber.
-        cilk_fiber_reset_state(fiber,
-                               fiber_proc_to_resume_user_code_for_random_steal);
+        //if (loot_ff->future_flags & CILK_FUTURE_PARENT) {
+            //START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
+        //        int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
+                // Fibers we use when trying to steal should not be active,
+                // and thus should not have any other references.
+        //        CILK_ASSERT(0 == ref_count);
+        //    } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+        //} else {
+            // Since our steal was successful, finish initialization of
+            // the fiber.
+            cilk_fiber_reset_state(fiber,
+                                   fiber_proc_to_resume_user_code_for_random_steal);
+        //}
+
         // Record the pedigree of the frame that w has stolen.
         // record only if CILK_RECORD_LOG is set
         replay_record_steal(w, victim_id);
@@ -1546,6 +1568,7 @@ cilkrts_resume(__cilkrts_stack_frame *sf, full_frame *ff)
     // Actually longjmp to the user code.
     // We may have exceptions to deal with, since we are resuming
     // a previous-suspended frame.
+    printf("Longjmping to sf %p\n", sf);
     sysdep_longjmp_to_sf(sync_sp, sf, ff);
 }
 
@@ -1557,9 +1580,10 @@ cilkrts_resume(__cilkrts_stack_frame *sf, full_frame *ff)
  * This method pulls sf/ff out of the worker, and then calls
  * cilkrts_resume to jump to user code.
  */
-static NORETURN
+/*static*/ NORETURN
 user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
 {
+    printf("user code resume after switch into runtime\n");
     __cilkrts_worker *w = cilk_fiber_get_owner(fiber);
     __cilkrts_stack_frame *sf;
     full_frame *ff;
@@ -1706,6 +1730,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
         NOTE_INTERVAL(w, INTERVAL_SUSPEND_RESUME_OTHER);
 
+        CILK_ASSERT(NULL == cilk_fiber_get_data(w->l->scheduling_fiber)->owner);
         cilk_fiber_suspend_self_and_resume_other(current_fiber,
                                                  w->l->scheduling_fiber);
         // Resuming this fiber returns control back to
@@ -1976,6 +2001,7 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     //
     // 2. Resuming code on a steal.  In this case, since we
     //    grabbed a new fiber, resume_sf should be NULL.
+    printf("Other fiber: %p\n", other);
     CILK_ASSERT(NULL == other_data->resume_sf);
         
 #if FIBER_DEBUG >= 2
@@ -2589,6 +2615,7 @@ void __cilkrts_return(__cilkrts_worker *w)
 
     BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) {
         ff = w->l->frame_ff;
+        printf("curr fiber: %p\n", ff->fiber_self);
         CILK_ASSERT(ff);
         CILK_ASSERT(ff->join_counter == 1);
         /* This path is not used to return from spawn. */
@@ -2622,6 +2649,7 @@ void __cilkrts_return(__cilkrts_worker *w)
             finalize_child_for_call(w, parent_ff, ff);
         } END_WITH_FRAME_LOCK(w, parent_ff);
 
+    printf("Returned from call child ff (was %p)!\n", ff);
         ff = pop_next_frame(w);
         /* ff will be non-null except when the parent frame is owned
            by another worker.

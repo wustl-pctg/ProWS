@@ -88,6 +88,7 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
 	ff->frame_size = 0;
         ff->fiber_self = 0;
         ff->fiber_child = 0;
+        ff->future_fiber = 0;
 
         ff->sync_master = 0;
 

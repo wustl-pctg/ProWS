@@ -264,6 +264,7 @@ static void provably_good_steal_exceptions(__cilkrts_worker *w,
 static void provably_good_steal_stacks(__cilkrts_worker *w, full_frame *ff) {
     CILK_ASSERT(NULL == ff->fiber_self);
     ff->fiber_self = ff->fiber_child;
+    printf("Future sync! provably good steal fiber self = %p\n", ff->fiber_self);
     ff->fiber_child = NULL;
 }
 
@@ -482,6 +483,43 @@ user_code_resume_after_switch_into_runtime(cilk_fiber *fiber) {
     cilkrts_resume(sf, ff);
 }
 
+
+static void kyles_scheduling_fiber_prepare_to_resume_user_code(__cilkrts_worker *w,
+                                                  full_frame *ff,
+                                                  __cilkrts_stack_frame *sf) {
+    w->current_stack_frame = sf;
+    sf->worker = w;
+
+    // Lots of debugging checks on the state of the fiber we might be
+    // resuming.
+#if FIBER_DEBUG >= 1
+#   if FIBER_DEBUG >= 3
+    {
+        fprintf(stderr, "w=%d: ff=%p, sf=%p. about to resume user code\n",
+                w->self, ff, sf);
+    }
+#   endif
+
+    const int flags = sf->flags;
+    CILK_ASSERT(flags & CILK_FRAME_SUSPENDED);
+    CILK_ASSERT(!sf->call_parent);
+    CILK_ASSERT(w->head == w->tail);
+
+    /* A frame can not be resumed unless it was suspended. */
+    CILK_ASSERT(ff->sync_sp != NULL);
+
+    /* The leftmost frame has no allocated stack */
+    if (ff->simulated_stolen)
+        CILK_ASSERT(flags & CILK_FRAME_UNSYNCHED);
+    else if (flags & CILK_FRAME_UNSYNCHED)
+        /* XXX By coincidence sync_sp could be null. */
+        CILK_ASSERT(ff->fiber_self != NULL);
+    else
+        /* XXX This frame could be resumed unsynched on the leftmost stack */
+        CILK_ASSERT((ff->sync_master == 0 || ff->sync_master == w));
+    CILK_ASSERT(w->l->frame_ff == ff);
+#endif    
+}
 static NORETURN
 longjmp_into_runtime(__cilkrts_worker *w,
                      scheduling_stack_fcn_t fcn,
@@ -490,6 +528,32 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
     CILK_ASSERT(!w->l->post_suspend);
     ff = w->l->frame_ff;
+    CILK_ASSERT(ff->future_flags == CILK_FUTURE_PARENT);
+
+    if (1 == w->g->P) {
+        fcn(w, ff, sf);
+
+        /* The call to function c() will have pushed ff as the next frame.  If
+         * this were a normal (non-forced-reduce) execution, there would have
+         * been a pop_next_frame call in a separate part of the runtime.  We
+         * must call pop_next_frame here to complete the push/pop cycle. */
+        ff2 = pop_next_frame(w);
+
+        setup_for_execution(w, ff2, 0);
+        kyles_scheduling_fiber_prepare_to_resume_user_code(w, ff2, w->current_stack_frame);
+        cilkrts_resume(w->current_stack_frame, ff2);
+        
+// Suppress clang warning that the expression result is unused
+#if defined(__clang__) && (! defined(__INTEL_COMPILER))
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wunused-value"
+#endif // __clang__
+        /* no return */
+        CILK_ASSERT(((void)"returned from __cilkrts_resume", 0));
+#if defined(__clang__) && (! defined(__INTEL_COMPILER))
+#   pragma clang diagnostic pop
+#endif // __clang__
+    }
 
     w->l->post_suspend = fcn;
     w->l->suspended_stack = sf;
@@ -526,6 +590,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
     cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_ORPHAN);
     
     if (w->l->fiber_to_free) {
+        printf("Future parent freeing fiber in sync (%p)\n", current_fiber);
         // Case 1: we are freeing this fiber.  We never
         // resume this fiber again after jumping into the runtime.
         w->l->fiber_to_free = NULL;
@@ -548,6 +613,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
         CILK_ASSERT(0);
     }
     else {        
+        CILK_ASSERT(! "Future parents should free their fibers in sync (currently)\n");
         // Case 2: We are passing the fiber to our parent because we
         // are leftmost.  We should come back later to
         // resume execution of user code.
@@ -676,6 +742,7 @@ static void do_sync(__cilkrts_worker *w, full_frame *ff,
 
                 /* the decjoin() occurs in provably_good_steal() */
                 steal_result = provably_good_steal(w, ff);
+                printf("Future Parent do_sync fiber child: %p\n", ff->fiber_child);
 
             } END_WITH_FRAME_LOCK(w, ff);
             // set w->l->frame_ff = NULL after checking abandoned
@@ -732,14 +799,11 @@ NORETURN __cilkrts_c_future_sync(__cilkrts_worker *w,
     // and no one else can steal and change w->l->frame_ff.
 
     ff = w->l->frame_ff;
-#ifdef _WIN32
-    __cilkrts_save_exception_state(w, ff);
-#else
+
     // Move any pending exceptions into the full frame
     CILK_ASSERT(NULL == ff->pending_exception);
     ff->pending_exception = w->l->pending_exception;
     w->l->pending_exception = NULL;
-#endif
     
     w = execute_reductions_for_sync(w, ff, sf_at_sync);
 
@@ -752,8 +816,10 @@ NORETURN __cilkrts_c_future_sync(__cilkrts_worker *w,
 }
 
 CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf) {
+    printf("Syncing future parent!\n");
     __cilkrts_worker *w = sf->worker;
 
+    CILK_ASSERT(sf->flags >= 1);
     if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1) {
         sf->parent_pedigree.rank = w->pedigree.rank;
         sf->parent_pedigree.parent = w->pedigree.parent;

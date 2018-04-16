@@ -525,7 +525,9 @@ CILK_ABI_WORKER_PTR BIND_THREAD_RTN(void)
                 cilk_fiber_allocate_from_heap(CILK_SCHEDULING_STACK_SIZE);
             cilk_fiber_reset_state(w->l->scheduling_fiber,
                                    scheduler_fiber_proc_for_user_worker);
-            cilk_fiber_set_owner(w->l->scheduling_fiber, w);
+            // KYLE_TODO: I think this is why the scheduling_fiber's owner
+            //            is set at first, even when we haven't been on fiber yet.
+            //cilk_fiber_set_owner(w->l->scheduling_fiber, w);
         } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
     }
     

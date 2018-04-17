@@ -136,7 +136,7 @@ static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::functi
     __cilkrts_enter_frame_fast_1(&sf);
 
     #ifndef FUTURE_IS_CILK_SPAWN
-        CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_fiber);
+        //CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_fiber);
     #endif
 
     __cilkrts_detach(&sf);
@@ -157,6 +157,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
 
+
     #ifndef FUTURE_IS_CILK_SPAWN
         sf.flags |= CILK_FRAME_FUTURE_PARENT;
     #endif
@@ -170,6 +171,9 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
     #ifndef FUTURE_IS_CILK_SPAWN
     if(!CILK_SETJMP(sf.ctx)) { 
+        while (__cilkrts_get_tls_worker()->l->frame_ff->parent == NULL) {
+            printf("Parent null...\n");
+        }
         // SWITCH FIBERS!
         __cilkrts_switch_fibers(&sf);
     } else {

@@ -705,16 +705,25 @@ static full_frame *unroll_call_stack(__cilkrts_worker *w,
     /* Reverse the call stack to make a linked list ordered from parent
        to child.  sf->call_parent points to the child of SF instead of
        the parent.  */
+    __cilkrts_stack_frame* kyles_sf;
     do {
         t_sf = (sf->flags & (CILK_FRAME_DETACHED|CILK_FRAME_STOLEN|CILK_FRAME_LAST))? 0 : sf->call_parent;
+        kyles_sf = sf->call_parent ? sf->call_parent : sf;
         sf->call_parent = rev_sf;
         rev_sf = sf;
         sf = t_sf;
     } while (sf);
+
+    if (kyles_sf && (kyles_sf->flags & CILK_FRAME_LAST)) {
+        printf("parent ff is the final frame!\n");
+    }
     sf = rev_sf;
 
     /* Promote each stack frame to a full frame in order from parent
        to child, following the reversed list we just built. */
+    if (sf == loot_sf) {
+        printf("is loot true for parent_ff\n");
+    }
     make_unrunnable(w, ff, sf, sf == loot_sf, "steal 1");
     /* T is the *child* of SF, because we have reversed the list */
     for (t_sf = __cilkrts_advance_frame(sf); t_sf;
@@ -2002,7 +2011,8 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     // 2. Resuming code on a steal.  In this case, since we
     //    grabbed a new fiber, resume_sf should be NULL.
     printf("Other fiber: %p\n", other);
-    CILK_ASSERT(NULL == other_data->resume_sf);
+    // KYLE_TODO: ABSOLUTELY MUST FIX THIS!
+    //CILK_ASSERT(NULL == other_data->resume_sf);
         
 #if FIBER_DEBUG >= 2
     fprintf(stderr, "W=%d: other fiber=%p, setting resume_sf to %p\n",

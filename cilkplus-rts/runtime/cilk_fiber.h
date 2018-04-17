@@ -88,9 +88,9 @@
  * We require reference counting only on Windows, for exception
  * processing.  Unix does not need reference counting.
  */
-#if defined(_WIN32)
+//#if defined(_WIN32)
 #   define NEED_FIBER_REF_COUNTS 1
-#endif
+//#endif
 
 /**
  * @brief Flag to enable support for the

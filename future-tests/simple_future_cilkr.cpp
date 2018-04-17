@@ -1,7 +1,9 @@
 #include <iostream>
 #include <stdio.h>
 #include "cilk/cilk.h"
-#include "../cilkplus-rts/include/internal/abi.h"
+#include "internal/abi.h"
+#include "../cilkplus-rts/runtime/local_state.h"
+#include "../cilkplus-rts/runtime/full_frame.h"
 #include "../src/future.h"
 
 #include <cstdint>
@@ -9,6 +11,7 @@
 extern unsigned long ZERO;
 
 extern "C" {
+extern int cilk_fiber_get_ref_count(cilk_fiber*);
 //extern void __assert_future_counter(int count);
 //extern void __print_curr_stack(char*);
 //extern void __assert_not_on_scheduling_fiber(void);
@@ -60,34 +63,34 @@ void thread1() {
   int* dummy = (int *)alloca(ZERO);
   __print_curr_stack("\nthread1 p1");
   __assert_not_on_scheduling_fiber();
-  printf("\n\n\n*****In thread1, creating future!\n");
+  printf("\n\n\n*****In thread1, creating future!*****\n\n\n");
   //cilk_spawn thread2();
   cilk_future_create(int,test_future,helloFuture);
   //cilk_sync;
-  printf("\n\n\n*****I'm in thread1 again!\n");
+  printf("\n\n\n*****I'm in thread1 again!*****\n\n\n");
   __assert_not_on_scheduling_fiber();
   __print_curr_stack("\nthread1 p2");
   auto result = cilk_future_get(test_future);
   cilk_spawn thread2();
   __assert_not_on_scheduling_fiber();
   __print_curr_stack("\nthread1 p3");
-  printf("\n\n\n*****Syncing thread1!\n");
+  printf("\n\n\n*****Syncing thread1!*****\n\n\n");
   cilk_sync;
   cilk_spawn thread2();
-  printf("\n\n\n*****Syncing thread1 again!\n");
+  printf("\n\n\n*****Syncing thread1 again!*****\n\n\n");
   cilk_sync;
-  printf("\n\n\n*****Done with thread1...\n");
-  printf("\n\n\n*****Leaving thread1!\n");
+  printf("\n\n\n*****Done with thread1...*****\n\n\n");
+  printf("\n\n\n*****Leaving thread1!*****\n\n\n");
 }
 void thread2() {
   int* dummy = (int *)alloca(ZERO);
-  printf("\n\n\n*****thread 2\n");
+  printf("\n\n\n*****thread 2*****\n\n\n");
   //output_lock.lock();
   //output_lock.unlock();
   while (test_future==NULL);
   auto result = cilk_future_get(test_future);
   //output_lock.lock();
-  printf("\n\n\n*****Thread  got %d\n", result);
+  printf("\n\n\n*****Thread  got %d*****\n\n\n", result);
   fflush(stdout);
   //output_lock.unlock();
 }
@@ -100,19 +103,19 @@ void thread3() {
   reuse_future(int,test_future2,test_future,helloMoreFutures);
   __assert_not_on_scheduling_fiber();
   __print_curr_stack("\nthread3 p2");
-  printf("\n\n\n*****%d\n", cilk_future_get(test_future2));
+  printf("\n\n\n*****%d*****\n\n\n", cilk_future_get(test_future2));
   __assert_not_on_scheduling_fiber();
   __print_curr_stack("\nthread3 p3");
 }
 void thread4() {
   int* dummy = (int *)alloca(ZERO);
-  printf("\n\n\n*****thread 4\n");
+  printf("\n\n\n*****thread 4*****\n\n\n");
   //output_lock.lock();
   //output_lock.unlock();
   while (test_future2==NULL);
   auto result = cilk_future_get(test_future2);
   //output_lock.lock();
-  printf("\n\n\n*****Thread  got %d\n", result);
+  printf("\n\n\n*****Thread  got %d*****\n\n\n", result);
   fflush(stdout);
   //output_lock.unlock();
 }
@@ -130,31 +133,32 @@ void is_only_printf_crashing() {
     int* dummy = (int*)alloca(sizeof(int)*10);
     assert(dummy);
     *dummy = 0xf00dface; 
-    //printf("\n\n\n*****Hi!\n");
+    //printf("\n\n\n*****Hi!*****\n\n\n");
 }
 
 void another_thread() {
     int* dummy = (int *)alloca(ZERO);
-    printf("\n\n\n*****Hi, this is another thread!\n");
+    printf("\n\n\n*****Hi, this is another thread!*****\n\n\n");
     cilk_spawn thread1();
-    printf("\n\n\n*****Spawned thread1 from another_thread\n");
+    printf("\n\n\n*****Spawned thread1 from another_thread*****\n\n\n");
     cilk_sync;
     cilk_spawn thread2();
-    printf("\n\n\n*****Spawned thread2 from another_thread\n");
+    printf("\n\n\n*****Spawned thread2 from another_thread*****\n\n\n");
     cilk_sync;
-    printf("\n\n\n*****Another thread is finished!\n");
+    printf("\n\n\n*****Another thread is finished!*****\n\n\n");
 }
 
 void yet_another_thread() {
     int* dummy = (int *)alloca(ZERO);
-    printf("\n\n\n*****Hello, this is yet another thread!\n");
+    printf("\n\n\n*****Hello, this is yet another thread!*****\n\n\n");
     cilk_spawn another_thread();
-    printf("\n\n\n*****Spawned another_thread from yet_another_thread\n");
+    printf("\n\n\n*****Spawned another_thread from yet_another_thread*****\n\n\n");
     cilk_sync;
     cilk_spawn thread2();
-    printf("\n\n\n*****Spawned thread2 from yet_another_thread\n");
+    printf("\n\n\n*****Spawned thread2 from yet_another_thread*****\n\n\n");
     cilk_sync;
-    printf("\n\n\n*****yet_another_thread is finished!\n");
+    printf("\n\n\n*****yet_another_thread is finished!*****\n\n\n");
+    printf("Fiber ref count: %d\n", cilk_fiber_get_ref_count(__cilkrts_get_tls_worker()->l->frame_ff->fiber_self));
 }
 
 int main(int argc, char** argv) {
@@ -163,20 +167,18 @@ int main(int argc, char** argv) {
 
 
     //cilk_spawn thread1();
-    cilk_spawn yet_another_thread();
-    printf("\n\n\n*****\n\nSimple Future Phase I Syncing\n\n");
+    cilk_spawn another_thread();
+    printf("\n\n\n*****Simple Future Phase I Syncing*****\n\n\n");
 
     //for (int i = 0; i < 1; i++) {
     //    cilk_spawn thread2();
     //}
     //__print_curr_stack("pre-sync");
+    assert(__cilkrts_get_tls_worker() != NULL);
 
     cilk_sync;
 
-    int* dummy1 = (int*)alloca(sizeof(int)*10);
-    *dummy1 = 0xf00dface; 
-
-    printf("\n\n\n*****\n\nSimple Future Phase II Commencing\n\n");
+    printf("\n\n\n*****Simple Future Phase II Commencing*****\n\n\n");
     //__print_curr_stack("\nphase II");
 
     cilk_spawn thread3();
@@ -195,6 +197,6 @@ int main(int argc, char** argv) {
     //*dummy = 0xf00dface; 
     delete test_future2;
 
-    printf("\n\n\n*****That's all there is, and there isn't anymore...\n\n\n");
+    printf("\n\n\n*****That's all there is, and there isn't anymore...*****\n\n\n");
     return 0;
 }

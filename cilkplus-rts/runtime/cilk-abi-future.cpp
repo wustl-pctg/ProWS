@@ -13,7 +13,6 @@
 #include "cilk-ittnotify.h"
 #include "jmpbuf.h"
 
-//#define FUTURE_IS_CILK_SPAWN
 extern unsigned long ZERO;
 
 extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
@@ -142,6 +141,7 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame)
     //cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
 
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
+
     if (first_frame->flags & CILK_FRAME_STOLEN) {
         printf("Hi?\n");
         user_code_resume_after_switch_into_runtime(curr_fiber);
@@ -153,21 +153,12 @@ static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::functi
     int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
-
-    #ifndef FUTURE_IS_CILK_SPAWN
-        //CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_fiber);
-    #endif
-
     __cilkrts_detach(&sf);
 
         func();
 
     __cilkrts_pop_frame(&sf);
-    #ifndef FUTURE_IS_CILK_SPAWN
-        __cilkrts_leave_future_frame(&sf);
-    #else
-        __cilkrts_leave_frame(&sf);
-    #endif
+    __cilkrts_leave_future_frame(&sf);
 }
 
 CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
@@ -177,9 +168,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     __cilkrts_enter_frame_1(&sf);
 
 
-    #ifndef FUTURE_IS_CILK_SPAWN
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    #endif
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
     // At one point this wasn't true. Fixed a bug in cilk-abi.c that set the owner when it should not have.
     CILK_ASSERT(NULL == cilk_fiber_get_data(__cilkrts_get_tls_worker()->l->scheduling_fiber)->owner);
@@ -192,71 +181,34 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     full_frame *ff = NULL;
     __cilkrts_stack_frame *ff_call_stack = NULL;
 
-    #ifndef FUTURE_IS_CILK_SPAWN
     if(!CILK_SETJMP(sf.ctx)) { 
-        //BEGIN_WITH_WORKER_LOCK(w) {
-            //ff = w->l->frame_ff;
-        //    CILK_ASSERT(w->l->frame_ff);
-            //w->l->frame_ff = NULL;
-            //BEGIN_WITH_FRAME_LOCK(w, ff) {
-                //ff_call_stack = ff->call_stack;
-                //CILK_ASSERT(ff_call_stack && !ff_call_stack->call_parent);
-                //setup_for_execution(w, ff, 0);
-                //ff->call_stack = NULL;
-            //} END_WITH_FRAME_LOCK(w, ff);
-        //} END_WITH_WORKER_LOCK(w);
-
-        // SWITCH FIBERS!
         __cilkrts_switch_fibers(&sf);
     } else {
-    #endif
         // This SHOULD occur after switching fibers; steal from here
         if (!CILK_SETJMP(sf.ctx)) {
-            // Run the future helper on the new fiber
             __spawn_future_helper(func);
             CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
-            #ifndef FUTURE_IS_CILK_SPAWN
-                // Return to the original fiber
-                __cilkrts_switch_fibers(&sf, __cilkrts_get_tls_worker()->l->frame_ff->future_fiber, __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
-            #endif
+            // Return to the original fiber
+            __cilkrts_switch_fibers(&sf, __cilkrts_get_tls_worker()->l->frame_ff->future_fiber, __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
         }
         CILK_ASSERT(sf.flags & CILK_FRAME_STOLEN);
 
-    #ifndef FUTURE_IS_CILK_SPAWN
     }
-    #endif
-
-    printf("Hiiii!\n");
-
-    #ifndef FUTURE_IS_CILK_SPAWN
-    if (sf.flags & CILK_FRAME_STOLEN) {
-        CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_flags == CILK_FUTURE_PARENT);
-    }
-    #endif
 
     // TODO: Rework it so we don't do this on futures
     if (sf.flags & CILK_FRAME_UNSYNCHED) {
         if (!CILK_SETJMP(sf.ctx)) {
-            #ifndef FUTURE_IS_CILK_SPAWN
-                __cilkrts_future_sync(&sf);
-            #else
-                __cilkrts_sync(&sf);
-            #endif
+            __cilkrts_future_sync(&sf);
         }
         //__cilkrts_rethrow(&sf);
         update_pedigree_after_sync(&sf);
     }
 
     printf("I'm here! wherever here is...\n");
-    printf("Stack: %p\n", sf.worker->l->frame_ff->fiber_self);
     cilk_fiber_get_data(__cilkrts_get_tls_worker()->l->frame_ff->fiber_self)->resume_sf = NULL;
 
     __cilkrts_pop_frame(&sf);
-    #ifndef FUTURE_IS_CILK_SPAWN
-        __cilkrts_leave_future_parent_frame(&sf);
-    #else
-        __cilkrts_leave_frame(&sf);
-    #endif
+    __cilkrts_leave_future_parent_frame(&sf);
     printf("Going to parent sf %p (prev %p)\n", __cilkrts_get_tls_worker()->current_stack_frame, &sf);
 }
 

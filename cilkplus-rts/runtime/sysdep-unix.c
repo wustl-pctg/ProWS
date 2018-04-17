@@ -382,7 +382,7 @@ void __cilkrts_stop_workers(global_state_t *g)
  *  @param stack_base   -   The top of the stack we want to execute sf on.
  *
  */
-static char* get_sp_for_executing_sf(char* stack_base,
+/*static*/ char* get_sp_for_executing_sf(char* stack_base,
                                      full_frame *ff,
                                      __cilkrts_stack_frame *sf)
 {

@@ -824,8 +824,9 @@ static void detach_for_steal(__cilkrts_worker *w,
                 loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT);
                 CILK_ASSERT(child_ff->fiber_self);
                 loot_ff->fiber_child = child_ff->fiber_self;
+                //loot_ff->fiber_self = child_ff->fiber_self;
                 child_ff->fiber_self = child_ff->future_fiber;
-                //child_ff->future_fiber = NULL;
+                child_ff->future_fiber = NULL;
                 //printf("%p fiber_child\n", loot_ff->fiber_child);
                 printf("%p future parent\n", loot_ff);
             }

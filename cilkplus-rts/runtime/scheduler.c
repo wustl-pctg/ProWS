@@ -827,6 +827,11 @@ static void detach_for_steal(__cilkrts_worker *w,
                 //loot_ff->fiber_self = child_ff->fiber_self;
                 child_ff->fiber_self = child_ff->future_fiber;
                 child_ff->future_fiber = NULL;
+
+                unlink_child(loot_ff, child_ff);
+                child_ff->parent = NULL;
+                decjoin(loot_ff);
+
                 //printf("%p fiber_child\n", loot_ff->fiber_child);
                 printf("%p future parent\n", loot_ff);
             }
@@ -1223,6 +1228,7 @@ static inline void splice_exceptions_for_call(__cilkrts_worker *w,
     // ASSERT: We own parent_ff->lock
     CILK_ASSERT(child_ff->is_call_child);
     CILK_ASSERT(NULL == child_ff->right_pending_exception);
+    CILK_ASSERT(parent_ff);
     CILK_ASSERT(NULL == parent_ff->pending_exception);
     
     parent_ff->pending_exception = child_ff->pending_exception;
@@ -1279,6 +1285,7 @@ static inline void splice_stacks_for_call(__cilkrts_worker *w,
     /* An attached parent has no self fiber.  It may have
        accumulated child fibers or child owners, which should be
        ignored until sync. */
+    CILK_ASSERT(parent_ff);
     CILK_ASSERT(!parent_ff->fiber_self);
     parent_ff->fiber_self = child_ff->fiber_self;
     child_ff->fiber_self = NULL;
@@ -1294,6 +1301,7 @@ static void finalize_child_for_call(__cilkrts_worker *w,
         CILK_ASSERT(child_ff->is_call_child);
         CILK_ASSERT(child_ff->join_counter == 0);
         CILK_ASSERT(!child_ff->rightmost_child);
+        CILK_ASSERT(parent_ff);
         CILK_ASSERT(child_ff == parent_ff->rightmost_child);
 
         // CHILD is about to die. 

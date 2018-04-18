@@ -387,6 +387,8 @@ execute_reductions_for_spawn_return(__cilkrts_worker *w,
     // w's deque.
     restore_frame_for_spawn_return_reduction(w, ff, returning_sf);
 
+    if (ff->future_flags != CILK_FUTURE) {
+        //parent_ff->fiber_child = child_ff->fiber_self;
     // Step A2 and A3: Execute reductions on user stack.
     BEGIN_WITH_FRAME_LOCK(w, ff->parent) {
         struct cilkred_map **left_map_ptr;
@@ -410,6 +412,13 @@ execute_reductions_for_spawn_return(__cilkrts_worker *w,
         // WARNING: the use of this lock macro is deceptive.
         // The worker may have changed here.
     } END_WITH_FRAME_LOCK(w, ff->parent);
+    } else {
+        w->l->fiber_to_free = ff->fiber_self;
+        ff->fiber_self = NULL;
+        w->l->pending_exception = NULL;//ff->pending_exception;
+        ff->pending_exception = NULL;
+        w->reducer_map = NULL;
+    }
     return w;
 }
 
@@ -635,6 +644,11 @@ enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w,
 static void do_return_from_spawn(__cilkrts_worker *w,
                                  full_frame *ff,
                                  __cilkrts_stack_frame *sf) {
+        BEGIN_WITH_FRAME_LOCK(w, ff) {
+            decjoin(ff);
+        } END_WITH_FRAME_LOCK(w, ff);
+    __cilkrts_destroy_full_frame(w, ff);
+    return;
     full_frame *parent_ff;
     enum provably_good_steal_t steal_result = ABANDON_EXECUTION;
 
@@ -865,8 +879,8 @@ longjmp_into_runtime(__cilkrts_worker *w,
     CILK_ASSERT(NULL == w->l->frame_ff->fiber_self);
     CILK_ASSERT(w->l->fiber_to_free != NULL);
     CILK_ASSERT(w->l->fiber_to_free == current_fiber);
-    CILK_ASSERT(w->l->frame_ff->parent->fiber_self != current_fiber);
-    CILK_ASSERT(w->l->frame_ff->parent->fiber_child != current_fiber);
+    //CILK_ASSERT(w->l->frame_ff->parent->fiber_self != current_fiber);
+    //CILK_ASSERT(w->l->frame_ff->parent->fiber_child != current_fiber);
 
     // Clear the sf in the current fiber for cleanliness, to prevent
     // us from accidentally resuming a bad sf.

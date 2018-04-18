@@ -11,7 +11,8 @@
 
 extern "C" {
 
-extern void __spawn_future_helper_helper(std::function<void(void)> func);
+typedef void (*void_func_t)(void);
+extern void __spawn_future_helper_helper(void_func_t func);
 
 }
 //__attribute__((weak)) void __cilk_spawn_future(std::function<void()> func) {

@@ -5,21 +5,37 @@
 #include "../cilkplus-rts/runtime/local_state.h"
 #include "../cilkplus-rts/runtime/full_frame.h"
 #include "../src/future.h"
+#include <cstring>
 
 #include <cstdint>
 
 extern unsigned long ZERO;
 
+
+extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID __cilkrts_leave_future_parent_frame(__cilkrts_stack_frame *sf);
+
 extern "C" {
+
+extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
+extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
+extern CILK_ABI_VOID user_code_resume_after_switch_into_runtime(cilk_fiber*);
+extern CILK_ABI_THROWS_VOID __cilkrts_rethrow(__cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID update_pedigree_after_sync(__cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID __cilkrts_pop_frame(struct __cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
+extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber);
+extern char* get_sp_for_executing_sf(char* stack_base,
+                                     full_frame *ff,
+                                     __cilkrts_stack_frame *sf);
+
 extern int cilk_fiber_get_ref_count(cilk_fiber*);
 //extern void __assert_future_counter(int count);
-//extern void __print_curr_stack(char*);
-//extern void __assert_not_on_scheduling_fiber(void);
 }
 
 void __assert_future_counter(int count) {}
-void __print_curr_stack(char*){}
-void __assert_not_on_scheduling_fiber(void){}
 
 cilk::future<int>* test_future = NULL;
 cilk::future<int>* test_future2 = NULL;
@@ -28,52 +44,120 @@ volatile int gdummy = 0;
 volatile int dummy2 = 0;
 //porr::spinlock output_lock;
 
-int helloFuture(void);
-int helloMoreFutures(void);
+void helloFuture(void);
+void helloMoreFutures(void);
 void thread1(void);
 void thread2(void);
 void thread3(void);
 void thread4(void);
 
-int helloFuture() {
+static CILK_ABI_VOID __attribute__((noinline)) hello_future_helper() {
+    int* dummy = (int*) alloca(ZERO);
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+    //printf("hello_future_helper sf: %p\n", &sf);
+
+        //func();
+    helloFuture();
+    //printf("Done with helloFuture!\n");
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+}
+
+static void __attribute__((noinline)) hello_future_helper_helper() {
+    int* dummy = (int*) alloca(ZERO);
+    printf("%p orig fiber\n", __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_1(&sf);
+    printf("hello_future_helper_helper sf: %p\n", &sf);
+
+
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+
+    // At one point this wasn't true. Fixed a bug in cilk-abi.c that set the owner when it should not have.
+    CILK_ASSERT(NULL == cilk_fiber_get_data(__cilkrts_get_tls_worker()->l->scheduling_fiber)->owner);
+
+    // Just me being paranoid...
+    CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_flags == 0);
+    CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
+
+    __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
+    full_frame *ff = NULL;
+    __cilkrts_stack_frame *ff_call_stack = NULL;
+
+    __CILK_JUMP_BUFFER ctx_bkup;
+    int done = 0;
+    if(!CILK_SETJMP(sf.ctx)) { 
+        memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));
+        __cilkrts_switch_fibers(&sf);
+    } else {
+        // This SHOULD occur after switching fibers; steal from here
+        if (!done) {
+            done = 1;
+            memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
+            //__spawn_future_helper(std::move(func));
+            hello_future_helper();
+            CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
+            // Return to the original fiber
+            __cilkrts_switch_fibers_back(&sf, __cilkrts_get_tls_worker()->l->frame_ff->future_fiber, __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
+        }
+        CILK_ASSERT(sf.flags & CILK_FRAME_STOLEN);
+
+    }
+
+    // TODO: Rework it so we don't do this on futures
+    if (sf.flags & CILK_FRAME_UNSYNCHED) {
+        if (!CILK_SETJMP(sf.ctx)) {
+            __cilkrts_future_sync(&sf);
+        }
+        //__cilkrts_rethrow(&sf);
+        update_pedigree_after_sync(&sf);
+    }
+
+    printf("I'm here! wherever here is...\n");
+    cilk_fiber_get_data(__cilkrts_get_tls_worker()->l->frame_ff->fiber_self)->resume_sf = NULL;
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_parent_frame(&sf);
+    printf("Going to parent sf %p (prev %p)\n", __cilkrts_get_tls_worker()->current_stack_frame, &sf);
+}
+
+void helloFuture() {
   int* dummy = (int*) alloca(ZERO);
+  printf("helloFuture dummy: %p\n", &dummy);
   for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
     gdummy += i;
   }
-  __assert_not_on_scheduling_fiber();
  // cilk_future_create(int,test_future3,helloMoreFutures);
   //cilk_future_get(test_future3);
   //delete test_future3;
  // __assert_future_counter(1);
-  __print_curr_stack("\nhello future");
-  return 42;
+  //printf("Placing value\n");
+  test_future->put(42);
+  //printf("Leaving helloFuture\n");
 }
 
-int helloMoreFutures() {
+void helloMoreFutures() {
   int* dummy = (int *) alloca(ZERO);
   for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
     dummy2 += j;
   }
-  __assert_not_on_scheduling_fiber();
-  __print_curr_stack("\nhello more futures");
-  return 84;
+  test_future2->put(84);
 }
 
 void thread1() {
   int* dummy = (int *)alloca(ZERO);
-  __print_curr_stack("\nthread1 p1");
-  __assert_not_on_scheduling_fiber();
   printf("\n\n\n*****In thread1, creating future!*****\n\n\n");
   //cilk_spawn thread2();
-  cilk_future_create(int,test_future,helloFuture);
+  test_future = new cilk::future<int>();
+  hello_future_helper_helper();
+  //__spawn_future_helper_helper(helloFuture);
   //cilk_sync;
   printf("\n\n\n*****I'm in thread1 again!*****\n\n\n");
-  __assert_not_on_scheduling_fiber();
-  __print_curr_stack("\nthread1 p2");
   auto result = cilk_future_get(test_future);
   cilk_spawn thread2();
-  __assert_not_on_scheduling_fiber();
-  __print_curr_stack("\nthread1 p3");
   printf("\n\n\n*****Syncing thread1!*****\n\n\n");
   cilk_sync;
   cilk_spawn thread2();
@@ -97,15 +181,12 @@ void thread2() {
 
 void thread3() {
   int* dummy = (int *)alloca(ZERO);
-  __assert_not_on_scheduling_fiber();
-  __print_curr_stack("\nthread3 p1");
   //cilk_future_create(int,test_future2,helloMoreFutures);
-  reuse_future(int,test_future2,test_future,helloMoreFutures);
-  __assert_not_on_scheduling_fiber();
-  __print_curr_stack("\nthread3 p2");
+  //reuse_future(int,test_future2,test_future,helloMoreFutures);
+  test_future2 = new (test_future) cilk::future<int>();
+  //__spawn_future_helper_helper(helloMoreFutures);
+  hello_future_helper_helper();
   printf("\n\n\n*****%d*****\n\n\n", cilk_future_get(test_future2));
-  __assert_not_on_scheduling_fiber();
-  __print_curr_stack("\nthread3 p3");
 }
 void thread4() {
   int* dummy = (int *)alloca(ZERO);
@@ -163,7 +244,6 @@ void yet_another_thread() {
 
 int main(int argc, char** argv) {
     int* dummy = (int *)alloca(ZERO);
-    //__print_curr_stack("initial");
 
 
     //cilk_spawn thread1();
@@ -173,13 +253,11 @@ int main(int argc, char** argv) {
     //for (int i = 0; i < 1; i++) {
     //    cilk_spawn thread2();
     //}
-    //__print_curr_stack("pre-sync");
     assert(__cilkrts_get_tls_worker() != NULL);
 
     cilk_sync;
 
     printf("\n\n\n*****Simple Future Phase II Commencing*****\n\n\n");
-    //__print_curr_stack("\nphase II");
 
     cilk_spawn thread3();
 
@@ -187,11 +265,7 @@ int main(int argc, char** argv) {
     //    cilk_spawn thread4();
     //}
 
-    //__print_curr_stack("\nphase II pre-sync");
-
     cilk_sync;
-
-    //__print_curr_stack("end");
 
     //int* dummy = (int*)alloca(sizeof(int)*10);
     //*dummy = 0xf00dface; 

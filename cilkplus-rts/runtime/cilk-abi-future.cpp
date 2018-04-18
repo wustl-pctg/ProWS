@@ -102,7 +102,7 @@ CILK_ABI_VOID __print_curr_stack(char* str) {
 //    printf("%s curr fiber: %p (worker %d, references %d)\n", str, fiber, w->self, cilk_fiber_get_ref_count(fiber));
 }
 
-static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
+CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
     cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
     // KYLE_TODO: Do I need this? It doesn't seem like it
     //new_fiber_data->resume_sf = first_frame;
@@ -110,7 +110,7 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame,
     cilk_fiber_remove_reference_from_self_and_resume_other(curr_fiber, &(__cilkrts_get_tls_worker()->l->fiber_pool), new_fiber);
 }
 
-static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
+CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     __cilkrts_worker* curr_worker = __cilkrts_get_tls_worker();
     cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
     // TODO: Handle the case that it is null more gracefully
@@ -149,7 +149,8 @@ static CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame)
     }
 }
 
-static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::function<void(void)> func) {
+static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(void_func_t&& func) {
+    CILK_ASSERT(0);
     int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
@@ -161,7 +162,8 @@ static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::functi
     __cilkrts_leave_future_frame(&sf);
 }
 
-CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
+CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(void_func_t func) {
+    CILK_ASSERT(0);
     int* dummy = (int*) alloca(ZERO);
     printf("%p orig fiber\n", __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
     __cilkrts_stack_frame sf;
@@ -186,10 +188,10 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     } else {
         // This SHOULD occur after switching fibers; steal from here
         if (!CILK_SETJMP(sf.ctx)) {
-            __spawn_future_helper(func);
+            __spawn_future_helper(std::move(func));
             CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
             // Return to the original fiber
-            __cilkrts_switch_fibers(&sf, __cilkrts_get_tls_worker()->l->frame_ff->future_fiber, __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
+            __cilkrts_switch_fibers_back(&sf, __cilkrts_get_tls_worker()->l->frame_ff->future_fiber, __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
         }
         CILK_ASSERT(sf.flags & CILK_FRAME_STOLEN);
 

@@ -417,6 +417,7 @@ execute_reductions_for_spawn_return(__cilkrts_worker *w,
         ff->fiber_self = NULL;
         w->l->pending_exception = NULL;//ff->pending_exception;
         ff->pending_exception = NULL;
+        // KYLE_TODO: What about the ff reducer maps?
         if (w->reducer_map) {
            __cilkrts_destroy_reducer_map(w, w->reducer_map); 
         }

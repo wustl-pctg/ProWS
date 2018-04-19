@@ -12,6 +12,7 @@
 #include "sysdep.h"
 #include "cilk-ittnotify.h"
 #include "jmpbuf.h"
+#include <cstring>
 
 extern unsigned long ZERO;
 
@@ -149,8 +150,7 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     }
 }
 
-static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(void_func_t&& func) {
-    CILK_ASSERT(0);
+static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::function<void(void)> func) {
     int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
@@ -162,10 +162,8 @@ static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(void_func_t
     __cilkrts_leave_future_frame(&sf);
 }
 
-CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(void_func_t func) {
-    CILK_ASSERT(0);
+CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
     int* dummy = (int*) alloca(ZERO);
-    printf("%p orig fiber\n", __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
 
@@ -183,18 +181,23 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(void_func_t
     full_frame *ff = NULL;
     __cilkrts_stack_frame *ff_call_stack = NULL;
 
+    __CILK_JUMP_BUFFER ctx_bkup;
+    int done = 0;
     if(!CILK_SETJMP(sf.ctx)) { 
+        // TODO: There should be a method that avoids this...
+        memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));
         __cilkrts_switch_fibers(&sf);
     } else {
         // This SHOULD occur after switching fibers; steal from here
-        if (!CILK_SETJMP(sf.ctx)) {
-            __spawn_future_helper(std::move(func));
+        if (!done) {
+            done = 1;
+            memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
+            __spawn_future_helper(func);
             CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
             // Return to the original fiber
             __cilkrts_switch_fibers_back(&sf, __cilkrts_get_tls_worker()->l->frame_ff->future_fiber, __cilkrts_get_tls_worker()->l->frame_ff->fiber_self);
         }
         CILK_ASSERT(sf.flags & CILK_FRAME_STOLEN);
-
     }
 
     // TODO: Rework it so we don't do this on futures
@@ -206,12 +209,10 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(void_func_t
         update_pedigree_after_sync(&sf);
     }
 
-    printf("I'm here! wherever here is...\n");
     cilk_fiber_get_data(__cilkrts_get_tls_worker()->l->frame_ff->fiber_self)->resume_sf = NULL;
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_future_parent_frame(&sf);
-    printf("Going to parent sf %p (prev %p)\n", __cilkrts_get_tls_worker()->current_stack_frame, &sf);
 }
 
 }

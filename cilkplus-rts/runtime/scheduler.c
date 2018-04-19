@@ -824,6 +824,7 @@ static void detach_for_steal(__cilkrts_worker *w,
                 loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT);
                 CILK_ASSERT(child_ff->fiber_self);
                 loot_ff->fiber_child = child_ff->fiber_self;
+                cilk_fiber_get_data(loot_ff->fiber_child)->resume_sf = NULL;
                 //loot_ff->fiber_self = child_ff->fiber_self;
                 child_ff->fiber_self = child_ff->future_fiber;
                 child_ff->future_fiber = NULL;
@@ -2021,7 +2022,7 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     //    grabbed a new fiber, resume_sf should be NULL.
     printf("Other fiber: %p\n", other);
     // KYLE_TODO: ABSOLUTELY MUST FIX THIS!
-    //CILK_ASSERT(NULL == other_data->resume_sf);
+    CILK_ASSERT(NULL == other_data->resume_sf);
         
 #if FIBER_DEBUG >= 2
     fprintf(stderr, "W=%d: other fiber=%p, setting resume_sf to %p\n",

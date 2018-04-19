@@ -44,13 +44,13 @@ volatile int gdummy = 0;
 volatile int dummy2 = 0;
 //porr::spinlock output_lock;
 
-void helloFuture(void);
-void helloMoreFutures(void);
+int helloFuture(void);
+int helloMoreFutures(void);
 void thread1(void);
 void thread2(void);
 void thread3(void);
 void thread4(void);
-
+/*
 static CILK_ABI_VOID __attribute__((noinline)) hello_future_helper() {
     int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
@@ -90,6 +90,7 @@ static void __attribute__((noinline)) hello_future_helper_helper() {
     __CILK_JUMP_BUFFER ctx_bkup;
     int done = 0;
     if(!CILK_SETJMP(sf.ctx)) { 
+        // TODO: There should be a method that avoids this...
         memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));
         __cilkrts_switch_fibers(&sf);
     } else {
@@ -146,13 +147,37 @@ void helloMoreFutures() {
   }
   test_future2->put(84);
 }
+*/
 
+int helloFuture() {
+  int* dummy = (int*) alloca(ZERO);
+  printf("helloFuture dummy: %p\n", &dummy);
+  for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
+    gdummy += i;
+  }
+ // cilk_future_create(int,test_future3,helloMoreFutures);
+  //cilk_future_get(test_future3);
+  //delete test_future3;
+ // __assert_future_counter(1);
+  //printf("Placing value\n");
+  //printf("Leaving helloFuture\n");
+  return 42;
+}
+
+int helloMoreFutures() {
+  int* dummy = (int *) alloca(ZERO);
+  for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
+    dummy2 += j;
+  }
+  return 84;
+}
 void thread1() {
   int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****In thread1, creating future!*****\n\n\n");
   //cilk_spawn thread2();
-  test_future = new cilk::future<int>();
-  hello_future_helper_helper();
+  cilk_future_create(int,test_future,helloFuture);
+  //test_future = new cilk::future<int>();
+  //hello_future_helper_helper();
   //__spawn_future_helper_helper(helloFuture);
   //cilk_sync;
   printf("\n\n\n*****I'm in thread1 again!*****\n\n\n");
@@ -182,10 +207,10 @@ void thread2() {
 void thread3() {
   int* dummy = (int *)alloca(ZERO);
   //cilk_future_create(int,test_future2,helloMoreFutures);
-  //reuse_future(int,test_future2,test_future,helloMoreFutures);
-  test_future2 = new (test_future) cilk::future<int>();
+  reuse_future(int,test_future2,test_future,helloMoreFutures);
+  //test_future2 = new (test_future) cilk::future<int>();
   //__spawn_future_helper_helper(helloMoreFutures);
-  hello_future_helper_helper();
+  //hello_future_helper_helper();
   printf("\n\n\n*****%d*****\n\n\n", cilk_future_get(test_future2));
 }
 void thread4() {

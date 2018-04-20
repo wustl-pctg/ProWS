@@ -705,25 +705,25 @@ static full_frame *unroll_call_stack(__cilkrts_worker *w,
     /* Reverse the call stack to make a linked list ordered from parent
        to child.  sf->call_parent points to the child of SF instead of
        the parent.  */
-    __cilkrts_stack_frame* kyles_sf;
+    //__cilkrts_stack_frame* kyles_sf;
     do {
         t_sf = (sf->flags & (CILK_FRAME_DETACHED|CILK_FRAME_STOLEN|CILK_FRAME_LAST))? 0 : sf->call_parent;
-        kyles_sf = sf->call_parent ? sf->call_parent : sf;
+        //kyles_sf = sf->call_parent ? sf->call_parent : sf;
         sf->call_parent = rev_sf;
         rev_sf = sf;
         sf = t_sf;
     } while (sf);
 
-    if (kyles_sf && (kyles_sf->flags & CILK_FRAME_LAST)) {
-        printf("parent ff is the final frame!\n");
-    }
+    //if (kyles_sf && (kyles_sf->flags & CILK_FRAME_LAST)) {
+    //    printf("parent ff is the final frame!\n");
+    //}
     sf = rev_sf;
 
     /* Promote each stack frame to a full frame in order from parent
        to child, following the reversed list we just built. */
-    if (sf == loot_sf) {
-        printf("is loot true for parent_ff\n");
-    }
+    //if (sf == loot_sf) {
+    //    printf("is loot true for parent_ff\n");
+    //}
     make_unrunnable(w, ff, sf, sf == loot_sf, "steal 1");
     /* T is the *child* of SF, because we have reversed the list */
     for (t_sf = __cilkrts_advance_frame(sf); t_sf;
@@ -834,7 +834,7 @@ static void detach_for_steal(__cilkrts_worker *w,
                 decjoin(loot_ff);
 
                 //printf("%p fiber_child\n", loot_ff->fiber_child);
-                printf("%p future parent\n", loot_ff);
+                //printf("%p future parent\n", loot_ff);
             }
 
             // With this call, w is bestowing ownership of the newly
@@ -1587,7 +1587,7 @@ cilkrts_resume(__cilkrts_stack_frame *sf, full_frame *ff)
     // Actually longjmp to the user code.
     // We may have exceptions to deal with, since we are resuming
     // a previous-suspended frame.
-    printf("Longjmping to sf %p\n", sf);
+    //printf("Longjmping to sf %p\n", sf);
     sysdep_longjmp_to_sf(sync_sp, sf, ff);
 }
 
@@ -1602,7 +1602,7 @@ cilkrts_resume(__cilkrts_stack_frame *sf, full_frame *ff)
 /*static*/ NORETURN
 user_code_resume_after_switch_into_runtime(cilk_fiber *fiber)
 {
-    printf("user code resume after switch into runtime\n");
+    //printf("user code resume after switch into runtime\n");
     __cilkrts_worker *w = cilk_fiber_get_owner(fiber);
     __cilkrts_stack_frame *sf;
     full_frame *ff;
@@ -2020,8 +2020,7 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     //
     // 2. Resuming code on a steal.  In this case, since we
     //    grabbed a new fiber, resume_sf should be NULL.
-    printf("Other fiber: %p\n", other);
-    // KYLE_TODO: ABSOLUTELY MUST FIX THIS!
+    //printf("Other fiber: %p\n", other);
     CILK_ASSERT(NULL == other_data->resume_sf);
         
 #if FIBER_DEBUG >= 2
@@ -2635,7 +2634,7 @@ void __cilkrts_return(__cilkrts_worker *w)
 
     BEGIN_WITH_WORKER_LOCK_OPTIONAL(w) {
         ff = w->l->frame_ff;
-        printf("curr fiber: %p\n", ff->fiber_self);
+        //printf("curr fiber: %p\n", ff->fiber_self);
         CILK_ASSERT(ff);
         CILK_ASSERT(ff->join_counter == 1);
         /* This path is not used to return from spawn. */
@@ -2669,7 +2668,7 @@ void __cilkrts_return(__cilkrts_worker *w)
             finalize_child_for_call(w, parent_ff, ff);
         } END_WITH_FRAME_LOCK(w, parent_ff);
 
-    printf("Returned from call child ff (was %p)!\n", ff);
+    //printf("Returned from call child ff (was %p)!\n", ff);
         ff = pop_next_frame(w);
         /* ff will be non-null except when the parent frame is owned
            by another worker.

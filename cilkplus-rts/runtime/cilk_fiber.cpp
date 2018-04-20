@@ -888,10 +888,8 @@ cilk_fiber* cilk_fiber::get_current_fiber()
 
 void cilk_fiber::do_post_switch_actions()
 {
-    printf("post switch actions\n");
     if (m_post_switch_proc) 
     {
-        printf("m_post_switch_proc\n");
         cilk_fiber_proc proc = m_post_switch_proc;
         m_post_switch_proc = NULL;
         proc(this);
@@ -899,7 +897,6 @@ void cilk_fiber::do_post_switch_actions()
 
     if (m_pending_remove_ref)
     {
-        printf("removing ref from %p\n", m_pending_remove_ref);
         m_pending_remove_ref->remove_reference(m_pending_pool);
 
         // Even if we don't free it, 

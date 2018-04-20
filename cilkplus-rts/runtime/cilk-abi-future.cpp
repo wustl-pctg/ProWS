@@ -144,7 +144,6 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 
     if (first_frame->flags & CILK_FRAME_STOLEN) {
-        printf("Hi?\n");
         user_code_resume_after_switch_into_runtime(curr_fiber);
         CILK_ASSERT(! "We should not return here!");
     }

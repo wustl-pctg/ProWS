@@ -264,7 +264,7 @@ static void provably_good_steal_exceptions(__cilkrts_worker *w,
 static void provably_good_steal_stacks(__cilkrts_worker *w, full_frame *ff) {
     CILK_ASSERT(NULL == ff->fiber_self);
     ff->fiber_self = ff->fiber_child;
-    printf("Future sync! provably good steal fiber self = %p\n", ff->fiber_self);
+    //printf("Future sync! provably good steal fiber self = %p\n", ff->fiber_self);
     ff->fiber_child = NULL;
 }
 
@@ -590,7 +590,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
     cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_ORPHAN);
     
     if (w->l->fiber_to_free) {
-        printf("Future parent freeing fiber in sync (%p)\n", current_fiber);
+        //printf("Future parent freeing fiber in sync (%p)\n", current_fiber);
         // Case 1: we are freeing this fiber.  We never
         // resume this fiber again after jumping into the runtime.
         w->l->fiber_to_free = NULL;
@@ -742,7 +742,7 @@ static void do_sync(__cilkrts_worker *w, full_frame *ff,
 
                 /* the decjoin() occurs in provably_good_steal() */
                 steal_result = provably_good_steal(w, ff);
-                printf("Future Parent do_sync fiber child: %p\n", ff->fiber_child);
+                //printf("Future Parent do_sync fiber child: %p\n", ff->fiber_child);
 
             } END_WITH_FRAME_LOCK(w, ff);
             // set w->l->frame_ff = NULL after checking abandoned
@@ -816,7 +816,7 @@ NORETURN __cilkrts_c_future_sync(__cilkrts_worker *w,
 }
 
 CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf) {
-    printf("Syncing future parent!\n");
+    //printf("Syncing future parent!\n");
     __cilkrts_worker *w = sf->worker;
 
     CILK_ASSERT(sf->flags >= 1);

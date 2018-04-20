@@ -445,7 +445,7 @@ static void provably_good_steal_exceptions(__cilkrts_worker *w,
 static void provably_good_steal_stacks(__cilkrts_worker *w, full_frame *ff) {
     CILK_ASSERT(NULL == ff->fiber_self);
     ff->fiber_self = ff->fiber_child;
-    printf("Future parent return! provably good steal fiber self = %p\n", ff->fiber_self);
+    //printf("Future parent return! provably good steal fiber self = %p\n", ff->fiber_self);
     ff->fiber_child = NULL;
 }
 
@@ -674,7 +674,7 @@ static void do_return_from_spawn(__cilkrts_worker *w,
 
     // Cleanup the child frame.
     __cilkrts_destroy_full_frame(w, ff);
-    printf("Future parent everything is kosher so far...\n");
+    //printf("Future parent everything is kosher so far...\n");
     return;
 }
 
@@ -769,12 +769,12 @@ static void enter_runtime_transition_proc(cilk_fiber *fiber) {
         // TBD: Is this check also safe to do on Windows? 
         CILKBUG_ASSERT_NO_UNCAUGHT_EXCEPTION();
     }
-    printf("Future parent still kosher!\n");
+    //printf("Future parent still kosher!\n");
 }
 
 static NORETURN
 user_code_resume_after_switch_into_runtime(cilk_fiber *fiber) {
-    printf("future parent user code resume after switch into runtime\n");
+    //printf("future parent user code resume after switch into runtime\n");
     __cilkrts_worker *w = cilk_fiber_get_owner(fiber);
     __cilkrts_stack_frame *sf;
     full_frame *ff;
@@ -803,7 +803,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
                      scheduling_stack_fcn_t fcn,
                      __cilkrts_stack_frame *sf) {
 
-    printf("Future Parent Frame longjmp_into_runtime!\n");
+    //printf("Future Parent Frame longjmp_into_runtime!\n");
     full_frame *ff, *ff2;
 
     CILK_ASSERT(!w->l->post_suspend);
@@ -892,7 +892,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
 #endif
         cilk_fiber_invoke_tbb_stack_op(current_fiber, CILK_TBB_STACK_RELEASE);
         NOTE_INTERVAL(w, INTERVAL_DEALLOCATE_RESUME_OTHER);
-        printf("Freeing future parent fiber!\n");
+        //printf("Freeing future parent fiber!\n");
         cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber,
                                                                &w->l->fiber_pool,
                                                                w->l->scheduling_fiber);
@@ -939,7 +939,7 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
 static void __cilkrts_c_kyles_THE_exception_check(__cilkrts_worker *w, 
                                      __cilkrts_stack_frame *returning_sf) {
-    printf("Future parent frame THE exception check\n");
+    //printf("Future parent frame THE exception check\n");
     full_frame *ff;
     int stolen_p;
     __cilkrts_stack_frame *saved_sf = NULL;
@@ -1026,7 +1026,7 @@ static void __cilkrts_c_kyles_THE_exception_check(__cilkrts_worker *w,
 }
 
 CILK_ABI_VOID __cilkrts_leave_future_parent_frame(__cilkrts_stack_frame *sf) {
-    printf("Leaving Future Parent Frame!\n");
+    //printf("Leaving Future Parent Frame!\n");
     __cilkrts_worker *w = sf->worker;
     //CILK_ASSERT(w->l->frame_ff->future_flags == CILK_FUTURE_PARENT);
 

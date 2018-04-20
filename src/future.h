@@ -2,7 +2,7 @@
 #define __CILK__FUTURE_H__
 
 #include <assert.h>
-#include "cilk/cilk.h"
+//#include "cilk/cilk.h"
 #include <functional>
 
 //#ifndef cilk_spawn_future
@@ -58,7 +58,6 @@ public:
 
  future() {
     m_status = status::CREATED;
-    printf("Called future constructor!\n");
   };
 
   void put(T result) {
@@ -81,7 +80,45 @@ public:
     return m_result;
   }
 }; // class future
+/*
+template<typename T>
+class future<void> {
+private:
+  enum class status { 
+    CREATED, // memory allocated, initialized
+    DONE, // strand has finished execution
+  };
 
+  volatile status m_status;
+  //volatile T m_result;
+  
+public:
+
+ future<void>() {
+    m_status = status::CREATED;
+  };
+
+  void put<void>(void) {
+    assert(m_status != status::DONE);
+    //m_result = result;
+    m_status = status::DONE;
+  };
+
+  bool ready<void>() {
+    // If the status is done, then the value is ready.
+    return m_status==status::DONE;
+  } 
+
+  T get() {
+    // TODO: Treat this the same way spin locks are handled.
+    // TODO: For a first pass, could just USE the spinlocks?
+    // TODO: (take the lock on create, then try to take on get?)
+    while (!this->ready());
+    assert(m_status==status::DONE);
+    //return m_result;
+  }
+}; // class future
+*/
 } // namespace cilk
 
 #endif // #ifndef __CILK__FUTURE_H__

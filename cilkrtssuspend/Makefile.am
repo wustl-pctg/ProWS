@@ -52,7 +52,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # Compiler and linker flags.
 GENERAL_FLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/runtime -I$(top_srcdir)/runtime/config/$(config_dir) -I$(top_srcdir)/runtime/sslib -DIN_CILK_RUNTIME=1
-GENERAL_FLAGS += -fpic -O0
+GENERAL_FLAGS += -fpic -O0 
 
 # Enable Intel Cilk Plus extension
 GENERAL_FLAGS += -fcilkplus

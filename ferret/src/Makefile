@@ -1,13 +1,15 @@
 PROG = serial pthreads std-future cilk-future tbb parsec3-tbb cilk piper cilkview
 
 COMPILER_HOME=/home/kdsinger/porridge/llvm-cilk
-PIPER_HOME=/home/kdsinger/porridge/cilkplus-rts
+PIPER_HOME=/home/kdsinger/porridge/cilkrtssuspend
 #RD_HOME=/home/kdsinger/pracer/rdtool
 #RD_INCLUDE=$(RD_HOME)/include 
 RTS_INCLUDE=$(PIPER_HOME)/include/
 RTS_STATIC_LIB=$(PIPER_HOME)/.libs/libcilkrts.a
 RTS_DYNAMIC_LIB=-Wl,-rpath -Wl,$(PIPER_HOME)/.libs/libcilkrts.so -lcilkrts
-CXXFLAGS=-std=c++11
+CXXFLAGS=-std=c++11 -flto
+
+LIBS += -flto /home/kdsinger/porridge/build/libporr.a
 
 # compilation flags
 PIPER_CC=$(COMPILER_HOME)/bin/clang

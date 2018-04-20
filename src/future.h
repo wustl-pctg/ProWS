@@ -4,22 +4,22 @@
 #include <assert.h>
 //#include "cilk/cilk.h"
 #include <functional>
-#include "acquire.h"
+#include "spinlock.h"
+#include <vector>
+#include <internal/abi.h>
 
 //#ifndef cilk_spawn_future
 //  #define cilk_spawn_future cilk_spawn
 //#endif
 
-extern "C" {
-
-typedef void (*void_func_t)(void);
-extern void __spawn_future_helper_helper(std::function<void(void)> func);
-
-}
 //__attribute__((weak)) void __cilk_spawn_future(std::function<void()> func) {
 //  std::cout << "Using the dummy future spawn!!! cilk_sync will wait for it to complete :(" << std::endl;
 //  cilk_spawn func();
 //}
+
+extern "C" {
+    void __spawn_future_helper_helper(std::function<void(void)>);
+}
 
 namespace cilk {
 #define reuse_future(T,fut, loc,func,args...)  \
@@ -54,8 +54,11 @@ private:
 
   volatile status m_status;
   volatile T m_result;
-  //acquire_container m_acquires;
-    
+
+  porr::spinlock m_acquires_lock;
+  // Treat gets like lock acquires
+  //std::vector<porr::acquire_info*> m_acquires;
+  porr::acquire_info* m_get;
   
 public:
 
@@ -67,6 +70,13 @@ public:
     assert(m_status != status::DONE);
     m_result = result;
     m_status = status::DONE;
+    m_acquires_lock.lock();
+    if (m_get) {
+        __cilkrts_resume_suspended(m_get->suspended_deque, 1);
+        delete m_get;
+        m_get = NULL;
+    }
+    m_acquires_lock.unlock();
   };
 
   bool ready() {
@@ -78,7 +88,18 @@ public:
     // TODO: Treat this the same way spin locks are handled.
     // TODO: For a first pass, could just USE the spinlocks?
     // TODO: (take the lock on create, then try to take on get?)
-    while (!this->ready());
+    //while (!this->ready());
+    if (!this->ready()) {
+        m_acquires_lock.lock();
+
+        if (!this->ready()) {
+            m_get = new porr::acquire_info(porr::get_pedigree());
+            m_get->suspended_deque = __cilkrts_get_deque();
+        }
+
+        m_acquires_lock.unlock();
+        __cilkrts_suspend_deque();
+    }
     assert(m_status==status::DONE);
     return m_result;
   }

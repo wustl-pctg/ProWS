@@ -8,8 +8,8 @@ APP = simple-future
 
 .PHONY = default
 default:
-	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkplus-rts/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
-	$(CXX) simple_future_cilkr.o -o simple-future /home/kdsinger/porridge/cilkplus-rts/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
+	$(CXX) simple_future_cilkr.o -o simple-future /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 .PHONY = clean
 clean:

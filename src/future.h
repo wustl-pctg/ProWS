@@ -4,6 +4,7 @@
 #include <assert.h>
 //#include "cilk/cilk.h"
 #include <functional>
+#include "acquire.h"
 
 //#ifndef cilk_spawn_future
 //  #define cilk_spawn_future cilk_spawn
@@ -53,6 +54,8 @@ private:
 
   volatile status m_status;
   volatile T m_result;
+  //acquire_container m_acquires;
+    
   
 public:
 
@@ -80,6 +83,7 @@ public:
     return m_result;
   }
 }; // class future
+
 /*
 template<typename T>
 class future<void> {

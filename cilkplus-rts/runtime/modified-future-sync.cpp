@@ -241,7 +241,7 @@ execute_reductions_for_sync(__cilkrts_worker *w,
 
     // At a nontrivial sync, we should always free the current fiber,
     // because it can not be leftmost.
-    w->l->fiber_to_free = ff->fiber_self;
+    //w->l->fiber_to_free = ff->fiber_self;
     ff->fiber_self = NULL;
     return w;
 }
@@ -570,9 +570,11 @@ longjmp_into_runtime(__cilkrts_worker *w,
 
     // Current fiber is either the (1) one we are about to free,
     // or (2) it has been passed up to the parent.
-    cilk_fiber *current_fiber = ( w->l->fiber_to_free ?
+    /*cilk_fiber *current_fiber = ( w->l->fiber_to_free ?
                                   w->l->fiber_to_free :
                                   w->l->frame_ff->parent->fiber_child );
+    */
+    cilk_fiber *current_fiber = w->l->frame_ff->fiber_child;
     cilk_fiber_data* fdata = cilk_fiber_get_data(current_fiber);
     CILK_ASSERT(NULL == w->l->frame_ff->fiber_self);
 
@@ -613,7 +615,6 @@ longjmp_into_runtime(__cilkrts_worker *w,
         CILK_ASSERT(0);
     }
     else {        
-        CILK_ASSERT(! "Future parents should free their fibers in sync (currently)\n");
         // Case 2: We are passing the fiber to our parent because we
         // are leftmost.  We should come back later to
         // resume execution of user code.

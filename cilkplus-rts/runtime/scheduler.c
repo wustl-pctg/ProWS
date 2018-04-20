@@ -823,9 +823,11 @@ static void detach_for_steal(__cilkrts_worker *w,
                 loot_ff->future_flags = CILK_FUTURE_PARENT;
                 loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT);
                 CILK_ASSERT(child_ff->fiber_self);
+                loot_ff->fiber_self = child_ff->fiber_self;
                 loot_ff->fiber_child = child_ff->fiber_self;
                 cilk_fiber_get_data(loot_ff->fiber_child)->resume_sf = NULL;
-                //loot_ff->fiber_self = child_ff->fiber_self;
+
+
                 child_ff->fiber_self = child_ff->future_fiber;
                 child_ff->future_fiber = NULL;
 
@@ -1078,19 +1080,19 @@ static void random_steal(__cilkrts_worker *w)
     }
     else
     {
-        //if (loot_ff->future_flags & CILK_FUTURE_PARENT) {
-            //START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
-        //        int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
+        if (w->l->next_frame_ff->future_flags == CILK_FUTURE_PARENT) {
+            START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
+                int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
                 // Fibers we use when trying to steal should not be active,
                 // and thus should not have any other references.
-        //        CILK_ASSERT(0 == ref_count);
-        //    } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
-        //} else {
+                CILK_ASSERT(0 == ref_count);
+            } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+        } else {
             // Since our steal was successful, finish initialization of
             // the fiber.
             cilk_fiber_reset_state(fiber,
                                    fiber_proc_to_resume_user_code_for_random_steal);
-        //}
+        }
 
         // Record the pedigree of the frame that w has stolen.
         // record only if CILK_RECORD_LOG is set

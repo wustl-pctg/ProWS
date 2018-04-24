@@ -6,6 +6,7 @@
 //#include "../cilkrtssuspend/runtime/full_frame.h"
 #include "../src/future.h"
 #include <cstring>
+#include <unistd.h>
 
 #include <cstdint>
 
@@ -23,26 +24,27 @@ volatile int gdummy = 0;
 volatile int dummy2 = 0;
 //porr::spinlock output_lock;
 
-int helloFuture(void);
+int helloFuture(cilk::future<int>*);
 int helloMoreFutures(void);
 void thread1(void);
 void thread2(void);
 void thread3(void);
 void thread4(void);
 
-int helloFuture() {
+int helloFuture(cilk::future<int>* other) {
   int* dummy = (int*) alloca(ZERO);
   printf("helloFuture dummy: %p\n", &dummy);
-  for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
-    gdummy += i;
-  }
+  //for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
+  //  gdummy += i;
+  //}
+  //sleep(6);
  // cilk_future_create(int,test_future3,helloMoreFutures);
   //cilk_future_get(test_future3);
   //delete test_future3;
  // __assert_future_counter(1);
   //printf("Placing value\n");
   //printf("Leaving helloFuture\n");
-  return 42;
+  return other->get() / 2;
 }
 
 int helloMoreFutures() {
@@ -56,12 +58,14 @@ void thread1() {
   int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****In thread1, creating future!*****\n\n\n");
   //cilk_spawn thread2();
-  cilk_future_create(int,test_future,helloFuture);
+  cilk_future_create(int,test_future2, helloMoreFutures);
+  cilk_future_create(int,test_future,helloFuture, test_future2);
   //test_future = new cilk::future<int>();
   //hello_future_helper_helper();
   //__spawn_future_helper_helper(helloFuture);
   //cilk_sync;
   printf("\n\n\n*****I'm in thread1 again!*****\n\n\n");
+  sleep(5);
   auto result = cilk_future_get(test_future);
   cilk_spawn thread2();
   printf("\n\n\n*****Syncing thread1!*****\n\n\n");
@@ -155,6 +159,7 @@ int main(int argc, char** argv) {
     cilk_spawn another_thread();
     printf("\n\n\n*****Simple Future Phase I Syncing*****\n\n\n");
 
+    // TODO: Right now there is only single touch; these would cause us to hang.
     //for (int i = 0; i < 1; i++) {
     //    cilk_spawn thread2();
     //}
@@ -166,6 +171,7 @@ int main(int argc, char** argv) {
 
     cilk_spawn thread3();
 
+    // TODO: Right now there is only single touch; these would cause us to hang.
     //for (int i = 0; i < 2; i++) {
     //    cilk_spawn thread4();
     //}

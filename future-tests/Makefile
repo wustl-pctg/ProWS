@@ -8,9 +8,13 @@ APP = simple-future
 
 .PHONY = default
 default:
-	$(CXX) -O3 -g -fcilkplus -flto -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
-	$(CXX) -flto simple_future_cilkr.o -o simple-future /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a /home/kdsinger/porridge/build/libporr.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c simple_future_cilkr.cpp -o simple_future_cilkr.o
+	$(CXX) simple_future_cilkr.o -o simple-future /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+
+qsort: qsort.cpp
+	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c qsort.cpp -o qsort.o
+	$(CXX) qsort.o -o qsort /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 .PHONY = clean
 clean:
-	rm -f *.o a.out simple-future
+	rm -f *.o a.out simple-future qsort

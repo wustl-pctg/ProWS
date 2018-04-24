@@ -248,6 +248,7 @@ void *filter_seg::operator()( void* item ) {
 filter_extract::filter_extract() {}
 
 void *filter_extract::operator()( future<void*>* item ) {
+    assert(item != NULL && "filter extract");
 	struct all_data *data = (struct all_data *)cilk_future_get(item);
     //delete item;
 
@@ -270,6 +271,7 @@ void *filter_extract::operator()( future<void*>* item ) {
 filter_vec::filter_vec() {}
 
 void *filter_vec::operator()(future<void*>* item) {
+    assert(item != NULL && "filter vec");
 	struct all_data *data = (struct all_data *) cilk_future_get(item);
     //delete item;
 	cass_query_t query;
@@ -307,6 +309,7 @@ void *filter_rank::operator()(future<void*>* item) {
 	cass_result_t *candidate;
 	cass_query_t query;
 
+    assert(item != NULL && "filter rank");
 	struct all_data *data = (struct all_data*) cilk_future_get(item);
     //delete item;
 	data->first.rank.name = data->second.vec.name;
@@ -349,6 +352,7 @@ void filter_out::operator()(future<bool>* prev, future<void*>* item) {
         cilk_future_get(prev);
         //delete prev;
     }
+    assert(item != NULL && "filter out");
 	struct all_data *data = (struct all_data *) cilk_future_get(item);
     //delete item;
 	
@@ -372,28 +376,35 @@ void filter_out::operator()(future<bool>* prev, future<void*>* item) {
 }
 
 void* s2(filter_seg& seg, void* item) {
+    printf("In s2\n");
     return seg(std::move(item));
 }
 
 void* s3(filter_extract& ext, future<void*>* item) {
+    printf("In s3\n");
     return ext(item);
 }
 
 void* s4(filter_vec& vec, future<void*>* item) {
+    printf("In s4\n");
     return vec(item);
 }
 
 void* s5(filter_rank& rank, future<void*>* item) {
+    printf("In s5\n");
     return rank(item);
 }
 
 void s6(filter_out& out, future<bool>* prev, future<void*>* item) {
+    printf("In s6\n");
     out(prev, item);
     //delete prev;
     //delete item;
 }
 
+future<bool>* prev = NULL; 
 int my_fancy_wrapper(int argc, char *argv[]) {
+    printf("In fancy_wrapper\n");
     char *db_dir = NULL;
     const char *table_name = NULL;
     const char *query_dir = NULL;
@@ -477,29 +488,33 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     //assert(0 == code);
     
     //ferret_pipeline.run( depth );
-    //list<future<void>> throttle;
-    future<bool>* prev; 
+    list<future<bool>*> throttle;
     for (void *chunk = my_load_filter(NULL); chunk != NULL; chunk = my_load_filter(NULL)) {
         //if (throttle.size() == depth) {
-        //    throttle.front().wait();
+        //    while(!throttle.front()->ready());
         //    throttle.pop_front();
         //}
+        while (prev && !prev->ready());
 
-        future<void*>* s1;
-         cilk_future_create(void*, s1, [&my_seg_filter](void* item) -> void* { return s2(my_seg_filter, std::move(item)); }, chunk);
-        future<void*>* s2;
-         cilk_future_create(void*, s2, [&my_extract_filter](future<void*>* item) -> void* { return s3(my_extract_filter, item); }, s1);
-        future<void*>* s3;
-        cilk_future_create(void*, s3, [&my_vec_filter](future<void*>* item) -> void* { return s4(my_vec_filter, item); }, s2);
-        future<void*> *s4;
-        cilk_future_create(void*, s4, [&my_rank_filter](future<void*>* item) -> void* { return s5(my_rank_filter, item); }, s3);
+        future<void*>* stage2;
+         cilk_future_create(void*, stage2, [&my_seg_filter](void* item) -> void* { return s2(my_seg_filter, item); }, chunk);
+        future<void*>* stage3;
+         cilk_future_create(void*, stage3, [&my_extract_filter](future<void*>* item) -> void* { return s3(my_extract_filter, item); }, stage2);
+        future<void*>* stage4;
+        cilk_future_create(void*, stage4, [&my_vec_filter](future<void*>* item) -> void* { return s4(my_vec_filter, item); }, stage3);
+        future<void*> *stage5;
+        cilk_future_create(void*, stage5, [&my_rank_filter](future<void*>* item) -> void* { return s5(my_rank_filter, item); }, stage4);
         //promise<void> throttle_alert;
         //throttle.push_back(throttle_alert.get_future());
-        cilk_future_create(bool, prev, [&my_out_filter](future<bool>* prev, future<void*>* item) -> bool {
+        future<bool> *stage6;
+        cilk_future_create(bool, stage6, [&my_out_filter](future<bool>* prev, future<void*>* item) -> bool {
             s6(my_out_filter, prev, item); 
             return true;
-        }, prev, s4);
+        }, prev, stage5);
+        prev = stage6;
+        throttle.push_back(stage6);
     }
+    printf("Hi there?\n");
     cilk_future_get(prev);
     
     
@@ -519,8 +534,12 @@ int my_fancy_wrapper(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
     int result;
+    printf("In main\n");
     result = cilk_spawn my_fancy_wrapper(argc, argv);
     cilk_sync;
+    printf("Past sync in main...\n");
+    while (prev == NULL);
+    prev->get();
     return result;
 /*
     char *db_dir = NULL;

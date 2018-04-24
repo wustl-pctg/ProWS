@@ -6,10 +6,8 @@ PIPER_HOME=/home/kdsinger/porridge/cilkrtssuspend
 #RD_INCLUDE=$(RD_HOME)/include 
 RTS_INCLUDE=$(PIPER_HOME)/include/
 RTS_STATIC_LIB=$(PIPER_HOME)/.libs/libcilkrts.a
-RTS_DYNAMIC_LIB=-Wl,-rpath -Wl,$(PIPER_HOME)/.libs/libcilkrts.so -lcilkrts
-CXXFLAGS=-std=c++11 -flto
-
-LIBS += -flto /home/kdsinger/porridge/build/libporr.a
+#RTS_DYNAMIC_LIB=-Wl,-rpath -Wl,$(PIPER_HOME)/.libs/libcilkrts.so -lcilkrts
+CXXFLAGS=-std=c++11 #-flto
 
 # compilation flags
 PIPER_CC=$(COMPILER_HOME)/bin/clang
@@ -43,8 +41,8 @@ BASIC_CPPFLAGS=-g -O0 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_
 BASIC_CFLAGS=-g -O0 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR)
 BASIC_GCCFLAGS=-g -O0 -std=gnu99 -fno-omit-frame-pointer
 
-CFLAGS ?= -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
-CFLAGS_S = -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
+CFLAGS ?= -O0 -g -I$(INCDIR) -fno-omit-frame-pointer
+CFLAGS_S = -O0 -g -I$(INCDIR) -fno-omit-frame-pointer
 
 LDFLAGS += -L/usr/lib64 -L$(LIBDIR)
 
@@ -55,7 +53,7 @@ export LIBDIR BINDIR OBJDIR CC CXX CFLAGS LDFLAGS LDLIBS
 # Modify the following variables if source code moves location
 cilkm_top_dir := $(CILKM_RTS) 
 cilkm_rts := $(CILKM_RTS)/runtime
-CILK_FLAGS := -DHAVE_CONFIG_H -I$(cilkm_top_dir) -I$(cilkm_rts) -O3 -std=gnu99
+CILK_FLAGS := -DHAVE_CONFIG_H -I$(cilkm_top_dir) -I$(cilkm_rts) -O0 -std=gnu99
 CILK_LDFLAGS := -L$(cilkm_rts)/.libs -L$(cilkm_rts) -lcilkrt0 -lcilk -Wl,-rpath=$(cilkm_rts)/.libs 
 
 # Point to the install path for Piper Cilk Plus

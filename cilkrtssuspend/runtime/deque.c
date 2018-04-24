@@ -464,12 +464,18 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     { // d is no longer accessible
 
       CILK_ASSERT(d->frame_ff);
-      fiber = d->frame_ff->fiber_self;
+      if (d->frame_ff->future_fiber) {
+        fiber = d->frame_ff->future_fiber;
+        printf("Fiber is future fiber\n");
+      } else {
+        printf("Fiber is fiber self\n");
+        fiber = d->frame_ff->fiber_self;
+      }
       CILK_ASSERT(fiber);
       d->fiber = fiber;
 
-      cilk_fiber_data* data = cilk_fiber_get_data(fiber);
-      CILK_ASSERT(!data->resume_sf);
+      //cilk_fiber_data* data = cilk_fiber_get_data(fiber);
+      CILK_ASSERT(!cilk_fiber_get_data(fiber)->resume_sf);
 
       /* if (WORKER_USER == w->l->type && */
       /*     NULL == w->l->last_full_frame) { */

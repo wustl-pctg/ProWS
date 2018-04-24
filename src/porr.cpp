@@ -9,6 +9,7 @@
 #include "spinlock.h"
 
 #include <internal/abi.h>
+#include <cilk/cilk_api.h>
 
 #ifdef USE_LOCKSTAT
 struct spinlock_stat *the_sls_list = NULL;

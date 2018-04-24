@@ -78,8 +78,10 @@ void __cilkrts_suspend_deque()
     fiber_to_resume = w->l->active_deque->fiber;
     w->l->active_deque->fiber = NULL;
   } else { // no more memory for deques
+    printf("Hiii\n");
     fiber_to_resume = w->l->scheduling_fiber;
   }
+  printf("suspending fiber %p\n", current_fiber);
   cilk_fiber_suspend_self_and_resume_other(current_fiber,
                                            fiber_to_resume);
 }
@@ -150,6 +152,7 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   CILK_ASSERT(!data->resume_sf);
   data->owner = w;
 
+  printf("resuming fiber %p\n", current_fiber);
   cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
 
 }

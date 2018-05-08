@@ -106,8 +106,10 @@ void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber) {
 
     node->fiber = fiber;
     node->prev = ff->future_fibers_tail;
+    node->next = NULL;
 
     if (ff->future_fibers_head == NULL) {
+        CILK_ASSERT(ff->future_fibers_tail == NULL);
         ff->future_fibers_head = node;
     } else {
         CILK_ASSERT(ff->future_fibers_tail);

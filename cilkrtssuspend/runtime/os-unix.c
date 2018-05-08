@@ -580,8 +580,8 @@ static void __attribute__((constructor)) init_once()
 #define PAGE 4096
 #define CILK_MIN_STACK_SIZE (4*PAGE)
 // Default size for the stacks that we create in Cilk for Unix.
-/* #define CILK_DEFAULT_STACK_SIZE 0x100000 */
-#define CILK_DEFAULT_STACK_SIZE 0xF000
+#define CILK_DEFAULT_STACK_SIZE 0x100000
+/* #define CILK_DEFAULT_STACK_SIZE 0xF000 */
 
 /*
  * Convert the user's specified stack size into a "reasonable" value

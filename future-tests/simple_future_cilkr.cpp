@@ -33,7 +33,7 @@ void thread4(void);
 
 int helloFuture(cilk::future<int>* other) {
   int* dummy = (int*) alloca(ZERO);
-  printf("helloFuture dummy: %p\n", &dummy);
+  //printf("helloFuture dummy: %p\n", &dummy);
   //for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
   //  gdummy += i;
   //}
@@ -48,6 +48,7 @@ int helloFuture(cilk::future<int>* other) {
 }
 
 int helloMoreFutures() {
+  sleep(5);
   int* dummy = (int *) alloca(ZERO);
   for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
     dummy2 += j;
@@ -58,15 +59,18 @@ void thread1() {
   int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****In thread1, creating future!*****\n\n\n");
   //cilk_spawn thread2();
+  //sleep(5);
   cilk_future_create(int,test_future2, helloMoreFutures);
-  cilk_future_create(int,test_future,helloFuture, test_future2);
+  cilk_future_create(int,test_future, helloFuture, test_future2);
+  cilk_future_create(int,test_future3, helloFuture, test_future);
   //test_future = new cilk::future<int>();
   //hello_future_helper_helper();
   //__spawn_future_helper_helper(helloFuture);
   //cilk_sync;
   printf("\n\n\n*****I'm in thread1 again!*****\n\n\n");
   sleep(5);
-  auto result = cilk_future_get(test_future);
+  //auto result = cilk_future_get(test_future);
+  auto result = cilk_future_get(test_future3);
   cilk_spawn thread2();
   printf("\n\n\n*****Syncing thread1!*****\n\n\n");
   cilk_sync;

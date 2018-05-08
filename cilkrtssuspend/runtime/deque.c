@@ -466,9 +466,9 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
       CILK_ASSERT(d->frame_ff);
       if (d->frame_ff->future_fiber) {
         fiber = d->frame_ff->future_fiber;
-        printf("Fiber is future fiber\n");
+        //printf("Fiber is future fiber\n");
       } else {
-        printf("Fiber is fiber self\n");
+        //printf("Fiber is fiber self\n");
         fiber = d->frame_ff->fiber_self;
       }
       CILK_ASSERT(fiber);

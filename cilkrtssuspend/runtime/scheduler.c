@@ -769,10 +769,11 @@ static deque* choose_deque(__cilkrts_worker *w, __cilkrts_worker *victim)
         //index = 1;
     } else {
         pool = &victim->l->suspended_deques;
-        if (w == victim && pool->size > 0) // don't choose 0 (active_deque)
+        if (w == victim && pool->size > 0) {// don't choose 0 (active_deque)
             index = (myrand(w) % (pool->size)) + 1;
-        else
+        } else {
             index = myrand(w) % (pool->size + 1);
+        }
         
     }
     
@@ -781,7 +782,10 @@ static deque* choose_deque(__cilkrts_worker *w, __cilkrts_worker *victim)
         CILK_ASSERT(pool->array[0] == NULL);
     }
 
-    if (index) return pool->array[index-1];
+    if (index) {
+        //printf("Stealing from non-active deque!\n");
+        return pool->array[index-1];
+    }
     return victim->l->active_deque; // we might return our own deque, but then it's not stealable
 }
 

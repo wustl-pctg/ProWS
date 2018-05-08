@@ -82,7 +82,7 @@ public:
     //m_acquires_lock.lock();
     pthread_mutex_lock(&m_acquires_lock);
     if (m_get) {
-        printf("Resuming a suspended deque! %p\n", m_get);
+        //printf("Resuming a suspended deque! %p\n", m_get);
         __cilkrts_resume_suspended(m_get, 1);
         //delete m_get;
         m_get = NULL;

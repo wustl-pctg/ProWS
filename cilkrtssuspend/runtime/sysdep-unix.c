@@ -67,7 +67,7 @@
 // will need to restore that state when we resume.
 #ifndef __MIC__
 # if defined(__i386__) || defined(__x86_64)
-//#   define RESTORE_X86_FP_STATE
+#   define RESTORE_X86_FP_STATE
 # endif // defined(__i386__) || defined(__x86_64)
 #endif  // __MIC__
 

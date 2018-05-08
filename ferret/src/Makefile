@@ -36,13 +36,13 @@ OBJDIR = $(ROOT)/build/obj
 # calls Make.  So CFLAGS gets updated twice.
 #
 # WHY was the code structured this way to begin with??
-PIPER_FLAGS=-g -O0 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR)
-BASIC_CPPFLAGS=-g -O0 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR) -I$(RTS_INCLUDE)
-BASIC_CFLAGS=-g -O0 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR)
-BASIC_GCCFLAGS=-g -O0 -std=gnu99 -fno-omit-frame-pointer
+PIPER_FLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR)
+BASIC_CPPFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR) -I$(RTS_INCLUDE)
+BASIC_CFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR)
+BASIC_GCCFLAGS=-g -O3 -std=gnu99 -fno-omit-frame-pointer
 
-CFLAGS ?= -O0 -g -I$(INCDIR) -fno-omit-frame-pointer
-CFLAGS_S = -O0 -g -I$(INCDIR) -fno-omit-frame-pointer
+CFLAGS ?= -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
+CFLAGS_S = -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
 
 LDFLAGS += -L/usr/lib64 -L$(LIBDIR)
 
@@ -53,7 +53,7 @@ export LIBDIR BINDIR OBJDIR CC CXX CFLAGS LDFLAGS LDLIBS
 # Modify the following variables if source code moves location
 cilkm_top_dir := $(CILKM_RTS) 
 cilkm_rts := $(CILKM_RTS)/runtime
-CILK_FLAGS := -DHAVE_CONFIG_H -I$(cilkm_top_dir) -I$(cilkm_rts) -O0 -std=gnu99
+CILK_FLAGS := -DHAVE_CONFIG_H -I$(cilkm_top_dir) -I$(cilkm_rts) -O3 -std=gnu99
 CILK_LDFLAGS := -L$(cilkm_rts)/.libs -L$(cilkm_rts) -lcilkrt0 -lcilk -Wl,-rpath=$(cilkm_rts)/.libs 
 
 # Point to the install path for Piper Cilk Plus

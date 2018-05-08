@@ -20,6 +20,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 #include <stdio.h>
 #include "cilk/cilk.h"
+#include "cilk/cilk_api.h"
 #include <math.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -376,34 +377,36 @@ void filter_out::operator()(future<bool>* prev, future<void*>* item) {
 }
 
 void* s2(filter_seg& seg, void* item) {
-    printf("In s2\n");
-    return seg(std::move(item));
+    //printf("In s2\n");
+    return seg(item);
 }
 
 void* s3(filter_extract& ext, future<void*>* item) {
-    printf("In s3\n");
+    //printf("In s3\n");
     return ext(item);
 }
 
 void* s4(filter_vec& vec, future<void*>* item) {
-    printf("In s4\n");
+    //printf("In s4\n");
     return vec(item);
 }
 
 void* s5(filter_rank& rank, future<void*>* item) {
-    printf("In s5\n");
+    //printf("In s5\n");
     return rank(item);
 }
 
 void s6(filter_out& out, future<bool>* prev, future<void*>* item) {
-    printf("In s6\n");
+    //printf("In s6\n");
     out(prev, item);
     //delete prev;
     //delete item;
 }
 
-future<bool>* prev = NULL; 
+static volatile int done = 0;
+
 int my_fancy_wrapper(int argc, char *argv[]) {
+    future<bool>* prev = NULL; 
     printf("In fancy_wrapper\n");
     char *db_dir = NULL;
     const char *table_name = NULL;
@@ -465,7 +468,6 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     image_init(argv[0]);
 
     stimer_tick(&tmr);
-
     
     filter_load    my_load_filter(query_dir);
     filter_seg     my_seg_filter;
@@ -488,13 +490,14 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     //assert(0 == code);
     
     //ferret_pipeline.run( depth );
-    list<future<bool>*> throttle;
+    //list<future<bool>*> throttle;
     for (void *chunk = my_load_filter(NULL); chunk != NULL; chunk = my_load_filter(NULL)) {
         //if (throttle.size() == depth) {
         //    while(!throttle.front()->ready());
         //    throttle.pop_front();
         //}
-        while (prev && !prev->ready());
+        //while (prev && !prev->ready());
+        //cilk_future_get(prev);
 
         future<void*>* stage2;
          cilk_future_create(void*, stage2, [&my_seg_filter](void* item) -> void* { return s2(my_seg_filter, item); }, chunk);
@@ -512,7 +515,7 @@ int my_fancy_wrapper(int argc, char *argv[]) {
             return true;
         }, prev, stage5);
         prev = stage6;
-        throttle.push_back(stage6);
+        //throttle.push_back(stage6);
     }
     printf("Hi there?\n");
     cilk_future_get(prev);
@@ -529,6 +532,7 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     cass_cleanup();
     image_cleanup();
     fclose(fout);
+    done = 1;
     return 0;
 }
 
@@ -538,8 +542,9 @@ int main(int argc, char *argv[]) {
     result = cilk_spawn my_fancy_wrapper(argc, argv);
     cilk_sync;
     printf("Past sync in main...\n");
-    while (prev == NULL);
-    prev->get();
+    //while (prev == NULL);
+    //prev->get();
+    while (!done);
     return result;
 /*
     char *db_dir = NULL;

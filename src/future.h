@@ -79,16 +79,12 @@ public:
     assert(m_status != status::DONE);
     m_result = result;
     m_status = status::DONE;
-    //m_acquires_lock.lock();
     pthread_mutex_lock(&m_acquires_lock);
     if (m_get) {
-        //printf("Resuming a suspended deque! %p\n", m_get);
         __cilkrts_resume_suspended(m_get, 1);
-        //delete m_get;
         m_get = NULL;
     }
     pthread_mutex_unlock(&m_acquires_lock);
-    //m_acquires_lock.unlock();
   };
 
   bool ready() {
@@ -107,11 +103,9 @@ public:
 
         if (!this->ready()) {
             assert(m_get == NULL);
-            //m_get = new porr::acquire_info(porr::get_pedigree());
             m_get = __cilkrts_get_deque();
         }
 
-        //m_acquires_lock.unlock();
         pthread_mutex_unlock(&m_acquires_lock);
         __cilkrts_suspend_deque();
     }

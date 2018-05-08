@@ -517,7 +517,6 @@ int my_fancy_wrapper(int argc, char *argv[]) {
         prev = stage6;
         //throttle.push_back(stage6);
     }
-    printf("Hi there?\n");
     cilk_future_get(prev);
     
     
@@ -538,10 +537,8 @@ int my_fancy_wrapper(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
     int result;
-    printf("In main\n");
     result = cilk_spawn my_fancy_wrapper(argc, argv);
     cilk_sync;
-    printf("Past sync in main...\n");
     //while (prev == NULL);
     //prev->get();
     while (!done);

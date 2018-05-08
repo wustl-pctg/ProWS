@@ -88,7 +88,8 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
 	ff->frame_size = 0;
         ff->fiber_self = 0;
         ff->fiber_child = 0;
-        ff->future_fiber = 0;
+        ff->future_fibers_tail = 0;
+        ff->future_fibers_head = 0;
 
         ff->sync_master = 0;
 
@@ -97,6 +98,60 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
     } STOP_INTERVAL(w, INTERVAL_ALLOC_FULL_FRAME);
 
     return ff;
+}
+
+void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber) {
+    future_node *node = (future_node*) __cilkrts_malloc(sizeof(future_node));
+    CILK_ASSERT(node);
+
+    node->fiber = fiber;
+    node->prev = ff->future_fibers_tail;
+
+    if (ff->future_fibers_head == NULL) {
+        ff->future_fibers_head = node;
+    } else {
+        CILK_ASSERT(ff->future_fibers_tail);
+        ff->future_fibers_tail->next = node;
+    }
+    ff->future_fibers_tail = node;
+}
+
+cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff) {
+    CILK_ASSERT(ff->future_fibers_tail);
+
+    future_node *node = ff->future_fibers_tail;
+    ff->future_fibers_tail = node->prev;
+    // We popped the last item; head and tail should be null.
+    if (node == ff->future_fibers_head) {
+        CILK_ASSERT(ff->future_fibers_tail == NULL);
+        ff->future_fibers_head = NULL;
+    } else {
+        CILK_ASSERT(ff->future_fibers_tail != NULL);
+        ff->future_fibers_tail->next = NULL;
+    }
+
+    cilk_fiber *fiber = node->fiber;
+    __cilkrts_free(node);
+    return fiber;
+}
+
+cilk_fiber* __cilkrts_pop_head_future_fiber(full_frame *ff) {
+    CILK_ASSERT(ff->future_fibers_head);
+
+    future_node *node = ff->future_fibers_head;
+    ff->future_fibers_head = node->next;
+    // We popped the last item; head and tail should be null.
+    if (node == ff->future_fibers_tail) {
+        CILK_ASSERT(ff->future_fibers_head == NULL);
+        ff->future_fibers_tail = NULL;
+    } else {
+        CILK_ASSERT(ff->future_fibers_head != NULL);
+        ff->future_fibers_head->prev = NULL;
+    }
+
+    cilk_fiber *fiber = node->fiber;
+    __cilkrts_free(node);
+    return fiber;
 }
 
 COMMON_PORTABLE void __cilkrts_put_stack(full_frame *ff,

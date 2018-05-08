@@ -246,8 +246,11 @@ void detach_for_steal(__cilkrts_worker *w,
 
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
-    child_ff->future_fiber = parent_ff->future_fiber;
-    parent_ff->future_fiber = NULL;
+
+    child_ff->future_fibers_tail = parent_ff->future_fibers_tail;
+    parent_ff->future_fibers_tail = NULL;
+    child_ff->future_fibers_head = parent_ff->future_fibers_head;
+    parent_ff->future_fibers_head = NULL;
 
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
       /* install child in the victim's work queue, taking
@@ -264,8 +267,13 @@ void detach_for_steal(__cilkrts_worker *w,
           loot_ff->fiber_child = child_ff->fiber_self;
           cilk_fiber_get_data(loot_ff->fiber_child)->resume_sf = NULL;
 
-          child_ff->fiber_self = child_ff->future_fiber;
-          child_ff->future_fiber = NULL;
+          CILK_ASSERT(child_ff->future_fibers_tail);
+          CILK_ASSERT(child_ff->future_fibers_head);
+          //printf("setting child fiber self\n");
+          child_ff->fiber_self = __cilkrts_pop_head_future_fiber(child_ff);
+          //printf("set child fiber self\n");
+          //child_ff->fiber_self = child_ff->future_fiber;
+          //child_ff->future_fiber = NULL;
 
           unlink_child(loot_ff, child_ff);
           child_ff->parent = NULL;
@@ -464,8 +472,10 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     { // d is no longer accessible
 
       CILK_ASSERT(d->frame_ff);
-      if (d->frame_ff->future_fiber) {
-        fiber = d->frame_ff->future_fiber;
+      if (d->frame_ff->future_fibers_tail) {
+        //printf("deque is a future?\n");
+        fiber = d->frame_ff->future_fibers_tail->fiber;
+        //printf("dequeued deque future fiber?\n");
         //printf("Fiber is future fiber\n");
       } else {
         //printf("Fiber is fiber self\n");

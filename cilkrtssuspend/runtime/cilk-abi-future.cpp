@@ -131,10 +131,14 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
         //ff->call_stack->worker = curr_worker;
         //curr_worker->current_stack_frame = first_frame;
 
+        if (ff->future_fibers_tail) {
+            curr_fiber = ff->future_fibers_tail->fiber;
+        } else {
+            curr_fiber = ff->fiber_self;
+        }
+        __cilkrts_enqueue_future_fiber(ff, new_exec_fiber);
+        //ff->future_fiber = new_exec_fiber;
         
-
-        ff->future_fiber = new_exec_fiber;
-        curr_fiber = (*curr_worker->l->frame_ff)->fiber_self;
 
     __cilkrts_frame_unlock(curr_worker, ff);
     __cilkrts_worker_unlock(curr_worker);
@@ -193,8 +197,20 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
             memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
             __spawn_future_helper(func);
             CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
+            
+            __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
+            full_frame *frame = *curr_worker->l->frame_ff;
             // Return to the original fiber
-            __cilkrts_switch_fibers_back(&sf, (*__cilkrts_get_tls_worker()->l->frame_ff)->future_fiber, (*__cilkrts_get_tls_worker()->l->frame_ff)->fiber_self);
+            __cilkrts_frame_lock(curr_worker, frame);
+                cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
+                cilk_fiber *prev_fiber;
+                if (frame->future_fibers_tail) {
+                    prev_fiber = frame->future_fibers_tail->fiber;
+                } else {
+                    prev_fiber = frame->fiber_self;
+                }
+            __cilkrts_frame_unlock(curr_worker, frame);
+            __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
         }
         CILK_ASSERT(sf.flags & CILK_FRAME_STOLEN);
     }

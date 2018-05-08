@@ -47,6 +47,7 @@ int helloFuture(cilk::future<int>* other) {
   return other->get() / 2;
 }
 
+
 int helloMoreFutures() {
   sleep(5);
   int* dummy = (int *) alloca(ZERO);
@@ -55,12 +56,24 @@ int helloMoreFutures() {
   }
   return 84;
 }
+
+int helloAnotherFuture() {
+    cilk::future<int>* buaHaHa;
+    cilk_future_create(int,buaHaHa,helloMoreFutures);
+
+    int ret = cilk_future_get(buaHaHa);
+    printf("Bua Ha Ha! %d\n", ret);
+    delete buaHaHa;
+    return ret;
+}
+
 void thread1() {
   int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****In thread1, creating future!*****\n\n\n");
   //cilk_spawn thread2();
   //sleep(5);
-  cilk_future_create(int,test_future2, helloMoreFutures);
+  cilk_future_create(int,test_future2, helloAnotherFuture);
+  //cilk_future_create(int,test_future2, helloMoreFutures);
   cilk_future_create(int,test_future, helloFuture, test_future2);
   cilk_future_create(int,test_future3, helloFuture, test_future);
   //test_future = new cilk::future<int>();

@@ -57,9 +57,15 @@ int helloMoreFutures() {
   return 84;
 }
 
+static volatile int nesting = 0;
 int helloAnotherFuture() {
     cilk::future<int>* buaHaHa;
-    cilk_future_create(int,buaHaHa,helloMoreFutures);
+    if (nesting < 10) {
+        nesting++;
+        cilk_future_create(int,buaHaHa,helloAnotherFuture);
+    } else {
+        cilk_future_create(int,buaHaHa,helloMoreFutures);
+    }
 
     int ret = cilk_future_get(buaHaHa);
     printf("Bua Ha Ha! %d\n", ret);

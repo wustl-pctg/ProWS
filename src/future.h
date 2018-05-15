@@ -104,10 +104,12 @@ public:
         if (!this->ready()) {
             assert(m_get == NULL);
             m_get = __cilkrts_get_deque();
+            pthread_mutex_unlock(&m_acquires_lock);
+            __cilkrts_suspend_deque();
+        } else {
+            pthread_mutex_unlock(&m_acquires_lock);
         }
 
-        pthread_mutex_unlock(&m_acquires_lock);
-        __cilkrts_suspend_deque();
     }
     assert(m_status==status::DONE);
     return m_result;

@@ -224,7 +224,15 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         update_pedigree_after_sync(&sf);
     }
 
-    cilk_fiber_get_data((*__cilkrts_get_tls_worker()->l->frame_ff)->fiber_self)->resume_sf = NULL;
+    __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
+    __cilkrts_worker_lock(curr_worker);
+    ff = *curr_worker->l->frame_ff;
+    __cilkrts_frame_lock(curr_worker, ff);
+
+    cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;
+
+    __cilkrts_frame_unlock(curr_worker, ff);
+    __cilkrts_worker_unlock(curr_worker);
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_frame(&sf);

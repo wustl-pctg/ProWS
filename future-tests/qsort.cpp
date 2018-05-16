@@ -97,6 +97,8 @@ int run(void) {
         }
     }
 
+    printf("Success!\n");
+
     //for (unsigned long i = 0; i < LIST_SIZE; i++) {
     //    std::cout << l[i] << ", ";
     //    if (i % 20 == 19) {

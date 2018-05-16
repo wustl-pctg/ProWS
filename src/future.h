@@ -29,7 +29,8 @@ namespace cilk {
   fut = new (loc) cilk::future<T>();  \
   auto __temp_fut = fut; \
   __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
-    __temp_fut->put(functor()); \
+    void* __cilk_deque = __temp_fut->put(functor()); \
+    if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
   }); \
   }
 
@@ -41,7 +42,8 @@ namespace cilk {
   fut = new cilk::future<T>();  \
   auto __temp_fut = fut; \
   __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
-    __temp_fut->put(functor()); \
+    void *__cilk_deque = __temp_fut->put(functor()); \
+    if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
   }); \
   }
 
@@ -53,6 +55,11 @@ private:
     DONE, // strand has finished execution
   };
 
+  typedef struct __touch_node {
+    struct __touch_node *next;
+    void *deque;
+  } __touch_node;
+
   volatile status m_status;
   volatile T m_result;
 
@@ -61,30 +68,62 @@ private:
   // Treat gets like lock acquires
   //std::vector<porr::acquire_info*> m_acquires;
   //porr::acquire_info* m_get;
-  void* m_get;
+  __touch_node *m_gets;
+  //void* m_get;
   
 public:
 
  future() {
     m_status = status::CREATED;
-    m_get = NULL;
+    m_gets = new __touch_node();
+    m_gets->next = NULL;
+    m_gets->deque = NULL;
     pthread_mutex_init(&m_acquires_lock, NULL);
   };
 
   ~future() {
     pthread_mutex_destroy(&m_acquires_lock);
+    delete m_gets;
+    m_gets = NULL;
   }
 
-  void put(T result) {
+  void* put(T result) {
     assert(m_status != status::DONE);
     m_result = result;
     m_status = status::DONE;
+
+    // Make sure no worker is in the middle of
+    // suspending its own deque before proceeding.
     pthread_mutex_lock(&m_acquires_lock);
-    if (m_get) {
-        __cilkrts_resume_suspended(m_get, 1);
-        m_get = NULL;
-    }
     pthread_mutex_unlock(&m_acquires_lock);
+
+    // Resume all but the last deque from here;
+    // The last deque is returned and resumed from
+    // outside the future class.
+    while (m_gets->next && m_gets->next->next) {
+
+        __touch_node *node = m_gets;
+
+        void *deque = node->deque;
+        assert(deque);
+
+        __cilkrts_resume_suspended(deque, 1); 
+
+        assert(m_gets != node->next);
+        m_gets = node->next;
+
+        assert(m_gets);
+
+        delete node;
+    }
+
+    void *ret = m_gets->deque;
+    if (m_gets->next) {
+        __touch_node *node = m_gets;
+        m_gets = m_gets->next;
+        delete node;
+    }
+    return ret;
   };
 
   bool ready() {
@@ -102,8 +141,15 @@ public:
         //m_acquires_lock.lock();
 
         if (!this->ready()) {
-            assert(m_get == NULL);
-            m_get = __cilkrts_get_deque();
+            void *deque = __cilkrts_get_deque();
+            assert(deque);
+            __touch_node *touch = new __touch_node();
+            assert(touch);
+            touch->deque = deque;
+            assert(touch->deque);
+            assert(m_gets);
+            touch->next = m_gets;
+            m_gets = touch;
             pthread_mutex_unlock(&m_acquires_lock);
             __cilkrts_suspend_deque();
         } else {

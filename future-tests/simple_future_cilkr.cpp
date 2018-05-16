@@ -17,9 +17,9 @@ extern unsigned long ZERO;
 //extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
 //extern CILK_ABI_VOID __cilkrts_leave_future_parent_frame(__cilkrts_stack_frame *sf);
 
-cilk::future<int>* test_future = NULL;
-cilk::future<int>* test_future2 = NULL;
-cilk::future<int>* test_future3 = NULL;
+cilk::future<int> *volatile test_future = NULL;
+cilk::future<int> *volatile test_future2 = NULL;
+cilk::future<int> *volatile test_future3 = NULL;
 volatile int gdummy = 0;
 volatile int dummy2 = 0;
 //porr::spinlock output_lock;
@@ -99,17 +99,35 @@ void thread1() {
   printf("\n\n\n*****Done with thread1...*****\n\n\n");
   printf("\n\n\n*****Leaving thread1!*****\n\n\n");
 }
+
 void thread2() {
   int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****thread 2*****\n\n\n");
   //output_lock.lock();
   //output_lock.unlock();
-  while (test_future==NULL);
+  while (test_future==NULL) {
+     //sleep(1);
+     //printf("test_future is null\n");
+  };
   auto result = cilk_future_get(test_future);
   //output_lock.lock();
   printf("\n\n\n*****Thread  got %d*****\n\n\n", result);
   fflush(stdout);
   //output_lock.unlock();
+}
+
+void debugThis() {
+    int *dummy = (int *)alloca(ZERO);
+    printf("\n\n\n*****debugThis*****\n\n\n");
+    while (test_future == NULL) {
+        //sleep(1);
+        //printf("test_future is null\n");
+    }
+
+    auto result = cilk_future_get(test_future);
+    printf("debugThis got future result!\n");
+    printf("\n\n\n*****debugThis  got %d*****\n\n\n", result);
+    fflush(stdout);
 }
 
 void thread3() {
@@ -183,9 +201,9 @@ int main(int argc, char** argv) {
     printf("\n\n\n*****Simple Future Phase I Syncing*****\n\n\n");
 
     // TODO: Right now there is only single touch; these would cause us to hang.
-    //for (int i = 0; i < 1; i++) {
-    //    cilk_spawn thread2();
-    //}
+    for (int i = 0; i < 10; i++) {
+        cilk_spawn thread2();
+    }
     assert(__cilkrts_get_tls_worker() != NULL);
 
     cilk_sync;

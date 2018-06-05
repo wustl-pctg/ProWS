@@ -195,6 +195,8 @@ struct global_state_t { /* COMMON_PORTABLE */
 	 */
 	volatile int work_done;
 
+    volatile int pending_futures;
+
 	int under_ptool;     ///< True when running under a serial PIN tool
 
 	statistics stats;    ///< Statistics on use of runtime
@@ -283,6 +285,9 @@ struct global_state_t { /* COMMON_PORTABLE */
  * those specified as "user-settable values".
  */
 global_state_t* cilkg_init_global_state();
+
+int cilkg_decrement_pending_futures(global_state_t* g);
+int cilkg_increment_pending_futures(global_state_t* g);
 
 /**
  * @brief Publish the global state object, so that

@@ -194,6 +194,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         // This SHOULD occur after switching fibers; steal from here
         if (!done) {
             done = 1;
+            cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
             memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
             __spawn_future_helper(func);
             CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
@@ -210,6 +211,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
                     prev_fiber = frame->fiber_self;
                 }
             __cilkrts_frame_unlock(curr_worker, frame);
+            
             __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
         }
         CILK_ASSERT(sf.flags & CILK_FRAME_STOLEN);

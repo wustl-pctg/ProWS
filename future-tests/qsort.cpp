@@ -4,7 +4,7 @@
 #include <cilk/cilk.h>
 #include "../src/future.h"
 
-#define LIST_SIZE (1000)
+#define LIST_SIZE (2000)
 #define SEQ_THRESH (10)
 
 inline void swap(long *l, unsigned long x, unsigned long y) {

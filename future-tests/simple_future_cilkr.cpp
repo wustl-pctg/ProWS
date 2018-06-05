@@ -192,6 +192,16 @@ void yet_another_thread() {
     printf("\n\n\n*****yet_another_thread is finished!*****\n\n\n");
 }
 
+int my_test_of_waiting_for_futures() {
+    sleep(7);
+    printf("\n\nJust kidding, there was more! :-D\n\n");
+    return 9001;
+}
+
+void thread5() {
+    cilk_future_create(int, test_future3, my_test_of_waiting_for_futures);
+}
+
 int main(int argc, char** argv) {
     int* dummy = (int *)alloca(ZERO);
 
@@ -207,6 +217,10 @@ int main(int argc, char** argv) {
     assert(__cilkrts_get_tls_worker() != NULL);
 
     cilk_sync;
+    __cilkrts_worker* w = __cilkrts_get_tls_worker();
+    assert(w);
+    printf("Entry Worker id: %d\n", w->self);
+    printf("Synced!\n");
 
     printf("\n\n\n*****Simple Future Phase II Commencing*****\n\n\n");
 
@@ -218,11 +232,17 @@ int main(int argc, char** argv) {
     //}
 
     cilk_sync;
+    printf("Synced!\n");
 
+    cilk_spawn thread5();
     //int* dummy = (int*)alloca(sizeof(int)*10);
     //*dummy = 0xf00dface; 
     delete test_future2;
 
+    cilk_sync;
     printf("\n\n\n*****That's all there is, and there isn't anymore...*****\n\n\n");
+    w = __cilkrts_get_tls_worker();
+    printf("Exit worker id: %d\n", w->self);
+    fflush(stdout);
     return 0;
 }

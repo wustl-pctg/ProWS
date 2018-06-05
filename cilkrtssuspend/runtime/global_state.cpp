@@ -592,6 +592,7 @@ global_state_t* cilkg_init_global_state()
 	g->total_workers = cilkg_calc_total_workers();
 	g->system_workers = g->P - 1; // system_workers is here for the debugger.
 	g->work_done = 0;
+    g->pending_futures = 0;
 	g->workers_running = 0;
 	g->ltqsize = 128; /* FIXME */ // Originally 1024
 
@@ -600,6 +601,14 @@ global_state_t* cilkg_init_global_state()
 
 
 	return g;
+}
+
+int cilkg_decrement_pending_futures(global_state_t* g) {
+    return __sync_sub_and_fetch(&g->pending_futures, 1);
+}
+
+int cilkg_increment_pending_futures(global_state_t* g) {
+    return __sync_add_and_fetch(&g->pending_futures, 1);
 }
 
 void cilkg_publish_global_state(global_state_t* g) 

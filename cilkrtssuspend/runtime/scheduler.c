@@ -1062,7 +1062,7 @@ static enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_
 
             // If the original owner wants this frame back (to resume
             // it on its original thread) pass it back now.
-            if (NULL != ff->sync_master) {
+            if (NULL != ff->sync_master && ff->sync_master != w) {
                 // The frame wants to go back and be executed by the original
                 // user thread.  We can throw caution to the wind and push the
                 // frame straight onto its queue because the only way we have
@@ -1072,16 +1072,18 @@ static enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_
 
                 __cilkrts_worker *original = w->l->active_deque->team;
 //                CILK_ASSERT(original == w->g->original_deque->team);
-                CILK_ASSERT(original->l->suspended_deques.size == 0);
-                CILK_ASSERT(original->l->resumable_deques.size == 0);
+                CILK_ASSERT(original->l->next_frame_ff == NULL);
+                // KYLE_TODO: I uncommented these. Should they remain as such?
+                //CILK_ASSERT(original->l->suspended_deques.size == 0);
+                //CILK_ASSERT(original->l->resumable_deques.size == 0);
                 /* unset_sync_master(w->l->active_deque->team, ff); */
-                unset_sync_master(original, ff);
+                //unset_sync_master(original, ff);
                 
                 __cilkrts_push_next_frame(w->l->active_deque->team, ff);
 
                 // If this is the team leader we're not abandoning the work
-                if (w == w->l->active_deque->team)
-                    result = CONTINUE_EXECUTION;
+                //if (w == w->l->active_deque->team)
+                //    result = CONTINUE_EXECUTION;
             } else {
                 __cilkrts_push_next_frame(w, ff);
 

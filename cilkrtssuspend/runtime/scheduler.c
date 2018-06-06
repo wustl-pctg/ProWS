@@ -2675,7 +2675,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
 
     
-    if (w != (*w->l->frame_ff)->sync_master || w->g->pending_futures > 1) {
+    if (((*w->l->frame_ff)->sync_master && w != (*w->l->frame_ff)->sync_master) || w->g->pending_futures > 1) {
         // TODO: Technically this is safe as nothing else is pointing to it;
         //       however, there really should be a lock around it.
         (*w->l->frame_ff)->join_counter--; // Pushing a frame increments the join counter again, so preemptively undo it.

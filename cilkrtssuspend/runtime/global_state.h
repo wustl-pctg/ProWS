@@ -63,6 +63,7 @@
 #include "stats.h"
 #include "bug.h"
 #include "cilk_fiber.h"
+#include "full_frame.h"
 
 typedef struct deque deque; /// @todo{fix redefinition of deque in global_state.h}
 
@@ -196,6 +197,8 @@ struct global_state_t { /* COMMON_PORTABLE */
 	volatile int work_done;
 
     volatile int pending_futures;
+
+    full_frame *exit_frame;
 
 	int under_ptool;     ///< True when running under a serial PIN tool
 

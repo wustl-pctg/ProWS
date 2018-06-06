@@ -47,9 +47,6 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     data->resume_sf = NULL;
     CILK_ASSERT(sf->worker == data->owner);
 
-    // KYLE_TODO: This is stupid. Do the correct thing to prevent crashes.
-    //while (sf->worker->l->frame_ff->parent == NULL);
-
     ff = *(sf->worker->l->frame_ff);
 
     // For Win32, we need to overwrite the default exception handler

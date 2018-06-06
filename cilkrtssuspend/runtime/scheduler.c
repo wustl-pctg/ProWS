@@ -1062,7 +1062,7 @@ static enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_
 
             // If the original owner wants this frame back (to resume
             // it on its original thread) pass it back now.
-            if (NULL != ff->sync_master && ff->sync_master != w) {
+            /*if (NULL != ff->sync_master && ff->sync_master != w) {
                 // The frame wants to go back and be executed by the original
                 // user thread.  We can throw caution to the wind and push the
                 // frame straight onto its queue because the only way we have
@@ -1076,7 +1076,7 @@ static enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_
                 // KYLE_TODO: I uncommented these. Should they remain as such?
                 //CILK_ASSERT(original->l->suspended_deques.size == 0);
                 //CILK_ASSERT(original->l->resumable_deques.size == 0);
-                /* unset_sync_master(w->l->active_deque->team, ff); */
+                // unset_sync_master(w->l->active_deque->team, ff);
                 //unset_sync_master(original, ff);
                 
                 __cilkrts_push_next_frame(w->l->active_deque->team, ff);
@@ -1085,10 +1085,12 @@ static enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_
                 //if (w == w->l->active_deque->team)
                 //    result = CONTINUE_EXECUTION;
             } else {
+            */
                 __cilkrts_push_next_frame(w, ff);
 
-                result = CONTINUE_EXECUTION;  // Continue working on this thread
-            }
+                if (w == w->l->active_deque->team)
+                    result = CONTINUE_EXECUTION;  // Continue working on this thread
+            //}
 
             // The __cilkrts_push_next_frame() call changes ownership
             // of ff to the specified worker.
@@ -2611,6 +2613,56 @@ static void __cilkrts_unbind_thread()
         __cilkrts_cilkscreen_disable_instrumentation();
 }
 
+static void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *sf) {
+    w->g->exit_frame = ff;
+
+    if (cilkg_decrement_pending_futures(w->g) == -1) {
+        __cilkrts_push_next_frame(ff->sync_master, ff);
+    }
+}
+
+static void kyles_longjmp_into_runtime(__cilkrts_worker *w, scheduling_stack_fcn_t fcn, __cilkrts_stack_frame *sf) {
+    full_frame *ff, *ff2;
+
+    CILK_ASSERT(!w->l->post_suspend);
+    ff = *w->l->frame_ff;
+
+    w->l->post_suspend = fcn;
+    w->l->suspended_stack = sf;
+
+    cilk_fiber *current_fiber = (*w->l->frame_ff)->fiber_self;
+    cilk_fiber_data* fdata = cilk_fiber_get_data(current_fiber);
+
+    fdata->resume_sf = NULL;
+    CILK_ASSERT(fdata->owner == w);
+
+    cilk_fiber_set_post_switch_proc(w->l->scheduling_fiber,
+                                    enter_runtime_transition_proc);
+
+    cilk_fiber_suspend_self_and_resume_other(current_fiber,
+                                             w->l->scheduling_fiber);
+
+    user_code_resume_after_switch_into_runtime(current_fiber);
+} 
+
+static void suspend_return_from_initial(__cilkrts_worker *w) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast(&sf);
+    sf.call_parent = NULL;
+    (*w->l->frame_ff)->call_stack = &sf;
+
+    if (!CILK_SETJMP(sf.ctx)) {
+        // KYLE_TODO: This function assumes there is a parent for the full frame!!!!
+        //            Also that the fiber has been "removed" from the full frame first.
+        __cilkrts_put_stack((*w->l->frame_ff), &sf);
+        kyles_longjmp_into_runtime(w, do_suspend_return_from_initial, &sf);
+    }
+
+    // Just pop; cilkrts_leave_frame would do nothing
+    // but check a bunch of branching conditions
+    __cilkrts_pop_frame(&sf);
+}
+
 /* special return from the initial frame */
 
 void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
@@ -2621,6 +2673,15 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     // INTERVAL_WORKING into INTERVAL_IN_RUNTIME. 
     STOP_INTERVAL(w, INTERVAL_WORKING);
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
+
+    
+    if (w != (*w->l->frame_ff)->sync_master || w->g->pending_futures > 0) {
+        // TODO: Technically this is safe as nothing else is pointing to it;
+        //       however, there really should be a lock around it.
+        (*w->l->frame_ff)->join_counter--; // Pushing a frame increments the join counter again, so preemptively undo it.
+        suspend_return_from_initial(w);
+    }
+    w = __cilkrts_get_tls_worker();
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay

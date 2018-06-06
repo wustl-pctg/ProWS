@@ -396,7 +396,9 @@ void __attribute__((noinline)) __cilkrts_c_kyles_THE_exception_check(__cilkrts_w
 CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf) {
 	//__cilkrts_worker *w = sf->worker;
 	__cilkrts_worker *w = __cilkrts_get_tls_worker();
-    cilkg_decrement_pending_futures(w->g);
+    if (cilkg_decrement_pending_futures(w->g) == -1) {
+        __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
+    }
 
 	/*    DBGPRINTF("%d-%p __cilkrts_leave_frame - sf %p, flags: %x\n", w->self, GetWorkerFiber(w), sf, sf->flags); */
 

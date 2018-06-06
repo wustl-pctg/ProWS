@@ -592,7 +592,7 @@ global_state_t* cilkg_init_global_state()
 	g->total_workers = cilkg_calc_total_workers();
 	g->system_workers = g->P - 1; // system_workers is here for the debugger.
 	g->work_done = 0;
-    g->pending_futures = 0;
+    g->pending_futures = 1;
 	g->workers_running = 0;
 	g->ltqsize = 128; /* FIXME */ // Originally 1024
 

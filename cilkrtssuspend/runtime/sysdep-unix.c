@@ -341,12 +341,6 @@ void __cilkrts_stop_workers(global_state_t *g)
     int i;
 
     // Tell the workers to give up
-
-    // TODO: Suspend self and help finish the futures!
-    while (g->pending_futures);
-
-    CILK_ASSERT(g->pending_futures == 0);
-
     g->work_done = 1;
 
     if (g->workers_running == 0)

@@ -2680,8 +2680,11 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         //       however, there really should be a lock around it.
         (*w->l->frame_ff)->join_counter--; // Pushing a frame increments the join counter again, so preemptively undo it.
         suspend_return_from_initial(w);
+        w = __cilkrts_get_tls_worker();
+    } else {
+        cilkg_decrement_pending_futures(w->g);
     }
-    w = __cilkrts_get_tls_worker();
+    CILK_ASSERT(w->g->pending_futures == 0);
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay

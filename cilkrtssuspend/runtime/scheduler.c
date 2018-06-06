@@ -2616,7 +2616,7 @@ static void __cilkrts_unbind_thread()
 static void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *sf) {
     w->g->exit_frame = ff;
 
-    if (cilkg_decrement_pending_futures(w->g) == -1) {
+    if (cilkg_decrement_pending_futures(w->g) == 0) {
         __cilkrts_push_next_frame(ff->sync_master, ff);
     }
 }
@@ -2675,7 +2675,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
 
     
-    if (w != (*w->l->frame_ff)->sync_master || w->g->pending_futures > 0) {
+    if (w != (*w->l->frame_ff)->sync_master || w->g->pending_futures > 1) {
         // TODO: Technically this is safe as nothing else is pointing to it;
         //       however, there really should be a lock around it.
         (*w->l->frame_ff)->join_counter--; // Pushing a frame increments the join counter again, so preemptively undo it.

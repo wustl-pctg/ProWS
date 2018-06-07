@@ -119,6 +119,7 @@ void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber) {
 }
 
 cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff) {
+    CILK_ASSERT(ff->future_fibers_head);
     CILK_ASSERT(ff->future_fibers_tail);
 
     future_node *node = ff->future_fibers_tail;

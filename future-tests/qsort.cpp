@@ -4,8 +4,8 @@
 #include <cilk/cilk.h>
 #include "../src/future.h"
 
-#define LIST_SIZE (2000)
-#define SEQ_THRESH (10)
+#define LIST_SIZE (2500)
+#define SEQ_THRESH (25)
 
 inline void swap(long *l, unsigned long x, unsigned long y) {
     long tmp = l[x];
@@ -111,8 +111,10 @@ int run(void) {
 }
 
 int main(void) {
+    while (1) {
     cilk_spawn run();    
     cilk_sync;
+    }
 
     return 0;
 }

@@ -594,7 +594,7 @@ global_state_t* cilkg_init_global_state()
 	g->work_done = 0;
     g->pending_futures = 1;
 	g->workers_running = 0;
-	g->ltqsize = 128; /* FIXME */ // Originally 1024
+	g->ltqsize = 1024;//128; /* FIXME */ // Originally 1024
 
 	g->stack_size = cilkos_validate_stack_size(g->stack_size);
 	g->failure_to_allocate_stack = 0;

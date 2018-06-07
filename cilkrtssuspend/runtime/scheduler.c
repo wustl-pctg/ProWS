@@ -2668,6 +2668,10 @@ static void suspend_return_from_initial(__cilkrts_worker *w) {
 void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
 {
     struct cilkred_map *rm;
+        /* Save reducer map into global_state object */
+        /* Theoretically safe....nobody else has a pointer, and you can't steal from this frame...*/
+        rm = w->reducer_map;
+        w->reducer_map = NULL;
 
     // When we are returning from the initial frame, switch from
     // INTERVAL_WORKING into INTERVAL_IN_RUNTIME. 
@@ -2743,8 +2747,8 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         ff->fiber_self = NULL;
 
         /* Save reducer map into global_state object */
-        rm = w->reducer_map;
-        w->reducer_map = NULL;
+        //rm = w->reducer_map;
+        //w->reducer_map = NULL;
 
 #if REDPAR_DEBUG >= 3
         fprintf(stderr, "W=%d, reducer_map_to_delete=%p, was in ff=%p\n",

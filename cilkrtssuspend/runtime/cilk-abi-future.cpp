@@ -59,9 +59,6 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     // in this frame.
     
     {
-        // KYLE_TODO: The following function calls modify the SP!!
-        //            This causes us to crash when we return to the first full frame!!!
-        //char* new_sp = sysdep_reset_jump_buffers_for_resume(fiber, ff, sf);
         char* new_sp = get_sp_for_executing_sf(cilk_fiber_get_stack_base(fiber), ff, sf);
         SP(sf) = new_sp;
         
@@ -85,25 +82,8 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     }
 }
 
-CILK_ABI_VOID __assert_not_on_scheduling_fiber() {
-//    CILK_ASSERT(cilk_fiber_get_current_fiber() != __cilkrts_get_tls_worker()->l->scheduling_fiber);
-}
-
-// TODO: This is temporary.
-CILK_ABI_VOID __assert_future_counter(int count) {
-    //CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff[0]->future_counter == count);
-}   
-
-CILK_ABI_VOID __print_curr_stack(char* str) {
-    __cilkrts_worker *w = __cilkrts_get_tls_worker();
-    cilk_fiber *fiber = (*w->l->frame_ff)->fiber_self;
-//    printf("%s curr fiber: %p (worker %d, references %d)\n", str, fiber, w->self, cilk_fiber_get_ref_count(fiber));
-}
-
 CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
     cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
-    // KYLE_TODO: Do I need this? It doesn't seem like it
-    //new_fiber_data->resume_sf = first_frame;
 
     cilk_fiber_remove_reference_from_self_and_resume_other(curr_fiber, &(__cilkrts_get_tls_worker()->l->fiber_pool), new_fiber);
 }
@@ -194,12 +174,13 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
             cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
             memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
             __spawn_future_helper(func);
-            CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
             
-            __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
-            full_frame *frame = *curr_worker->l->frame_ff;
+            __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker();
             // Return to the original fiber
+            __cilkrts_worker_lock(curr_worker);
+            full_frame *frame = *curr_worker->l->frame_ff;
             __cilkrts_frame_lock(curr_worker, frame);
+                CILK_ASSERT(frame->future_fibers_head && "The head is null for some reason...");
                 cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
                 cilk_fiber *prev_fiber;
                 if (frame->future_fibers_tail) {
@@ -208,6 +189,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
                     prev_fiber = frame->fiber_self;
                 }
             __cilkrts_frame_unlock(curr_worker, frame);
+            __cilkrts_worker_unlock(curr_worker);
             
             __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
         }

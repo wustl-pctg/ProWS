@@ -29,7 +29,7 @@ namespace cilk {
   fut = new (loc) cilk::future<T>();  \
   auto __temp_fut = fut; \
   __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
-    void* __cilk_deque = __temp_fut->put(functor()); \
+    void *__cilk_deque = __temp_fut->put(functor()); \
     if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
   }); \
   }
@@ -64,12 +64,7 @@ private:
   volatile T m_result;
 
   pthread_mutex_t m_acquires_lock;
-  //porr::spinlock m_acquires_lock;
-  // Treat gets like lock acquires
-  //std::vector<porr::acquire_info*> m_acquires;
-  //porr::acquire_info* m_get;
   __touch_node *m_gets;
-  //void* m_get;
   
 public:
 
@@ -162,45 +157,6 @@ public:
   }
 }; // class future
 
-/*
-template<typename T>
-class future<void> {
-private:
-  enum class status { 
-    CREATED, // memory allocated, initialized
-    DONE, // strand has finished execution
-  };
-
-  volatile status m_status;
-  //volatile T m_result;
-  
-public:
-
- future<void>() {
-    m_status = status::CREATED;
-  };
-
-  void put<void>(void) {
-    assert(m_status != status::DONE);
-    //m_result = result;
-    m_status = status::DONE;
-  };
-
-  bool ready<void>() {
-    // If the status is done, then the value is ready.
-    return m_status==status::DONE;
-  } 
-
-  T get() {
-    // TODO: Treat this the same way spin locks are handled.
-    // TODO: For a first pass, could just USE the spinlocks?
-    // TODO: (take the lock on create, then try to take on get?)
-    while (!this->ready());
-    assert(m_status==status::DONE);
-    //return m_result;
-  }
-}; // class future
-*/
 } // namespace cilk
 
 #endif // #ifndef __CILK__FUTURE_H__

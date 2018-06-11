@@ -157,7 +157,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     //CILK_ASSERT(__cilkrts_get_tls_worker()->l->frame_ff->future_flags == 0);
     CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
 
-    __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
+    __cilkrts_worker *w = __cilkrts_get_tls_worker();
     full_frame *ff = NULL;
     __cilkrts_stack_frame *ff_call_stack = NULL;
 
@@ -171,9 +171,9 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         // This SHOULD occur after switching fibers; steal from here
         if (!done) {
             done = 1;
-            cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
+            cilkg_increment_pending_futures(__cilkrts_get_tls_worker()->g);
             memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
-            __spawn_future_helper(func);
+            __spawn_future_helper(std::move(func));
             
             __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker();
             // Return to the original fiber
@@ -205,7 +205,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         update_pedigree_after_sync(&sf);
     }
 
-    __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
+    __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker();
     __cilkrts_worker_lock(curr_worker);
     ff = *curr_worker->l->frame_ff;
     __cilkrts_frame_lock(curr_worker, ff);

@@ -251,6 +251,7 @@ filter_extract::filter_extract() {}
 void *filter_extract::operator()( future<void*>* item ) {
     assert(item != NULL && "filter extract");
 	struct all_data *data = (struct all_data *)cilk_future_get(item);
+    delete item;
     //delete item;
 
 	data->extract.name = data->second.seg.name;
@@ -274,6 +275,7 @@ filter_vec::filter_vec() {}
 void *filter_vec::operator()(future<void*>* item) {
     assert(item != NULL && "filter vec");
 	struct all_data *data = (struct all_data *) cilk_future_get(item);
+    delete item;
     //delete item;
 	cass_query_t query;
 
@@ -312,6 +314,7 @@ void *filter_rank::operator()(future<void*>* item) {
 
     assert(item != NULL && "filter rank");
 	struct all_data *data = (struct all_data*) cilk_future_get(item);
+    delete item;
     //delete item;
 	data->first.rank.name = data->second.vec.name;
 
@@ -351,7 +354,7 @@ filter_out::filter_out() {}
 void filter_out::operator()(future<bool>* prev, future<void*>* item) {
     if (prev) {
         cilk_future_get(prev);
-        //delete prev;
+        delete prev;
     }
     assert(item != NULL && "filter out");
 	struct all_data *data = (struct all_data *) cilk_future_get(item);
@@ -518,6 +521,7 @@ int my_fancy_wrapper(int argc, char *argv[]) {
         //throttle.push_back(stage6);
     }
     cilk_future_get(prev);
+    delete prev;
     
     
     // XXX This is where the old ROI timing ends 

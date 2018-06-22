@@ -111,10 +111,10 @@ int run(void) {
 }
 
 int main(void) {
-    while (1) {
+    //while (1) {
     cilk_spawn run();    
     cilk_sync;
-    }
+    //}
 
     return 0;
 }

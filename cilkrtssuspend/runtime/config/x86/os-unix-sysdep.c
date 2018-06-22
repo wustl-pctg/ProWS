@@ -125,16 +125,16 @@ static inline int __builtin_cpu_supports(const char *feature)
  */
 void restore_x86_fp_state (__cilkrts_stack_frame *sf) {
 #ifdef RESTORE_X86_FP_STATE
-    //if (__builtin_cpu_supports("sse"))
-    //{
-    //    __asm__ ("ldmxcsr %0"
-    //             :
-    //             : "m" (sf->mxcsr));
-    //}
-    //__asm__ ("fnclex\n\t"
-    //         "fldcw %0"
-    //         :
-    //         : "m" (sf->fpcsr));
+    if (__builtin_cpu_supports("sse"))
+    {
+        __asm__ ("ldmxcsr %0"
+                 :
+                 : "m" (sf->mxcsr));
+    }
+    __asm__ ("fnclex\n\t"
+             "fldcw %0"
+             :
+             : "m" (sf->fpcsr));
 #endif
 }
 
@@ -142,14 +142,14 @@ void sysdep_save_fp_ctrl_state(__cilkrts_stack_frame *sf)
 {
 // If we're not going to restore, don't bother saving it
 #ifdef RESTORE_X86_FP_STATE
-    //if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1)
-    //{
-        //if (__builtin_cpu_supports("sse"))
-        //{
-        //    __asm__ ("stmxcsr %0" : "=m" (sf->mxcsr));
-        //}
-    //    __asm__ ("fnstcw %0" : "=m" (sf->fpcsr));
-    //}
+    if (CILK_FRAME_VERSION_VALUE(sf->flags) >= 1)
+    {
+        if (__builtin_cpu_supports("sse"))
+        {
+            __asm__ ("stmxcsr %0" : "=m" (sf->mxcsr));
+        }
+        __asm__ ("fnstcw %0" : "=m" (sf->fpcsr));
+    }
 #endif
 }
 

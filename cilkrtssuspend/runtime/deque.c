@@ -459,6 +459,27 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   if (w->l->type == WORKER_USER && new_deque)
     CILK_ASSERT(new_deque->team == w);
 
+  /*int victim_idx = myrand(w) % w->g->total_workers;
+  int victim2_idx = myrand(w) % (w->g->total_workers-1);
+  if (victim2_idx >= victim_idx) {
+      victim2_idx += 1;
+  }
+
+  int victim_deque_count = w->g->workers[victim_idx]->l->resumable_deques.size + w->g->workers[victim_idx]->l->suspended_deques.size;
+  int victim2_deque_count = w->g->workers[victim2_idx]->l->resumable_deques.size + w->g->workers[victim2_idx]->l->suspended_deques.size;
+
+  __cilkrts_worker *victim = NULL;
+
+  if (victim_deque_count > victim2_deque_count) {
+    victim = w->g->workers[victim2_idx];
+  } else if (victim2_deque_count > victim_deque_count) {
+    victim = w->g->workers[victim_idx];
+  } else {
+    int which = myrand(w) % 2;
+    victim = (which == 0) ? w->g->workers[victim_idx] : w->g->workers[victim2_idx];
+  }*/
+
+  // Original victim selection
   __cilkrts_worker *victim = w->g->workers[myrand(w) % w->g->total_workers];
   /* victim = w; */
 

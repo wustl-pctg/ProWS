@@ -162,7 +162,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     __cilkrts_stack_frame *ff_call_stack = NULL;
 
     __CILK_JUMP_BUFFER ctx_bkup;
-    int done = 0;
+    volatile int done = 0;
     if(!CILK_SETJMP(sf.ctx)) { 
         // TODO: There should be a method that avoids this...
         memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));

@@ -480,7 +480,8 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   }*/
 
   // Original victim selection
-  __cilkrts_worker *victim = w->g->workers[myrand(w) % w->g->total_workers];
+  //__cilkrts_worker *victim = w->g->workers[myrand(w) % (w->g->total_workers)];
+
   /* victim = w; */
 
   cilk_fiber *fiber;
@@ -521,34 +522,53 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 
   } END_WITH_WORKER_LOCK(w);
 
-  DEQUE_LOG("(w: %i) pushing suspended deque %p on to %i\n",
-            w->self, d, victim->self);
 
   // Might be nice to use trylock here, but I'm not sure what is the
   // right thing to do if it fails.
-  __cilkrts_mutex_lock(w, &victim->l->lock); {
-    if (d->resumable) {
-      deque_pool_add(victim, &victim->l->resumable_deques, d);
-      /* fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n", */
-      /*        w->self, d, victim->self); */
+  if (d->resumable || d->head != d->tail) {
 
-    } else if (d->head != d->tail) { // not resumable, but stealable!
-      deque_pool_add(victim, &victim->l->suspended_deques, d);
-      /* fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n", */
-      /*              w->self, d, victim->self); */
+  // Probably slightly better balls and bins result compared to random;
+  // based on very light testing. slightly better performance in practice.
+    int victim_idx = myrand(w) % (w->g->total_workers);
+    int victim2_idx = myrand(w) % (w->g->total_workers - 1);
+    if (victim2_idx >= victim_idx) victim2_idx++;
+    __cilkrts_worker *victim = w->g->workers[victim_idx];
+    __cilkrts_worker *potential_victim = w->g->workers[victim2_idx];
 
-    } else { // empty: no need to add, will be resumed later
-
-
-      d->self = INVALID_DEQUE_INDEX;
-      d->worker = NULL;
-      //      w->l->mugged++;
-
-      /* fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n", */
-      /*        w->self, d, victim->self); */
-
+    if ((d->resumable && victim->l->resumable_deques.size > potential_victim->l->resumable_deques.size) || victim->l->suspended_deques.size > potential_victim->l->suspended_deques.size) {
+      victim = potential_victim;
     }
-  } __cilkrts_mutex_unlock(w, &victim->l->lock);
+
+    DEQUE_LOG("(w: %i) pushing suspended deque %p on to %i\n",
+              w->self, d, victim->self);
+
+    __cilkrts_mutex_lock(w, &victim->l->lock); {
+      if (d->resumable) {
+        deque_pool_add(victim, &victim->l->resumable_deques, d);
+        /* fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n", */
+        /*        w->self, d, victim->self); */
+
+      } else if (d->head != d->tail) { // not resumable, but stealable!
+        deque_pool_add(victim, &victim->l->suspended_deques, d);
+        /* fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n", */
+        /*              w->self, d, victim->self); */
+
+//      } else { // empty: no need to add, will be resumed later
+
+
+//        d->self = INVALID_DEQUE_INDEX;
+//        d->worker = NULL;
+        //      w->l->mugged++;
+
+        /* fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n", */
+        /*        w->self, d, victim->self); */
+
+      }
+    } __cilkrts_mutex_unlock(w, &victim->l->lock);
+  } else {
+    d->self = INVALID_DEQUE_INDEX;
+    d->worker = NULL;
+  }
   //} END_WITH_WORKER_LOCK(w);
 
 

@@ -85,11 +85,11 @@ public:
   void* put(T result) {
     assert(m_status != status::DONE);
     m_result = result;
-    m_status = status::DONE;
 
     // Make sure no worker is in the middle of
     // suspending its own deque before proceeding.
     pthread_mutex_lock(&m_acquires_lock);
+    m_status = status::DONE;
     pthread_mutex_unlock(&m_acquires_lock);
 
     // Resume all but the last deque from here;
@@ -103,6 +103,7 @@ public:
         assert(deque);
 
         __cilkrts_resume_suspended(deque, 1); 
+        //__cilkrts_make_resumable(deque);
 
         assert(m_gets != node->next);
         m_gets = node->next;

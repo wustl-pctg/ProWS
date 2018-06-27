@@ -485,6 +485,7 @@ CILK_ABI(void) __cilkrts_suspend(void);
 CILK_ABI(void*) __cilkrts_get_deque(void);
 CILK_ABI(void) __cilkrts_suspend_deque(void);
 CILK_ABI(void) __cilkrts_resume_suspended(void*, int);
+CILK_ABI(void) __cilkrts_make_resumable(void*);
 
 /**
  * Resumes the runtime by notifying the workers that they can steal.

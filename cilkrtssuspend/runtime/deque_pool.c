@@ -86,6 +86,67 @@ void __cilkrts_suspend_deque()
                                            fiber_to_resume);
 }
 
+void __cilkrts_make_resumable(void* _deque)
+{
+  __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
+
+  deque *deque_to_resume = (deque*) _deque;
+
+  CILK_ASSERT(deque_to_resume->resumable == 0);
+
+  // At this point, no one else can resume the deque.
+  // Wait for the deque to be fully suspended.
+  while (!deque_to_resume->fiber
+         || !cilk_fiber_is_resumable(deque_to_resume->fiber));
+
+  int previously_owned = 0;
+  __cilkrts_worker volatile* victim = deque_to_resume->worker;
+  if (victim) { // deque hasn't been mugged yet
+
+    // At this point, the original owner is done accessing the deque
+    // But a thief may be trying to mug this deque
+    __cilkrts_mutex_lock(victim, &victim->l->lock); {
+      if (deque_to_resume->worker) { // still muggable
+        previously_owned = 1;
+        //deque_mug(w, deque_to_resume);
+        deque_pool_remove(&victim->l->suspended_deques, deque_to_resume);
+        CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);
+        deque_to_resume->resumable = 1;
+        deque_pool_add(victim, &victim->l->resumable_deques, deque_to_resume);
+      }
+      
+    } __cilkrts_mutex_unlock(victim, &victim->l->lock);
+  }
+
+
+  if (previously_owned) {
+    DEQUE_LOG("(w: %i) making %p resumable for %i\n", w->self,
+              deque_to_resume, victim->self);
+  } else {
+
+    int victim_idx = myrand(w) % (w->g->total_workers);
+    int victim2_idx = myrand(w) % (w->g->total_workers - 1);
+    if (victim2_idx >= victim_idx) victim2_idx++;
+
+    __cilkrts_worker *victim = w->g->workers[victim_idx];
+    __cilkrts_worker *potential_victim = w->g->workers[victim2_idx];
+
+    if (victim->l->resumable_deques.size > potential_victim->l->resumable_deques.size) {
+        victim = potential_victim;
+    }
+
+    CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);
+    deque_to_resume->resumable = 1;
+    __cilkrts_mutex_lock(victim, &victim->l->lock);
+    deque_pool_add(w, &victim->l->resumable_deques, deque_to_resume);
+    __cilkrts_mutex_unlock(victim, &victim->l->lock);
+
+    DEQUE_LOG("(w: %i) adding resumable free deque %p to resumables\n",
+            w->self, deque_to_resume);
+  }
+
+}
+
 void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 {
   __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();

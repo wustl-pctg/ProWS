@@ -47,6 +47,16 @@ namespace cilk {
   }); \
   }
 
+#define cilk_future_create__stack(T,fut,func,args...)\
+  cilk::future<T> fut;\
+  { \
+    auto functor = std::bind(func, ##args); \
+    __spawn_future_helper_helper([&fut,functor]() -> void { \
+      void *__cilk_deque = fut.put(functor()); \
+      if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
+    }); \
+  }
+
 template<typename T>
 class future {
 private:

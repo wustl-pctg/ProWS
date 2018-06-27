@@ -101,21 +101,18 @@ void __cilkrts_make_resumable(void* _deque)
 
   int previously_owned = 0;
   __cilkrts_worker volatile* victim = deque_to_resume->worker;
-  if (victim) { // deque hasn't been mugged yet
+  if (victim) { 
 
-    // At this point, the original owner is done accessing the deque
-    // But a thief may be trying to mug this deque
-    __cilkrts_mutex_lock(victim, &victim->l->lock); {
-      if (deque_to_resume->worker) { // still muggable
+    __cilkrts_mutex_lock(w, &victim->l->lock); {
+      if (deque_to_resume->worker) { 
         previously_owned = 1;
-        //deque_mug(w, deque_to_resume);
         deque_pool_remove(&victim->l->suspended_deques, deque_to_resume);
         CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);
         deque_to_resume->resumable = 1;
         deque_pool_add(victim, &victim->l->resumable_deques, deque_to_resume);
       }
       
-    } __cilkrts_mutex_unlock(victim, &victim->l->lock);
+    } __cilkrts_mutex_unlock(w, &victim->l->lock);
   }
 
 
@@ -137,12 +134,12 @@ void __cilkrts_make_resumable(void* _deque)
 
     CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);
     deque_to_resume->resumable = 1;
-    __cilkrts_mutex_lock(victim, &victim->l->lock);
-    deque_pool_add(w, &victim->l->resumable_deques, deque_to_resume);
-    __cilkrts_mutex_unlock(victim, &victim->l->lock);
+    __cilkrts_mutex_lock(w, &victim->l->lock);
+    deque_pool_add(victim, &victim->l->resumable_deques, deque_to_resume);
+    __cilkrts_mutex_unlock(w, &victim->l->lock);
 
-    DEQUE_LOG("(w: %i) adding resumable free deque %p to resumables\n",
-            w->self, deque_to_resume);
+    DEQUE_LOG("(w: %i) adding resumable free deque %p to resumables for %i\n",
+            w->self, deque_to_resume, victim->self);
   }
 
 }

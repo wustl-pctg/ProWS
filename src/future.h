@@ -102,8 +102,8 @@ public:
         void *deque = node->deque;
         assert(deque);
 
-        __cilkrts_resume_suspended(deque, 1); 
-        //__cilkrts_make_resumable(deque);
+        //__cilkrts_resume_suspended(deque, 1); 
+        __cilkrts_make_resumable(deque);
 
         assert(m_gets != node->next);
         m_gets = node->next;

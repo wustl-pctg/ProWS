@@ -64,6 +64,7 @@ private:
   volatile T m_result;
 
   pthread_mutex_t m_acquires_lock;
+  pthread_mutex_t do_not_destroy;
   __touch_node *m_gets;
   
 public:
@@ -74,15 +75,20 @@ public:
     m_gets->next = NULL;
     m_gets->deque = NULL;
     pthread_mutex_init(&m_acquires_lock, NULL);
+    pthread_mutex_init(&do_not_destroy, NULL);
   };
 
   ~future() {
     pthread_mutex_destroy(&m_acquires_lock);
+    pthread_mutex_lock(&do_not_destroy);
+    pthread_mutex_unlock(&do_not_destroy);
+    pthread_mutex_destroy(&do_not_destroy);
     delete m_gets;
     m_gets = NULL;
   }
 
   void* put(T result) {
+    pthread_mutex_lock(&do_not_destroy);
     assert(m_status != status::DONE);
     m_result = result;
 
@@ -119,6 +125,7 @@ public:
         m_gets = m_gets->next;
         delete node;
     }
+    pthread_mutex_unlock(&do_not_destroy);
     return ret;
   };
 

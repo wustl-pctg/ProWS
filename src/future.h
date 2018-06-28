@@ -9,6 +9,8 @@
 #include <internal/abi.h>
 #include <pthread.h>
 
+#define MAX_TOUCHES (10)
+
 //#ifndef cilk_spawn_future
 //  #define cilk_spawn_future cilk_spawn
 //#endif
@@ -106,36 +108,39 @@ public:
     // suspending its own deque before proceeding.
     pthread_mutex_lock(&m_acquires_lock);
     m_status = status::DONE;
+    __touch_node *touches = m_gets;
+    m_gets = NULL;
     pthread_mutex_unlock(&m_acquires_lock);
+    pthread_mutex_unlock(&do_not_destroy);
 
     // Resume all but the last deque from here;
     // The last deque is returned and resumed from
     // outside the future class.
-    while (m_gets->next && m_gets->next->next) {
-
-        __touch_node *node = m_gets;
+    __touch_node *node;
+    while (touches->next && touches->next->next) {
+        node = touches;
 
         void *deque = node->deque;
         assert(deque);
 
-        //__cilkrts_resume_suspended(deque, 1); 
         __cilkrts_make_resumable(deque);
 
-        assert(m_gets != node->next);
-        m_gets = node->next;
+        assert(touches != node->next);
+        touches = node->next;
 
-        assert(m_gets);
+        assert(touches);
 
         delete node;
     }
 
-    void *ret = m_gets->deque;
-    if (m_gets->next) {
-        __touch_node *node = m_gets;
-        m_gets = m_gets->next;
-        delete node;
+    void *ret = touches->deque;
+    if (touches->next) {
+        //__touch_node *node = touches;
+        //touches = touches->next;
+        //delete node;
+        delete touches->next;
     }
-    pthread_mutex_unlock(&do_not_destroy);
+    delete touches;
     return ret;
   };
 

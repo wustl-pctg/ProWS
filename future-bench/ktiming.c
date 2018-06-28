@@ -31,6 +31,7 @@
 
 #include "./ktiming.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -82,7 +83,7 @@ print_runtime_helper(uint64_t *usec_elapsed, int size, int summary) {
             dev_sq_sum += ( (ave - (double)usec_elapsed[i]) * 
                             (ave - (double)usec_elapsed[i]) );
         }
-        std_dev = dev_sq_sum / (size-1);
+        std_dev = sqrt(dev_sq_sum / (size-1));
     }
 
     printf("Running time average: %g s\n", USEC_TO_SEC(ave));

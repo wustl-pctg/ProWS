@@ -67,80 +67,53 @@ private:
     DONE, // strand has finished execution
   };
 
-  typedef struct __touch_node {
-    struct __touch_node *next;
-    void *deque;
-  } __touch_node;
-
   volatile status m_status;
   volatile T m_result;
 
-  pthread_mutex_t m_acquires_lock;
-  pthread_mutex_t do_not_destroy;
-  __touch_node *m_gets;
+  pthread_mutex_t m_touches_lock = PTHREAD_MUTEX_INITIALIZER;
+  void** m_suspended_deques;
+  int m_num_suspended_deques;
   
 public:
 
  future() {
+    m_num_suspended_deques = 0;
     m_status = status::CREATED;
-    m_gets = new __touch_node();
-    m_gets->next = NULL;
-    m_gets->deque = NULL;
-    pthread_mutex_init(&m_acquires_lock, NULL);
-    pthread_mutex_init(&do_not_destroy, NULL);
+    m_suspended_deques = new void*[MAX_TOUCHES]();
+    m_suspended_deques[0] = NULL;
   };
 
   ~future() {
-    pthread_mutex_destroy(&m_acquires_lock);
-    pthread_mutex_lock(&do_not_destroy);
-    pthread_mutex_unlock(&do_not_destroy);
-    pthread_mutex_destroy(&do_not_destroy);
-    delete m_gets;
-    m_gets = NULL;
+    assert(this->ready());
+    // Make sure we don't delete in the middle of a put
+    pthread_mutex_lock(&m_touches_lock);
+    pthread_mutex_unlock(&m_touches_lock);
+    pthread_mutex_destroy(&m_touches_lock);
+    assert(m_suspended_deques == NULL);
   }
 
   void* put(T result) {
-    pthread_mutex_lock(&do_not_destroy);
     assert(m_status != status::DONE);
     m_result = result;
 
     // Make sure no worker is in the middle of
     // suspending its own deque before proceeding.
-    pthread_mutex_lock(&m_acquires_lock);
-    m_status = status::DONE;
-    __touch_node *touches = m_gets;
-    m_gets = NULL;
-    pthread_mutex_unlock(&m_acquires_lock);
-    pthread_mutex_unlock(&do_not_destroy);
+    pthread_mutex_lock(&m_touches_lock);
+      m_status = status::DONE;
+      void** suspended_deques = m_suspended_deques;
+      m_suspended_deques = NULL;
+      int num_suspended_deques = m_num_suspended_deques;
+      m_num_suspended_deques = 0;
+    pthread_mutex_unlock(&m_touches_lock);
 
-    // Resume all but the last deque from here;
-    // The last deque is returned and resumed from
-    // outside the future class.
-    __touch_node *node;
-    while (touches->next && touches->next->next) {
-        node = touches;
-
-        void *deque = node->deque;
-        assert(deque);
-
-        __cilkrts_make_resumable(deque);
-
-        assert(touches != node->next);
-        touches = node->next;
-
-        assert(touches);
-
-        delete node;
+    
+    for (int i = 1; i < num_suspended_deques; i++) {
+        __cilkrts_make_resumable(suspended_deques[i]);
     }
+    void *ret = suspended_deques[0];
 
-    void *ret = touches->deque;
-    if (touches->next) {
-        //__touch_node *node = touches;
-        //touches = touches->next;
-        //delete node;
-        delete touches->next;
-    }
-    delete touches;
+    delete [] suspended_deques;
+
     return ret;
   };
 
@@ -150,28 +123,18 @@ public:
   } 
 
   T get() {
-    // TODO: Treat this the same way spin locks are handled.
-    // TODO: For a first pass, could just USE the spinlocks?
-    // TODO: (take the lock on create, then try to take on get?)
-    //while (!this->ready());
     if (!this->ready()) {
-        pthread_mutex_lock(&m_acquires_lock);
-        //m_acquires_lock.lock();
+        pthread_mutex_lock(&m_touches_lock);
 
         if (!this->ready()) {
             void *deque = __cilkrts_get_deque();
             assert(deque);
-            __touch_node *touch = new __touch_node();
-            assert(touch);
-            touch->deque = deque;
-            assert(touch->deque);
-            assert(m_gets);
-            touch->next = m_gets;
-            m_gets = touch;
-            pthread_mutex_unlock(&m_acquires_lock);
+            assert(m_num_suspended_deques < MAX_TOUCHES);
+            m_suspended_deques[m_num_suspended_deques++] = deque;
+            pthread_mutex_unlock(&m_touches_lock);
             __cilkrts_suspend_deque();
         } else {
-            pthread_mutex_unlock(&m_acquires_lock);
+            pthread_mutex_unlock(&m_touches_lock);
         }
 
     }

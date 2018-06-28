@@ -5,7 +5,7 @@
 #include "../src/future.h"
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 1 
+#define TIMES_TO_RUN 3 
 #endif
 
 /* 

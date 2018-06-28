@@ -211,7 +211,7 @@ int main(int argc, char** argv) {
     printf("\n\n\n*****Simple Future Phase I Syncing*****\n\n\n");
 
     // TODO: Right now there is only single touch; these would cause us to hang.
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 8; i++) {
         cilk_spawn thread2();
     }
     assert(__cilkrts_get_tls_worker() != NULL);

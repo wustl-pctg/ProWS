@@ -89,7 +89,7 @@ CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, c
 }
 
 CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
-    __cilkrts_worker* curr_worker = __cilkrts_get_tls_worker();
+    __cilkrts_worker* curr_worker = first_frame->worker;
     cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
     // TODO: Handle the case that it is null more gracefully
     CILK_ASSERT(new_exec_fiber != NULL);
@@ -150,16 +150,6 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
-    // At one point this wasn't true. Fixed a bug in cilk-abi.c that set the owner when it should not have.
-    CILK_ASSERT(NULL == cilk_fiber_get_data(__cilkrts_get_tls_worker()->l->scheduling_fiber)->owner);
-
-    // Just me being paranoid...
-    CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
-
-    __cilkrts_worker *w = __cilkrts_get_tls_worker();
-    full_frame *ff = NULL;
-    __cilkrts_stack_frame *ff_call_stack = NULL;
-
     __CILK_JUMP_BUFFER ctx_bkup;
     volatile int done = 0;
     if(!CILK_SETJMP(sf.ctx)) { 
@@ -169,18 +159,16 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     } else {
         // This SHOULD occur after switching fibers; steal from here
         if (!done) {
-            cilkg_increment_pending_futures(__cilkrts_get_tls_worker()->g);
+            cilkg_increment_pending_futures(sf.worker->g);
             memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
             done = 1;
             __spawn_future_helper(std::move(func));
-            CILK_ASSERT((sf.flags & CILK_FRAME_STOLEN) == 0);
             
-            __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker();
+            __cilkrts_worker *curr_worker = sf.worker;
             // Return to the original fiber
             __cilkrts_worker_lock(curr_worker);
             full_frame *frame = *curr_worker->l->frame_ff;
             __cilkrts_frame_lock(curr_worker, frame);
-                CILK_ASSERT(frame->future_fibers_head && "The head is null for some reason...");
                 cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
                 cilk_fiber *prev_fiber;
                 if (frame->future_fibers_tail) {
@@ -193,8 +181,6 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
             
             __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
         }
-        CILK_ASSERT(done);
-        CILK_ASSERT(sf.flags & CILK_FRAME_STOLEN);
     }
 
     // TODO: Rework it so we don't do this on futures
@@ -202,13 +188,11 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         if (!CILK_SETJMP(sf.ctx)) {
             __cilkrts_future_sync(&sf);
         }
-        //__cilkrts_rethrow(&sf);
-        update_pedigree_after_sync(&sf);
     }
 
-    __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker();
+    __cilkrts_worker *curr_worker = sf.worker;
     __cilkrts_worker_lock(curr_worker);
-    ff = *curr_worker->l->frame_ff;
+    full_frame *ff = *curr_worker->l->frame_ff;
     __cilkrts_frame_lock(curr_worker, ff);
 
     cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;

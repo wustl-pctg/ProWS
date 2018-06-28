@@ -71,7 +71,7 @@ private:
   volatile T m_result;
 
   pthread_mutex_t m_touches_lock = PTHREAD_MUTEX_INITIALIZER;
-  void** m_suspended_deques;
+  void* m_suspended_deques[MAX_TOUCHES];
   int m_num_suspended_deques;
   
 public:
@@ -79,7 +79,7 @@ public:
  future() {
     m_num_suspended_deques = 0;
     m_status = status::CREATED;
-    m_suspended_deques = new void*[MAX_TOUCHES]();
+    //m_suspended_deques = new void*[MAX_TOUCHES]();
     m_suspended_deques[0] = NULL;
   };
 
@@ -89,7 +89,7 @@ public:
     pthread_mutex_lock(&m_touches_lock);
     pthread_mutex_unlock(&m_touches_lock);
     pthread_mutex_destroy(&m_touches_lock);
-    assert(m_suspended_deques == NULL);
+    //assert(m_suspended_deques == NULL);
   }
 
   void* put(T result) {
@@ -99,20 +99,26 @@ public:
     // Make sure no worker is in the middle of
     // suspending its own deque before proceeding.
     pthread_mutex_lock(&m_touches_lock);
-      m_status = status::DONE;
-      void** suspended_deques = m_suspended_deques;
-      m_suspended_deques = NULL;
-      int num_suspended_deques = m_num_suspended_deques;
-      m_num_suspended_deques = 0;
+    m_status = status::DONE;
+    void* suspended_deques[MAX_TOUCHES];
+    suspended_deques[0] = NULL;
+    for (int i = 0; i < m_num_suspended_deques; i++) {
+        suspended_deques[i] = m_suspended_deques[i];
+    }
+    int num_suspended_deques = m_num_suspended_deques;
     pthread_mutex_unlock(&m_touches_lock);
+      //void** suspended_deques = m_suspended_deques;
+      //m_suspended_deques = NULL;
+      //int num_suspended_deques = m_num_suspended_deques;
+      //m_num_suspended_deques = 0;
 
     
+    void *ret = suspended_deques[0];
     for (int i = 1; i < num_suspended_deques; i++) {
         __cilkrts_make_resumable(suspended_deques[i]);
     }
-    void *ret = suspended_deques[0];
 
-    delete [] suspended_deques;
+    //delete [] suspended_deques;
 
     return ret;
   };

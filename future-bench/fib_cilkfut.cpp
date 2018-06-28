@@ -39,8 +39,7 @@ int run(int n, uint64_t *running_time) {
 
     for(int i = 0; i < TIMES_TO_RUN; i++) {
         begin = ktiming_getmark();
-        res = cilk_spawn fib(n);
-        cilk_sync;
+        res = fib(n);
         end = ktiming_getmark();
         running_time[i] = ktiming_diff_usec(&begin, &end);
     }

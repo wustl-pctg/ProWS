@@ -438,7 +438,7 @@ CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf) {
 
 	/* Must return normally if (1) the active function was called
 		 and not spawned, or (2) the parent has never been stolen. */
-	if ((sf->flags & CILK_FRAME_DETACHED)) {
+	//if ((sf->flags & CILK_FRAME_DETACHED)) {
 		/*        DBGPRINTF("%d - __cilkrts_leave_frame - CILK_FRAME_DETACHED\n", w->self); */
 
 #ifndef _WIN32
@@ -475,16 +475,16 @@ CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf) {
 										w->self, sf->flags);
 
 		return;
-	}
+	//}
 
-#if CILK_LIB_DEBUG
-	sf->flags |= CILK_FRAME_EXITING;
-#endif
+//#if CILK_LIB_DEBUG
+//	sf->flags |= CILK_FRAME_EXITING;
+//#endif
 
-	if (__builtin_expect(sf->flags & CILK_FRAME_LAST, 0))
-		__cilkrts_c_return_from_initial(w); /* does return */
-	else if (sf->flags & CILK_FRAME_STOLEN)
-		__cilkrts_return(w); /* does return */
+//	if (__builtin_expect(sf->flags & CILK_FRAME_LAST, 0))
+//		__cilkrts_c_return_from_initial(w); /* does return */
+//	else if (sf->flags & CILK_FRAME_STOLEN)
+//		__cilkrts_return(w); /* does return */
 
 	/*    DBGPRINTF("%d-%p __cilkrts_leave_frame - returning, StackBase: %p\n", w->self, GetWorkerFiber(w)); */
 }

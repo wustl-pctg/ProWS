@@ -52,7 +52,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # Compiler and linker flags.
 GENERAL_FLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/runtime -I$(top_srcdir)/runtime/config/$(config_dir) -I$(top_srcdir)/runtime/sslib -DIN_CILK_RUNTIME=1
-GENERAL_FLAGS += -fpic -O0 
+GENERAL_FLAGS += -fpic -O3 
 
 # Enable Intel Cilk Plus extension
 GENERAL_FLAGS += -fcilkplus
@@ -63,6 +63,12 @@ AM_LDFLAGS = $(XLDFLAGS)
 
 # Target list.
 lib_LTLIBRARIES = libcilkrts.la
+
+# Future needs special flags
+libcilkrts_la_LIBADD = libfutureabi.la
+noinst_LTLIBRARIES = libfutureabi.la
+libfutureabi_la_SOURCES = runtime/cilk-abi-future.cpp
+libfutureabi_la_CPPFLAGS= $(GENERAL_FLAGS) -std=c++11 -fno-omit-frame-pointer
 
 libcilkrts_la_SOURCES =            \
   runtime/config/$(config_dir)/cilk-abi-vla.c           \
@@ -82,9 +88,9 @@ libcilkrts_la_SOURCES =            \
   runtime/sslib/strnlen_s.c           \
   runtime/bug.cpp                  \
   runtime/cilk-abi.c               \
-  runtime/cilk-abi-future.cpp      \
   runtime/modified-future-sync.cpp \
   runtime/modified-future-leave-frame.cpp \
+  runtime/cilk-abi-future_utils.cpp \
   runtime/cilk-abi-cilk-for.cpp    \
   runtime/cilk-abi-vla-internal.c  \
   runtime/cilk_api.c               \

@@ -120,9 +120,6 @@ void longjmp(jmp_buf, int);
 #   define ASSERT_WORKER_LOCK_OWNED(w)
 #endif // DEBUG_LOCKS
 
-// KYLE_TODO: Remove this...
-unsigned long ZERO = 0;
-
 // Options for the scheduler.
 enum schedule_t { SCHEDULE_RUN,
                   SCHEDULE_WAIT,

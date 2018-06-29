@@ -494,12 +494,8 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     { // d is no longer accessible
 
       CILK_ASSERT(d->frame_ff);
-      if (d->frame_ff->future_fibers_tail) {
-        //printf("deque is a future?\n");
-        fiber = d->frame_ff->future_fibers_tail->fiber;
-        //printf("dequeued deque future fiber?\n");
-        //printf("Fiber is future fiber\n");
-      } else {
+      fiber = __cilkrts_peek_tail_future_fiber(d->frame_ff);
+      if (!fiber) {
         //printf("Fiber is fiber self\n");
         fiber = d->frame_ff->fiber_self;
       }

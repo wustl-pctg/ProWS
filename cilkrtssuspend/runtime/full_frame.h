@@ -160,9 +160,18 @@ typedef struct full_frame full_frame;
  *     A field used explicitly for synchronization (i.e., locks).
  */
 
+// WARNING: Changing fibers per node to a something other than
+//          a power of 2 will cause indexing issues on the queue
+//          of fibers, as a bitmask is used rather than modulo.
+#define FIBERS_PER_NODE (0x20)
+#define FIBERS_BITMASK  (0x1F)
+
 typedef struct future_node {
     struct future_node *prev;
-    cilk_fiber *fiber;
+    int size;
+    int head;
+    int tail;
+    cilk_fiber *fibers[FIBERS_PER_NODE];
     struct future_node *next;
 } future_node;
 
@@ -378,6 +387,7 @@ struct full_frame
 void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber);
 cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff);
 cilk_fiber* __cilkrts_pop_head_future_fiber(full_frame *ff);
+cilk_fiber* __cilkrts_peek_tail_future_fiber(full_frame *ff);
 
 /* The functions __cilkrts_put_stack and __cilkrts_take_stack keep track of
  * changes in the stack's depth between when the point at which a frame is

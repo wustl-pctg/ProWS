@@ -101,21 +101,33 @@ full_frame *__cilkrts_make_full_frame(__cilkrts_worker *w,
 }
 
 void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber) {
-    future_node *node = (future_node*) __cilkrts_malloc(sizeof(future_node));
+    future_node *node;
+    // If we need to insert a new node...
+    if (ff->future_fibers_tail == NULL || ff->future_fibers_tail->size == FIBERS_PER_NODE) {
+        node = (future_node*) __cilkrts_malloc(sizeof(future_node));
+        node->prev = ff->future_fibers_tail;
+        node->next = NULL;
+        node->head = 0;
+        node->tail = 0;
+        node->size = 0;
+
+        if (ff->future_fibers_head == NULL) {
+            CILK_ASSERT(ff->future_fibers_tail == NULL);
+            ff->future_fibers_head = node;
+        } else {
+            CILK_ASSERT(ff->future_fibers_tail);
+            ff->future_fibers_tail->next = node;
+        }
+
+        ff->future_fibers_tail = node;
+    } else {
+        node = ff->future_fibers_tail;
+    }
     CILK_ASSERT(node);
 
-    node->fiber = fiber;
-    node->prev = ff->future_fibers_tail;
-    node->next = NULL;
-
-    if (ff->future_fibers_head == NULL) {
-        CILK_ASSERT(ff->future_fibers_tail == NULL);
-        ff->future_fibers_head = node;
-    } else {
-        CILK_ASSERT(ff->future_fibers_tail);
-        ff->future_fibers_tail->next = node;
-    }
-    ff->future_fibers_tail = node;
+    node->fibers[node->tail] = fiber;
+    node->tail = (node->tail + 1) & FIBERS_BITMASK;
+    node->size++;
 }
 
 cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff) {
@@ -123,18 +135,18 @@ cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff) {
     CILK_ASSERT(ff->future_fibers_tail);
 
     future_node *node = ff->future_fibers_tail;
-    ff->future_fibers_tail = node->prev;
-    // We popped the last item; head and tail should be null.
-    if (node == ff->future_fibers_head) {
-        CILK_ASSERT(ff->future_fibers_tail == NULL);
-        ff->future_fibers_head = NULL;
-    } else {
-        CILK_ASSERT(ff->future_fibers_tail != NULL);
+    CILK_ASSERT(node->size > 0);
+
+    node->tail = (node->tail - 1) & FIBERS_BITMASK;
+    cilk_fiber *fiber = node->fibers[node->tail];
+    node->size--;
+
+    if (node != ff->future_fibers_head && node->size == 0) {
+        ff->future_fibers_tail = node->prev;
         ff->future_fibers_tail->next = NULL;
+        __cilkrts_free(node);
     }
 
-    cilk_fiber *fiber = node->fiber;
-    __cilkrts_free(node);
     return fiber;
 }
 
@@ -142,19 +154,29 @@ cilk_fiber* __cilkrts_pop_head_future_fiber(full_frame *ff) {
     CILK_ASSERT(ff->future_fibers_head);
 
     future_node *node = ff->future_fibers_head;
-    ff->future_fibers_head = node->next;
+
+    CILK_ASSERT(node->size > 0);
+
+    cilk_fiber *fiber = node->fibers[node->head];
+    node->head = (node->head + 1) & FIBERS_BITMASK;
+    node->size--;
+    //ff->future_fibers_head = node->next;
     // We popped the last item; head and tail should be null.
-    if (node == ff->future_fibers_tail) {
-        CILK_ASSERT(ff->future_fibers_head == NULL);
-        ff->future_fibers_tail = NULL;
-    } else {
-        CILK_ASSERT(ff->future_fibers_head != NULL);
+    if (node != ff->future_fibers_tail && node->size == 0) {
+        ff->future_fibers_head = node->next;
         ff->future_fibers_head->prev = NULL;
+        __cilkrts_free(node);
     }
 
-    cilk_fiber *fiber = node->fiber;
-    __cilkrts_free(node);
     return fiber;
+}
+
+cilk_fiber* __cilkrts_peek_tail_future_fiber(full_frame *ff) {
+    if (ff->future_fibers_tail && ff->future_fibers_tail->size > 0) {
+        return ff->future_fibers_tail->fibers[(ff->future_fibers_tail->tail - 1)&FIBERS_BITMASK];
+    } else {
+        return NULL;
+    }
 }
 
 COMMON_PORTABLE void __cilkrts_put_stack(full_frame *ff,
@@ -228,6 +250,12 @@ void __cilkrts_destroy_full_frame(__cilkrts_worker *w, full_frame *ff)
     CILK_ASSERT(NULL == ff->child_pending_exception);
     CILK_ASSERT(NULL == ff->right_pending_exception);
     __cilkrts_mutex_destroy(w, &ff->lock);
+    if (ff->future_fibers_tail) {
+        CILK_ASSERT(ff->future_fibers_tail == ff->future_fibers_head);
+        CILK_ASSERT(ff->future_fibers_tail->head == ff->future_fibers_tail->tail);
+        __cilkrts_free(ff->future_fibers_tail);
+        ff->future_fibers_tail = ff->future_fibers_head = NULL;
+    }
     __cilkrts_frame_free(w, ff, sizeof(*ff));
 }
 

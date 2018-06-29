@@ -92,7 +92,7 @@ public:
     //assert(m_suspended_deques == NULL);
   }
 
-  void* put(T result) {
+  void* __attribute__((always_inline)) put(T result) {
     assert(m_status != status::DONE);
     m_result = result;
 
@@ -117,12 +117,12 @@ public:
     return ret;
   };
 
-  bool ready() {
+  bool __attribute__((always_inline)) ready() {
     // If the status is done, then the value is ready.
     return m_status==status::DONE;
   } 
 
-  T get() {
+  T __attribute__((always_inline)) get() {
     if (!this->ready()) {
         pthread_spin_lock(&m_touches_lock);
 

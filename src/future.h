@@ -70,7 +70,7 @@ private:
   volatile status m_status;
   volatile T m_result;
 
-  pthread_mutex_t m_touches_lock = PTHREAD_MUTEX_INITIALIZER;
+  pthread_spinlock_t m_touches_lock;
   void* m_suspended_deques[MAX_TOUCHES];
   int m_num_suspended_deques;
   
@@ -79,16 +79,16 @@ public:
  future() {
     m_num_suspended_deques = 0;
     m_status = status::CREATED;
-    //m_suspended_deques = new void*[MAX_TOUCHES]();
+    pthread_spin_init(&m_touches_lock, 0);
     m_suspended_deques[0] = NULL;
   };
 
   ~future() {
     assert(this->ready());
     // Make sure we don't delete in the middle of a put
-    pthread_mutex_lock(&m_touches_lock);
-    pthread_mutex_unlock(&m_touches_lock);
-    pthread_mutex_destroy(&m_touches_lock);
+    pthread_spin_lock(&m_touches_lock);
+    pthread_spin_unlock(&m_touches_lock);
+    pthread_spin_destroy(&m_touches_lock);
     //assert(m_suspended_deques == NULL);
   }
 
@@ -98,7 +98,7 @@ public:
 
     // Make sure no worker is in the middle of
     // suspending its own deque before proceeding.
-    pthread_mutex_lock(&m_touches_lock);
+    pthread_spin_lock(&m_touches_lock);
     m_status = status::DONE;
     void* suspended_deques[MAX_TOUCHES];
     suspended_deques[0] = NULL;
@@ -106,19 +106,13 @@ public:
         suspended_deques[i] = m_suspended_deques[i];
     }
     int num_suspended_deques = m_num_suspended_deques;
-    pthread_mutex_unlock(&m_touches_lock);
-      //void** suspended_deques = m_suspended_deques;
-      //m_suspended_deques = NULL;
-      //int num_suspended_deques = m_num_suspended_deques;
-      //m_num_suspended_deques = 0;
-
+    pthread_spin_unlock(&m_touches_lock);
     
+    // make resumable can be heavy, so keep it outside the lock
     void *ret = suspended_deques[0];
     for (int i = 1; i < num_suspended_deques; i++) {
         __cilkrts_make_resumable(suspended_deques[i]);
     }
-
-    //delete [] suspended_deques;
 
     return ret;
   };
@@ -130,17 +124,17 @@ public:
 
   T get() {
     if (!this->ready()) {
-        pthread_mutex_lock(&m_touches_lock);
+        pthread_spin_lock(&m_touches_lock);
 
         if (!this->ready()) {
             void *deque = __cilkrts_get_deque();
             assert(deque);
             assert(m_num_suspended_deques < MAX_TOUCHES);
             m_suspended_deques[m_num_suspended_deques++] = deque;
-            pthread_mutex_unlock(&m_touches_lock);
+            pthread_spin_unlock(&m_touches_lock);
             __cilkrts_suspend_deque();
         } else {
-            pthread_mutex_unlock(&m_touches_lock);
+            pthread_spin_unlock(&m_touches_lock);
         }
 
     }

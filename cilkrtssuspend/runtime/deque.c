@@ -247,12 +247,14 @@ void detach_for_steal(__cilkrts_worker *w,
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
 
-    child_ff->future_fibers_tail = parent_ff->future_fibers_tail;
-    parent_ff->future_fibers_tail = NULL;
-    child_ff->future_fibers_head = parent_ff->future_fibers_head;
-    parent_ff->future_fibers_head = NULL;
 
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
+
+      child_ff->future_fibers_tail = parent_ff->future_fibers_tail;
+      parent_ff->future_fibers_tail = NULL;
+      child_ff->future_fibers_head = parent_ff->future_fibers_head;
+      parent_ff->future_fibers_head = NULL;
+
       /* install child in the victim's work queue, taking
          the parent_ff's place */
       /* child is referenced by victim */

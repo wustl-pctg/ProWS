@@ -142,6 +142,7 @@ cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff) {
     node->size--;
 
     if (node != ff->future_fibers_head && node->size == 0) {
+        CILK_ASSERT(node->prev);
         ff->future_fibers_tail = node->prev;
         ff->future_fibers_tail->next = NULL;
         __cilkrts_free(node);
@@ -163,6 +164,7 @@ cilk_fiber* __cilkrts_pop_head_future_fiber(full_frame *ff) {
     //ff->future_fibers_head = node->next;
     // We popped the last item; head and tail should be null.
     if (node != ff->future_fibers_tail && node->size == 0) {
+        CILK_ASSERT(node->next);
         ff->future_fibers_head = node->next;
         ff->future_fibers_head->prev = NULL;
         __cilkrts_free(node);

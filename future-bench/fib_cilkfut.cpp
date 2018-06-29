@@ -58,7 +58,8 @@ int main(int argc, char * args[]) {
     
     n = atoi(args[1]);
 
-    int res = cilk_spawn run(n, running_time);
+    int res = 0;
+    res = cilk_spawn run(n, running_time);
     cilk_sync;
 
     printf("Result: %d\n", res);

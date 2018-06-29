@@ -6,3 +6,6 @@ cbt
 cilkfor
 libcilkrr.a
 Makefile.mine
+fib_cilkfut
+fib_cilkpus
+handcomp_fib_cilkplus

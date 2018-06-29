@@ -17,6 +17,11 @@ fib-fut:
 	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/runtime/config/x86 -I/home/kdsinger/porridge/cilkrtssuspend/runtime/sslib -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c fib_cilkfut.cpp -o fib_cilkfut.o
 	$(CXX) fib_cilkfut.o ktiming.o -o fib_cilkfut /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
+fib-handcomp:
+	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
+	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/runtime/config/x86 -I/home/kdsinger/porridge/cilkrtssuspend/runtime/sslib -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+
 qsort: qsort.cpp
 	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c qsort.cpp -o qsort.o
 	$(CXX) qsort.o -o qsort /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt

@@ -16,7 +16,7 @@
 #include "../src/future.h"
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 1 
+#define TIMES_TO_RUN 3 
 #endif
 
 /* 
@@ -27,8 +27,6 @@
  */
 
 void fib_fut(cilk::future<int>& f, int n);
-
-extern unsigned long ZERO;
 
 extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
@@ -49,7 +47,7 @@ extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_f
 }
 
 int fib(int n) {
-    int* dummy = (int*) alloca(ZERO);
+    //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
 
@@ -65,35 +63,35 @@ int fib(int n) {
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
     __cilkrts_worker *w = sf.worker;
      
-    __CILK_JUMP_BUFFER ctx_bkup;
-    volatile int done = 0;
+    //__CILK_JUMP_BUFFER ctx_bkup;
+    //volatile int done = 0;
 
     if (!CILK_SETJMP(sf.ctx)) {
-        memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));
-        __cilkrts_switch_fibers(&sf);
-    } else {
-        if (!done) {
+        //memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));
+        //__cilkrts_switch_fibers(&sf);
+    //} else {
+        //if (!done) {
             cilkg_increment_pending_futures(sf.worker->g);
-            memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
-            done = 1;
+            //memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
+            //done = 1;
             fib_fut(x_fut, n-1);
 
-            __cilkrts_worker *curr_worker = sf.worker;
-            __cilkrts_worker_lock(curr_worker);
-            full_frame *frame = *curr_worker->l->frame_ff;
-            __cilkrts_frame_lock(curr_worker, frame);
-                cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
-                cilk_fiber *prev_fiber;
-                if (frame->future_fibers_tail) {
-                    prev_fiber = frame->future_fibers_tail->fiber;
-                } else {
-                    prev_fiber = frame->fiber_self;
-                }
-            __cilkrts_frame_unlock(curr_worker, frame);
-            __cilkrts_worker_unlock(curr_worker);
+            //__cilkrts_worker *curr_worker = sf.worker;
+            //__cilkrts_worker_lock(curr_worker);
+            //full_frame *frame = *curr_worker->l->frame_ff;
+            //__cilkrts_frame_lock(curr_worker, frame);
+            //    cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
+            //    cilk_fiber *prev_fiber;
+            //    if (frame->future_fibers_tail) {
+            //        prev_fiber = frame->future_fibers_tail->fiber;
+            //    } else {
+            //        prev_fiber = frame->fiber_self;
+            //    }
+            //__cilkrts_frame_unlock(curr_worker, frame);
+            //__cilkrts_worker_unlock(curr_worker);
 
-            __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
-        }
+            //__cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
+        //}
     }
 
     if (sf.flags & CILK_FRAME_UNSYNCHED) {
@@ -102,15 +100,15 @@ int fib(int n) {
         }
     }
 
-    __cilkrts_worker *curr_worker = sf.worker;
-    __cilkrts_worker_lock(curr_worker);
-    full_frame *ff = *curr_worker->l->frame_ff;
-    __cilkrts_frame_lock(curr_worker, ff);
+    //__cilkrts_worker *curr_worker = sf.worker;
+    //__cilkrts_worker_lock(curr_worker);
+    //full_frame *ff = *curr_worker->l->frame_ff;
+    //__cilkrts_frame_lock(curr_worker, ff);
 
-    cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;
+    //cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;
 
-    __cilkrts_frame_unlock(curr_worker, ff);
-    __cilkrts_worker_unlock(curr_worker);
+    //__cilkrts_frame_unlock(curr_worker, ff);
+    //__cilkrts_worker_unlock(curr_worker);
     //cilk_future_create__stack(int, x_fut, fib, n-1);
     //x =  fib(n - 1);
     y = fib(n - 2);
@@ -123,7 +121,7 @@ int fib(int n) {
 }
 
 void fib_fut(cilk::future<int>& f, int n) {
-    int* dummy = (int*) alloca(ZERO);
+    //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
@@ -135,7 +133,7 @@ void fib_fut(cilk::future<int>& f, int n) {
 }
 
 void fib_helper(int* res, int n) {
-    int* dummy = (int*) alloca(ZERO);
+    //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
@@ -147,7 +145,7 @@ void fib_helper(int* res, int n) {
 }
 
 int run(int n, uint64_t *running_time) {
-    int* dummy = (int*) alloca(ZERO);
+    //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame(&sf);
     int res;

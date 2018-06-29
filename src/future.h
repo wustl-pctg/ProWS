@@ -2,23 +2,12 @@
 #define __CILK__FUTURE_H__
 
 #include <assert.h>
-//#include "cilk/cilk.h"
 #include <functional>
-//#include "spinlock.h"
 #include <vector>
 #include <internal/abi.h>
 #include <pthread.h>
 
 #define MAX_TOUCHES (10)
-
-//#ifndef cilk_spawn_future
-//  #define cilk_spawn_future cilk_spawn
-//#endif
-
-//__attribute__((weak)) void __cilk_spawn_future(std::function<void()> func) {
-//  std::cout << "Using the dummy future spawn!!! cilk_sync will wait for it to complete :(" << std::endl;
-//  cilk_spawn func();
-//}
 
 extern "C" {
     void __spawn_future_helper_helper(std::function<void(void)>);
@@ -84,12 +73,10 @@ public:
   };
 
   ~future() {
-    assert(this->ready());
     // Make sure we don't delete in the middle of a put
     pthread_spin_lock(&m_touches_lock);
     pthread_spin_unlock(&m_touches_lock);
     pthread_spin_destroy(&m_touches_lock);
-    //assert(m_suspended_deques == NULL);
   }
 
   void* __attribute__((always_inline)) put(T result) {

@@ -24,6 +24,8 @@ extern char* get_sp_for_executing_sf(char* stack_base,
                                      full_frame *ff,
                                      __cilkrts_stack_frame *sf);
 
+}
+
 static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
 
     cilk_fiber_data *data = cilk_fiber_get_data(fiber);
@@ -83,7 +85,7 @@ CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, c
 }
 
 CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
-    __cilkrts_worker* curr_worker = first_frame->worker;
+    __cilkrts_worker* curr_worker = __cilkrts_get_tls_worker_fast();
     cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
     // TODO: Handle the case that it is null more gracefully
     CILK_ASSERT(new_exec_fiber != NULL);
@@ -115,6 +117,4 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
         user_code_resume_after_switch_into_runtime(curr_fiber);
         CILK_ASSERT(! "We should not return here!");
     }
-}
-
 }

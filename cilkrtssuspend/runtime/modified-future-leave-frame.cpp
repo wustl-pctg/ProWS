@@ -397,6 +397,7 @@ CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf) {
 	//__cilkrts_worker *w = sf->worker;
 	__cilkrts_worker *w = __cilkrts_get_tls_worker();
     if (cilkg_decrement_pending_futures(w->g) == 0) {
+        CILK_ASSERT(w->g->exit_frame);
         __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
     }
 

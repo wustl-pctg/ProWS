@@ -9,9 +9,7 @@
 
 #define MAX_TOUCHES (10)
 
-extern "C" {
-    void __spawn_future_helper_helper(std::function<void(void)>);
-}
+extern void __spawn_future_helper_helper(std::function<void(void)>);
 
 namespace cilk {
 #define reuse_future(T,fut, loc,func,args...)  \

@@ -2610,7 +2610,7 @@ static void __cilkrts_unbind_thread()
         __cilkrts_cilkscreen_disable_instrumentation();
 }
 
-static void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *sf) {
+void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *sf) {
     w->g->exit_frame = ff;
 
     if (cilkg_decrement_pending_futures(w->g) == 0) {
@@ -2618,7 +2618,7 @@ static void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, 
     }
 }
 
-static void kyles_longjmp_into_runtime(__cilkrts_worker *w, scheduling_stack_fcn_t fcn, __cilkrts_stack_frame *sf) {
+void kyles_longjmp_into_runtime(__cilkrts_worker *w, scheduling_stack_fcn_t fcn, __cilkrts_stack_frame *sf) {
     full_frame *ff, *ff2;
 
     CILK_ASSERT(!w->l->post_suspend);
@@ -2642,23 +2642,7 @@ static void kyles_longjmp_into_runtime(__cilkrts_worker *w, scheduling_stack_fcn
     user_code_resume_after_switch_into_runtime(current_fiber);
 } 
 
-static void suspend_return_from_initial(__cilkrts_worker *w) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast(&sf);
-    sf.call_parent = NULL;
-    (*w->l->frame_ff)->call_stack = &sf;
-
-    if (!CILK_SETJMP(sf.ctx)) {
-        // KYLE_TODO: This function assumes there is a parent for the full frame!!!!
-        //            Also that the fiber has been "removed" from the full frame first.
-        __cilkrts_put_stack((*w->l->frame_ff), &sf);
-        kyles_longjmp_into_runtime(w, do_suspend_return_from_initial, &sf);
-    }
-
-    // Just pop; cilkrts_leave_frame would do nothing
-    // but check a bunch of branching conditions
-    __cilkrts_pop_frame(&sf);
-}
+extern void suspend_return_from_initial(__cilkrts_worker *w);
 
 /* special return from the initial frame */
 
@@ -2675,12 +2659,12 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     STOP_INTERVAL(w, INTERVAL_WORKING);
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
 
-    
     if (((*w->l->frame_ff)->sync_master && w != (*w->l->frame_ff)->sync_master) || w->g->pending_futures > 1) {
         // TODO: Technically this is safe as nothing else is pointing to it;
         //       however, there really should be a lock around it.
         (*w->l->frame_ff)->join_counter--; // Pushing a frame increments the join counter again, so preemptively undo it.
         suspend_return_from_initial(w);
+        __asm__ volatile ("" ::: "memory");
         w = __cilkrts_get_tls_worker();
     } else {
         cilkg_decrement_pending_futures(w->g);

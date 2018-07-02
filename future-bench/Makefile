@@ -8,14 +8,14 @@ APP = simple-future
 
 .PHONY = default
 default:
-	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c fib_cilkplus.cpp -o fib_cilkplus.o
-	$(CXX) fib_cilkplus.o ktiming.o -o fib_cilkplus /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
+	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c fib_cilkplus.cpp -o fib_cilkplus.o
+	$(CXX) -flto fib_cilkplus.o ktiming.o -o fib_cilkplus /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 fib-fut:
-	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/runtime/config/x86 -I/home/kdsinger/porridge/cilkrtssuspend/runtime/sslib -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c fib_cilkfut.cpp -o fib_cilkfut.o
-	$(CXX) fib_cilkfut.o ktiming.o -o fib_cilkfut /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
+	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/runtime/config/x86 -I/home/kdsinger/porridge/cilkrtssuspend/runtime/sslib -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c fib_cilkfut.cpp -o fib_cilkfut.o
+	$(CXX) -flto fib_cilkfut.o ktiming.o -o fib_cilkfut /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 fib-handcomp:
 	$(CXX) -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o

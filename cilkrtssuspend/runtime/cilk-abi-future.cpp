@@ -25,15 +25,19 @@ extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_f
 extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
 
 
-static CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper(std::function<void(void)> func) {
+static __cilkrts_worker* __attribute__((noinline)) __spawn_future_helper(std::function<void(void)> func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
 
         func();
 
+        __cilkrts_worker *curr_worker = sf.worker;
+
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_future_frame(&sf);
+
+    return curr_worker;
 }
 
 CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
@@ -43,28 +47,23 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
-    __CILK_JUMP_BUFFER ctx_bkup;
-    volatile int done = 0;
     if(!CILK_SETJMP(sf.ctx)) { 
-        // TODO: There should be a method that avoids this...
-        memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));
         __cilkrts_switch_fibers(&sf);
-    } else {
-        // This SHOULD occur after switching fibers; steal from here
-        if (!done) {
-            cilkg_increment_pending_futures(sf.worker->g);
-            memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
-            done = 1;
-            __spawn_future_helper(std::move(func));
+
+              // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
+    } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
+            // TODO: This can slow parallel code down a LOT
+            cilkg_increment_pending_futures((__cilkrts_get_tls_worker_fast())->g);
+            __cilkrts_worker *curr_worker = __spawn_future_helper(std::move(func));
+
+            //__cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
             
-            __cilkrts_worker *curr_worker = sf.worker;
             // Return to the original fiber
             __cilkrts_worker_lock(curr_worker);
             full_frame *frame = *curr_worker->l->frame_ff;
             __cilkrts_frame_lock(curr_worker, frame);
                 cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
-                cilk_fiber *prev_fiber;
-                prev_fiber = __cilkrts_peek_tail_future_fiber(frame);
+                cilk_fiber *prev_fiber = __cilkrts_peek_tail_future_fiber(frame);
                 if (!prev_fiber) {
                     prev_fiber = frame->fiber_self;
                 }
@@ -72,7 +71,6 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
             __cilkrts_worker_unlock(curr_worker);
             
             __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
-        }
     }
 
     // TODO: Rework it so we don't do this on futures
@@ -82,7 +80,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         }
     }
 
-    __cilkrts_worker *curr_worker = sf.worker;
+    __cilkrts_worker *curr_worker = sf.worker;//__cilkrts_get_tls_worker_fast();
     __cilkrts_worker_lock(curr_worker);
     full_frame *ff = *curr_worker->l->frame_ff;
     __cilkrts_frame_lock(curr_worker, ff);

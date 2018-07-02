@@ -163,8 +163,8 @@ typedef struct full_frame full_frame;
 // WARNING: Changing fibers per node to a something other than
 //          a power of 2 will cause indexing issues on the queue
 //          of fibers, as a bitmask is used rather than modulo.
-#define FIBERS_PER_NODE (0x20)
-#define FIBERS_BITMASK  (0x1F)
+#define FIBERS_PER_NODE (0x80)
+#define FIBERS_BITMASK  (0x7F)
 
 typedef struct future_node {
     struct future_node *prev;

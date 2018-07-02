@@ -37,6 +37,7 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     data->resume_sf = NULL;
     CILK_ASSERT(sf->worker == data->owner);
 
+    __cilkrts_worker_lock(sf->worker);
     ff = *(sf->worker->l->frame_ff);
 
     // For Win32, we need to overwrite the default exception handler
@@ -49,23 +50,26 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     // in this frame.
     
     {
+        __cilkrts_frame_lock(sf->worker, ff);
+        // TODO: We can just read ff->frame_size, unlock, and then run a modified version of this function
         char* new_sp = get_sp_for_executing_sf(cilk_fiber_get_stack_base(fiber), ff, sf);
-        SP(sf) = new_sp;
-        
-        // Notify the Intel tools that we're stealing code
-        ITT_SYNC_ACQUIRED(sf->worker);
-        NOTIFY_ZC_INTRINSIC("cilk_continue", sf);
+        __cilkrts_frame_unlock(sf->worker, ff);
+        __cilkrts_worker_unlock(sf->worker);
 
+        __CILK_JUMP_BUFFER dest;
+        memcpy(dest, sf->ctx, 5*sizeof(void*));
+        JMPBUF_SP(dest) = new_sp;
+        
         // TBD: We'd like to move TBB-interop methods into the fiber
         // eventually.
         cilk_fiber_invoke_tbb_stack_op(fiber, CILK_TBB_STACK_ADOPT);
         
-
+        CILK_ASSERT((sf->flags & CILK_FRAME_SUSPENDED) == 0);
         sf->flags &= ~CILK_FRAME_SUSPENDED;
 
-        // longjmp to user code.  Don't process exceptions here,
-        // because we are resuming a stolen frame.
-        sysdep_longjmp_to_sf(new_sp, sf, NULL);
+        restore_x86_fp_state(sf);
+        CILK_LONGJMP(dest);
+
         /*NOTREACHED*/
         // Intel's C compiler respects the preceding lint pragma
         CILK_ASSERT(! "Should not return into this function! :(\n");
@@ -89,7 +93,7 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     cilk_fiber_reset_state(new_exec_fiber, fiber_proc_to_resume_user_code_for_future);
 
     cilk_fiber *curr_fiber = NULL;
-    // TODO: Should this be a full_frame lock or something? Do we need a lock?
+
     __cilkrts_worker_lock(curr_worker);
     full_frame *ff = *curr_worker->l->frame_ff;
     __cilkrts_frame_lock(curr_worker, ff);

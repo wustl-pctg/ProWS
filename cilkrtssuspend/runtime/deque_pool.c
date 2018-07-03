@@ -201,6 +201,7 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   CILK_ASSERT(fiber_to_resume == w->l->active_deque->fiber);
   CILK_ASSERT(fiber_to_resume);
   CILK_ASSERT(deque_to_resume->call_stack == w->current_stack_frame);
+  w->current_stack_frame->worker = w;
 
   w->l->active_deque->fiber = NULL;
   deque_to_resume->fiber = NULL;

@@ -31,6 +31,9 @@ void fib_fut(cilk::future<int>& f, int n);
 extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_leave_future_parent_frame(__cilkrts_stack_frame *sf);
+extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
+extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
+
 extern "C" {
 extern CILK_ABI_VOID user_code_resume_after_switch_into_runtime(cilk_fiber*);
 extern CILK_ABI_THROWS_VOID __cilkrts_rethrow(__cilkrts_stack_frame *sf);
@@ -42,12 +45,9 @@ extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber);
 extern char* get_sp_for_executing_sf(char* stack_base,
                                      full_frame *ff,
                                      __cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
-extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
 }
 
 int fib(int n) {
-    //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
 
@@ -58,40 +58,28 @@ int fib(int n) {
         return n;
     }
     
-
     cilk::future<int> x_fut;
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    __cilkrts_worker *w = sf.worker;
      
-    //__CILK_JUMP_BUFFER ctx_bkup;
-    //volatile int done = 0;
-
     if (!CILK_SETJMP(sf.ctx)) {
-        //memcpy(ctx_bkup, sf.ctx, 5*sizeof(void*));
-        //__cilkrts_switch_fibers(&sf);
-    //} else {
-        //if (!done) {
-            cilkg_increment_pending_futures(sf.worker->g);
-            //memcpy(sf.ctx, ctx_bkup, 5*sizeof(void*));
-            //done = 1;
+        __cilkrts_switch_fibers(&sf);
+    } else if (sf.flags & CILK_FRAME_FUTURE_PARENT){
+            cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
             fib_fut(x_fut, n-1);
 
-            //__cilkrts_worker *curr_worker = sf.worker;
-            //__cilkrts_worker_lock(curr_worker);
-            //full_frame *frame = *curr_worker->l->frame_ff;
-            //__cilkrts_frame_lock(curr_worker, frame);
-            //    cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
-            //    cilk_fiber *prev_fiber;
-            //    if (frame->future_fibers_tail) {
-            //        prev_fiber = frame->future_fibers_tail->fiber;
-            //    } else {
-            //        prev_fiber = frame->fiber_self;
-            //    }
-            //__cilkrts_frame_unlock(curr_worker, frame);
-            //__cilkrts_worker_unlock(curr_worker);
+            __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
+            __cilkrts_worker_lock(curr_worker);
+            full_frame *frame = *curr_worker->l->frame_ff;
+            __cilkrts_frame_lock(curr_worker, frame);
+                cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
+                cilk_fiber *prev_fiber = __cilkrts_peek_tail_future_fiber(frame);
+                if (!prev_fiber) {
+                    prev_fiber = frame->fiber_self;
+                }
+            __cilkrts_frame_unlock(curr_worker, frame);
+            __cilkrts_worker_unlock(curr_worker);
 
-            //__cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
-        //}
+            __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
     }
 
     if (sf.flags & CILK_FRAME_UNSYNCHED) {
@@ -100,15 +88,16 @@ int fib(int n) {
         }
     }
 
-    //__cilkrts_worker *curr_worker = sf.worker;
-    //__cilkrts_worker_lock(curr_worker);
-    //full_frame *ff = *curr_worker->l->frame_ff;
-    //__cilkrts_frame_lock(curr_worker, ff);
+    __asm__ volatile ("" ::: "memory");
+    __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();//sf.worker;
+    __cilkrts_worker_lock(curr_worker);
+    full_frame *ff = *curr_worker->l->frame_ff;
+    __cilkrts_frame_lock(curr_worker, ff);
 
-    //cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;
+    cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;
 
-    //__cilkrts_frame_unlock(curr_worker, ff);
-    //__cilkrts_worker_unlock(curr_worker);
+    __cilkrts_frame_unlock(curr_worker, ff);
+    __cilkrts_worker_unlock(curr_worker);
     //cilk_future_create__stack(int, x_fut, fib, n-1);
     //x =  fib(n - 1);
     y = fib(n - 2);
@@ -121,7 +110,6 @@ int fib(int n) {
 }
 
 void fib_fut(cilk::future<int>& f, int n) {
-    //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
@@ -133,7 +121,6 @@ void fib_fut(cilk::future<int>& f, int n) {
 }
 
 void fib_helper(int* res, int n) {
-    //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
@@ -147,7 +134,7 @@ void fib_helper(int* res, int n) {
 int run(int n, uint64_t *running_time) {
     //int* dummy = (int*) alloca(ZERO);
     __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame(&sf);
+    __cilkrts_enter_frame_1(&sf);
     int res;
     clockmark_t begin, end; 
 

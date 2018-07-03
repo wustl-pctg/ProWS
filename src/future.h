@@ -12,6 +12,7 @@
 extern void __spawn_future_helper_helper(std::function<void(void)>);
 
 namespace cilk {
+
 #define reuse_future(T,fut, loc,func,args...)  \
   { \
   auto functor = std::bind(func, ##args);  \
@@ -36,7 +37,8 @@ namespace cilk {
   }); \
   }
 
-#define cilk_future_create__stack(T,fut,func,args...)\
+
+/*#define cilk_future_create__stack(T,fut,func,args...)\
   cilk::future<T> fut;\
   { \
     auto functor = std::bind(func, ##args); \
@@ -45,6 +47,29 @@ namespace cilk {
       if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
     }); \
   }
+*/
+
+#define cilk_future_create__stack(T,fut,func,args...)\
+  cilk::future<T> fut;\
+  { \
+    std::function<T(void)> functor = [func, ##args]() -> T {\
+      return func(##args);\
+    };\
+    __spawn_future_helper_helper([&fut,functor]() -> void { \
+      void *__cilk_deque = fut.put(functor()); \
+      if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
+    }); \
+  }
+
+/*
+#define cilk_future_create__stack(T,fut,func,args...)\
+  cilk::future<T> fut;\
+  {\
+    std::function<T(void)> functor = std::bind(func, ##args);\
+    std::function<void(void)> futuristic = std::bind(cilk::do_the_future_thing<T>, &fut, functor);\
+    __spawn_future_helper_helper(futuristic);\
+  }
+*/
 
 template<typename T>
 class future {

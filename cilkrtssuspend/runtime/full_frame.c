@@ -131,7 +131,6 @@ void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber) {
 }
 
 cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff) {
-    CILK_ASSERT(ff->future_fibers_head);
     CILK_ASSERT(ff->future_fibers_tail);
 
     future_node *node = ff->future_fibers_tail;
@@ -146,6 +145,7 @@ cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff) {
         ff->future_fibers_tail = node->prev;
         ff->future_fibers_tail->next = NULL;
         __cilkrts_free(node);
+        CILK_ASSERT(ff->future_fibers_tail);
     }
 
     return fiber;
@@ -168,6 +168,7 @@ cilk_fiber* __cilkrts_pop_head_future_fiber(full_frame *ff) {
         ff->future_fibers_head = node->next;
         ff->future_fibers_head->prev = NULL;
         __cilkrts_free(node);
+        CILK_ASSERT(ff->future_fibers_head);
     }
 
     return fiber;

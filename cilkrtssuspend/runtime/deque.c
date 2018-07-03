@@ -351,8 +351,6 @@ int deque_init(deque *d, size_t ltqsize)
   d->ltq_limit = d->ltq + ltqsize;
   d->head = d->tail = d->exc = d->ltq;
   d->protected_tail = d->ltq_limit;
-  __cilkrts_mutex_init(&d->lock);
-  __cilkrts_mutex_init(&d->steal_lock);
 
   return 0;
 }
@@ -591,43 +589,4 @@ void deque_mug(__cilkrts_worker *w, deque *d)
 
   //  d->worker->l->mugged++;
   deque_pool_remove(p, d);
-}
-
-/* Assuming we have exclusive access to this deque, i.e. either
- *  (1) w is working from d, so only it could set do_not_steal
- *  (2) w has exclusive access to deque to resum it
- */
-void deque_lock(__cilkrts_worker *w, deque *d)
-{
-  //    validate_worker(w);
-  CILK_ASSERT(d->do_not_steal == 0);
-
-  /* tell thieves to stay out of the way */
-  d->do_not_steal = 1;
-  __cilkrts_fence(); /* probably redundant */
-
-  __cilkrts_mutex_lock(w, &d->lock);
-}
-
-/// @todo{Do we want a try_lock version for this}
-void deque_lock_other(__cilkrts_worker *w, deque *d)
-{
-  //  validate_worker(other);
-
-  // compete for the right to disturb
-}
-
-void deque_unlock(__cilkrts_worker *w, deque *d)
-{
-  __cilkrts_mutex_unlock(w, &w->l->lock);
-  CILK_ASSERT(w->l->do_not_steal == 1);
-  /* The fence is probably redundant.  Use a release
-     operation when supported (gcc and compatibile);
-     that is faster on x86 which serializes normal stores. */
-#if defined __GNUC__ && (__GNUC__ * 10 + __GNUC_MINOR__ > 43 || __ICC >= 1110)
-  __sync_lock_release(&w->l->do_not_steal);
-#else
-  w->l->do_not_steal = 0;
-  __cilkrts_fence(); /* store-store barrier, redundant on x86 */
-#endif
 }

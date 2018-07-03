@@ -77,7 +77,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         }
     }
 
-    __cilkrts_worker *curr_worker = sf.worker;//__cilkrts_get_tls_worker_fast();
+    __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
     __cilkrts_worker_lock(curr_worker);
     full_frame *ff = *curr_worker->l->frame_ff;
     __cilkrts_frame_lock(curr_worker, ff);

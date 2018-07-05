@@ -42,32 +42,26 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
 
-
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
+
+    // Read the initial fiber so we can switch back to it without taking
+    // any locks later.
+    cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
 
     if(!CILK_SETJMP(sf.ctx)) { 
         __cilkrts_switch_fibers(&sf);
 
               // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
-            // TODO: This can slow parallel code down a LOT
+            // TODO: This method can slow parallel code down a LOT
             cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
+
             __spawn_future_helper(std::move(func));
 
             __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
-            // Return to the original fiber
-            __cilkrts_worker_lock(curr_worker);
-            full_frame *frame = *curr_worker->l->frame_ff;
-            __cilkrts_frame_lock(curr_worker, frame);
-                CILK_ASSERT(!(sf.flags & CILK_FRAME_STOLEN));
-                cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber(frame);
-                cilk_fiber *prev_fiber = __cilkrts_peek_tail_future_fiber(frame);
-                if (!prev_fiber) {
-                    prev_fiber = frame->fiber_self;
-                }
-            __cilkrts_frame_unlock(curr_worker, frame);
-            __cilkrts_worker_unlock(curr_worker);
-            __cilkrts_switch_fibers_back(&sf, fut_fiber, prev_fiber);
+            cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
+
+            __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
     }
 
     // TODO: Rework it so we don't do this on futures
@@ -77,15 +71,8 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         }
     }
 
-    __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
-    __cilkrts_worker_lock(curr_worker);
-    full_frame *ff = *curr_worker->l->frame_ff;
-    __cilkrts_frame_lock(curr_worker, ff);
-
-    cilk_fiber_get_data(ff->fiber_self)->resume_sf = NULL;
-
-    __cilkrts_frame_unlock(curr_worker, ff);
-    __cilkrts_worker_unlock(curr_worker);
+    // TODO: There has to be a better place to do this?
+    cilk_fiber_get_data(cilk_fiber_get_current_fiber())->resume_sf = NULL;
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_frame(&sf);

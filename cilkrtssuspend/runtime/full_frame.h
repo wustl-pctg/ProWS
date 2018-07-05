@@ -166,15 +166,6 @@ typedef struct full_frame full_frame;
 #define FIBERS_PER_NODE (0x80)
 #define FIBERS_BITMASK  (0x7F)
 
-typedef struct future_node {
-    struct future_node *prev;
-    int size;
-    int head;
-    int tail;
-    cilk_fiber *fibers[FIBERS_PER_NODE];
-    struct future_node *next;
-} future_node;
-
 /* COMMON_PORTABLE */ 
 struct full_frame
 {
@@ -355,9 +346,6 @@ struct full_frame
      */
     cilk_fiber *fiber_child;
 
-    future_node *future_fibers_tail;
-    future_node *future_fibers_head;
-
     /**
      * If the sync_master is set, this function can only be sync'd by the team
      * leader, who first entered Cilk.  This is set by the first worker to steal
@@ -384,10 +372,11 @@ struct full_frame
 #define CILK_FUTURE         (0x01)
 #define CILK_FUTURE_PARENT  (0x02)
 
+typedef struct deque deque;
 void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber);
-cilk_fiber* __cilkrts_pop_tail_future_fiber(full_frame *ff);
-cilk_fiber* __cilkrts_pop_head_future_fiber(full_frame *ff);
-cilk_fiber* __cilkrts_peek_tail_future_fiber(full_frame *ff);
+cilk_fiber* __cilkrts_pop_tail_future_fiber();
+cilk_fiber* __cilkrts_pop_head_future_fiber(__cilkrts_worker *victim, deque *d);
+cilk_fiber* __cilkrts_peek_tail_future_fiber(deque *d);
 
 /* The functions __cilkrts_put_stack and __cilkrts_take_stack keep track of
  * changes in the stack's depth between when the point at which a frame is

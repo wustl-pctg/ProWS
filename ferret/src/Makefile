@@ -37,14 +37,14 @@ OBJDIR = $(ROOT)/build/obj
 #
 # WHY was the code structured this way to begin with??
 PIPER_FLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR)
-BASIC_CPPFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR) -I$(RTS_INCLUDE)
-BASIC_CFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR)
-BASIC_GCCFLAGS=-g -O3 -std=gnu99 -fno-omit-frame-pointer
+BASIC_CPPFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR) -I$(RTS_INCLUDE) -flto
+BASIC_CFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR) -flto
+BASIC_GCCFLAGS=-g -O3 -std=gnu99 -fno-omit-frame-pointer -flto
 
 CFLAGS ?= -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
 CFLAGS_S = -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
 
-LDFLAGS += -L/usr/lib64 -L$(LIBDIR)
+LDFLAGS += -L/usr/lib64 -L$(LIBDIR) -flto
 
 TARGET = $(addprefix $(BINDIR)/ferret-, $(PROG))
 

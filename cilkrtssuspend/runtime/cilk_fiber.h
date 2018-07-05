@@ -99,9 +99,13 @@
  * I'd like this flag to be 0.  However, the cilk_fiber test depends
  * on being able to call this method.
  */
-#if !defined(SUPPORT_GET_CURRENT_FIBER)
-#   define SUPPORT_GET_CURRENT_FIBER 0
-#endif
+//#if !defined(SUPPORT_GET_CURRENT_FIBER)
+//#   define SUPPORT_GET_CURRENT_FIBER 0
+//#endif
+
+// This is required by futures!
+// We need to get the current fiber without locks.
+#define SUPPORT_GET_CURRENT_FIBER 1
 
 /**
  * @brief Switch for enabling "fast path" check for fibers, which

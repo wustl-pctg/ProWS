@@ -74,6 +74,13 @@ void detach_for_steal(__cilkrts_worker *w,
                       deque *d, cilk_fiber* fiber);
 void __cilkrts_promote_own_deque(__cilkrts_worker *w);
 
+
+void increment_fiber_E(__cilkrts_worker *victim, deque *d);
+void decrement_fiber_E(__cilkrts_worker *victim, deque* d);
+void reset_fiber_THE_exception(__cilkrts_worker *w, deque *d);
+int can_take_fiber_from(deque *d);
+int fiber_dekker_protocol(__cilkrts_worker *victim, deque *d);
+
 int deque_init(deque *d, size_t ltqsize);
 void deque_destroy(deque *d);
 void deque_switch(__cilkrts_worker *w, deque *d);

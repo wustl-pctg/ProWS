@@ -88,6 +88,7 @@ libcilkrts_la_SOURCES =            \
   runtime/sslib/strnlen_s.c           \
   runtime/bug.cpp                  \
   runtime/cilk-abi.c               \
+  runtime/cilk_future_fiber_deque.cpp \
   runtime/modified-future-sync.cpp \
   runtime/modified-future-leave-frame.cpp \
   runtime/cilk-abi-future_utils.cpp \

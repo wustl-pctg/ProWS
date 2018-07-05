@@ -20,10 +20,17 @@ extern CILK_ABI_VOID user_code_resume_after_switch_into_runtime(cilk_fiber*);
 
 extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber);
 
-extern char* get_sp_for_executing_sf(char* stack_base,
-                                     full_frame *ff,
-                                     __cilkrts_stack_frame *sf);
+//extern char* get_sp_for_executing_sf(char* stack_base,
+//                                     full_frame *ff,
+//                                     __cilkrts_stack_frame *sf);
 
+}
+
+static char* __attribute__((alwaysinline)) kyles_get_sp_for_executing_sf(char* stack_base, __cilkrts_stack_frame *sf) {
+    char* new_stack_base = stack_base - 256;
+    const uintptr_t align_mask = ~(256 -1);
+    new_stack_base = (char*)((size_t)new_stack_base & align_mask);
+    return new_stack_base;
 }
 
 static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
@@ -39,8 +46,6 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     data->resume_sf = NULL;
     CILK_ASSERT(sf->worker == data->owner);
 
-    __cilkrts_worker_lock(sf->worker);
-    ff = *(sf->worker->l->frame_ff);
 
     // For Win32, we need to overwrite the default exception handler
     // in this function, so that when the OS exception handling code
@@ -52,11 +57,7 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     // in this frame.
     
     {
-        __cilkrts_frame_lock(sf->worker, ff);
-        // TODO: We can just read ff->frame_size, unlock, and then run a modified version of this function
-        char* new_sp = get_sp_for_executing_sf(cilk_fiber_get_stack_base(fiber), ff, sf);
-        __cilkrts_frame_unlock(sf->worker, ff);
-        __cilkrts_worker_unlock(sf->worker);
+        char* new_sp = kyles_get_sp_for_executing_sf(cilk_fiber_get_stack_base(fiber), sf);
 
         __CILK_JUMP_BUFFER dest;
         memcpy(dest, sf->ctx, 5*sizeof(void*));
@@ -66,7 +67,7 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
         // eventually.
         cilk_fiber_invoke_tbb_stack_op(fiber, CILK_TBB_STACK_ADOPT);
         
-        CILK_ASSERT((sf->flags & CILK_FRAME_SUSPENDED) == 0);
+        //CILK_ASSERT((sf->flags & CILK_FRAME_SUSPENDED) == 0);
         sf->flags &= ~CILK_FRAME_SUSPENDED;
 
         restore_x86_fp_state(sf);
@@ -96,18 +97,15 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
 
     cilk_fiber *curr_fiber = NULL;
 
-    __cilkrts_worker_lock(curr_worker);
-    full_frame *ff = *curr_worker->l->frame_ff;
-    __cilkrts_frame_lock(curr_worker, ff);
+    //__cilkrts_worker_lock(curr_worker);
+    //full_frame *ff = *curr_worker->l->frame_ff;
+    //__cilkrts_frame_lock(curr_worker, ff);
 
-    curr_fiber = __cilkrts_peek_tail_future_fiber(ff);
-    if (!curr_fiber) {
-        curr_fiber = ff->fiber_self;
-    }
-    __cilkrts_enqueue_future_fiber(ff, new_exec_fiber);
+    curr_fiber = cilk_fiber_get_current_fiber();
+    __cilkrts_enqueue_future_fiber(NULL, new_exec_fiber);
 
-    __cilkrts_frame_unlock(curr_worker, ff);
-    __cilkrts_worker_unlock(curr_worker);
+    //__cilkrts_frame_unlock(curr_worker, ff);
+    //__cilkrts_worker_unlock(curr_worker);
 
     //cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
 

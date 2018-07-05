@@ -80,6 +80,69 @@
  * on the THE protocol.
  */
 
+int can_take_fiber_from(deque *d) {
+    // Unlike in normal dekker, we SHOULD be able to take the last of the fibers
+    return ((d->fiber_head < d->fiber_tail) && (d->fiber_head < d->fiber_protected_tail));
+}
+
+#define FIBER_EXC_INFINITY ((cilk_fiber **) (-1))
+
+void increment_fiber_E(__cilkrts_worker *victim, deque *d) {
+  cilk_fiber *volatile *tmp;
+
+  // The currently executing worker must own the worker lock to touch
+  // d->fiber_exc
+  ASSERT_WORKER_LOCK_OWNED(victim);
+
+  tmp = d->fiber_exc;
+  if (tmp != FIBER_EXC_INFINITY) {
+    /* On most x86 this pair of operations would be slightly faster
+       as an atomic exchange due to the implicit memory barrier in
+       an atomic instruction. */
+    d->fiber_exc = tmp + 1;
+    __cilkrts_fence();
+  }
+}
+
+void decrement_fiber_E(__cilkrts_worker *victim, deque* d) {
+  cilk_fiber *volatile *tmp;
+
+  // The currently executing worker must own the worker lock to touch
+  // victim->exc
+  ASSERT_WORKER_LOCK_OWNED(victim);
+
+  tmp = d->fiber_exc;
+  if (tmp != FIBER_EXC_INFINITY) {
+    /* On most x86 this pair of operations would be slightly faster
+       as an atomic exchange due to the implicit memory barrier in
+       an atomic instruction. */
+    d->fiber_exc = tmp - 1;
+    __cilkrts_fence(); /* memory fence not really necessary */
+  }
+}
+
+void reset_fiber_THE_exception(__cilkrts_worker *w, deque *d) {
+  // The currently executing worker must own the worker lock to touch
+  // w->exc
+  ASSERT_WORKER_LOCK_OWNED(w);
+
+  d->fiber_exc = d->fiber_head;
+  __cilkrts_fence();
+}
+
+int fiber_dekker_protocol(__cilkrts_worker *victim, deque *d) {
+    ASSERT_WORKER_LOCK_OWNED(victim);
+
+    increment_fiber_E(victim, d);
+
+    if (can_take_fiber_from(d)) {
+        return 1;
+    } else {
+        decrement_fiber_E(victim, d);
+        return 0;
+    }
+}
+
 /* the infinity value of E */
 #define EXC_INFINITY  ((__cilkrts_stack_frame **) (-1))
 
@@ -247,13 +310,7 @@ void detach_for_steal(__cilkrts_worker *w,
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
 
-
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
-
-      child_ff->future_fibers_tail = parent_ff->future_fibers_tail;
-      parent_ff->future_fibers_tail = NULL;
-      child_ff->future_fibers_head = parent_ff->future_fibers_head;
-      parent_ff->future_fibers_head = NULL;
 
       /* install child in the victim's work queue, taking
          the parent_ff's place */
@@ -269,10 +326,9 @@ void detach_for_steal(__cilkrts_worker *w,
           loot_ff->fiber_child = child_ff->fiber_self;
           cilk_fiber_get_data(loot_ff->fiber_child)->resume_sf = NULL;
 
-          CILK_ASSERT(child_ff->future_fibers_tail);
-          CILK_ASSERT(child_ff->future_fibers_head);
           //printf("setting child fiber self\n");
-          child_ff->fiber_self = __cilkrts_pop_head_future_fiber(child_ff);
+          child_ff->fiber_self = __cilkrts_pop_head_future_fiber(victim, d);
+          CILK_ASSERT(child_ff->fiber_self);
           //printf("set child fiber self\n");
           //child_ff->fiber_self = child_ff->future_fiber;
           //child_ff->future_fiber = NULL;
@@ -344,13 +400,27 @@ int deque_init(deque *d, size_t ltqsize)
   d->ltq = (__cilkrts_stack_frame **)
     __cilkrts_malloc(ltqsize * sizeof(__cilkrts_stack_frame*));
 
+
   if (!d->ltq)
     return -1;
   //__cilkrts_bug("Cilk: out of memory for new deques!\n");
+
+  d->fiber_ltq = (cilk_fiber **)
+    __cilkrts_malloc(ltqsize * sizeof(cilk_fiber*));
+
+  if (!d->fiber_ltq) {
+    __cilkrts_free(d->ltq);
+    d->ltq = NULL;
+    return -1;
+  }
   
   d->ltq_limit = d->ltq + ltqsize;
   d->head = d->tail = d->exc = d->ltq;
   d->protected_tail = d->ltq_limit;
+
+  d->fiber_ltq_limit = d->fiber_ltq + ltqsize;
+  d->fiber_head = d->fiber_tail = d->fiber_exc = d->fiber_ltq;
+  d->fiber_protected_tail = d->fiber_ltq_limit;
 
   return 0;
 }
@@ -363,6 +433,7 @@ void deque_destroy(deque *d)
   // if/when we use d->lock or d->steal_lock
   //__cilkrts_mutex_destroy
   __cilkrts_free(d->ltq);
+  __cilkrts_free(d->fiber_ltq);
   __cilkrts_free(d);
 }
 
@@ -493,14 +564,18 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 
     { // d is no longer accessible
 
-      CILK_ASSERT(d->frame_ff);
-      fiber = __cilkrts_peek_tail_future_fiber(d->frame_ff);
-      if (!fiber) {
+      //CILK_ASSERT(d->frame_ff);
+      //fiber = __cilkrts_peek_tail_future_fiber(d->frame_ff);
+      //if (!fiber) {
         //printf("Fiber is fiber self\n");
-        fiber = d->frame_ff->fiber_self;
+      //  fiber = d->frame_ff->fiber_self;
+      //}
+      //CILK_ASSERT(fiber);
+      fiber = cilk_fiber_get_current_fiber();
+      if (__cilkrts_peek_tail_future_fiber(d) != NULL) {
+        CILK_ASSERT(fiber == __cilkrts_peek_tail_future_fiber(d));
       }
-      CILK_ASSERT(fiber);
-      d->fiber = fiber;
+      d->fiber = fiber;//fiber;
 
       //cilk_fiber_data* data = cilk_fiber_get_data(fiber);
       CILK_ASSERT(!cilk_fiber_get_data(fiber)->resume_sf);
@@ -525,6 +600,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 
   // Probably slightly better balls and bins result compared to random;
   // based on very light testing. slightly better performance in practice.
+    CILK_ASSERT(w->g->total_workers > 1);
     int victim_idx = myrand(w) % (w->g->total_workers);
     int victim2_idx = myrand(w) % (w->g->total_workers - 1);
     if (victim2_idx >= victim_idx) victim2_idx++;

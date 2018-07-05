@@ -68,9 +68,10 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
         cilk_fiber_invoke_tbb_stack_op(fiber, CILK_TBB_STACK_ADOPT);
         
         //CILK_ASSERT((sf->flags & CILK_FRAME_SUSPENDED) == 0);
-        sf->flags &= ~CILK_FRAME_SUSPENDED;
+        //sf->flags &= ~CILK_FRAME_SUSPENDED;
 
         restore_x86_fp_state(sf);
+        cilk_fiber_get_data(fiber)->resume_sf = NULL;
         CILK_LONGJMP(dest);
 
         /*NOTREACHED*/
@@ -102,6 +103,7 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
 
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 
+    // We don't jump to the sf until the "user_code_resume..." func on a steal
     if (first_frame->flags & CILK_FRAME_STOLEN) {
         user_code_resume_after_switch_into_runtime(curr_fiber);
         CILK_ASSERT(! "We should not return here!");

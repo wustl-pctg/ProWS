@@ -51,17 +51,17 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     if(!CILK_SETJMP(sf.ctx)) { 
         __cilkrts_switch_fibers(&sf);
 
-              // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
+    // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
-            // TODO: This method can slow parallel code down a LOT
-            cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
+        // TODO: This method can slow parallel code down a LOT
+        cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
 
-            __spawn_future_helper(std::move(func));
+        __spawn_future_helper(std::move(func));
 
-            __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
-            cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
+        __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
+        cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
 
-            __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
+        __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
     }
 
     // TODO: Rework it so we don't do this on futures
@@ -71,13 +71,12 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         }
     }
 
-    // TODO: There has to be a better place to do this?
-    cilk_fiber_get_data(cilk_fiber_get_current_fiber())->resume_sf = NULL;
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_frame(&sf);
 }
 
+// TODO: Move this to a file that makes more sense!! It is here to get the -fno-omit-frame-pointer flag
 extern "C" {
 extern void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *sf);
 extern void kyles_longjmp_into_runtime(__cilkrts_worker *w, scheduling_stack_fcn_t fcn, __cilkrts_stack_frame *sf);

@@ -373,10 +373,9 @@ struct full_frame
 #define CILK_FUTURE_PARENT  (0x02)
 
 typedef struct deque deque;
-void __cilkrts_enqueue_future_fiber(full_frame *ff, cilk_fiber *fiber);
+void __cilkrts_enqueue_future_fiber(cilk_fiber *fiber);
 cilk_fiber* __cilkrts_pop_tail_future_fiber();
 cilk_fiber* __cilkrts_pop_head_future_fiber(__cilkrts_worker *victim, deque *d);
-cilk_fiber* __cilkrts_peek_tail_future_fiber(deque *d);
 
 /* The functions __cilkrts_put_stack and __cilkrts_take_stack keep track of
  * changes in the stack's depth between when the point at which a frame is

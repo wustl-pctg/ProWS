@@ -97,17 +97,8 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
 
     cilk_fiber *curr_fiber = NULL;
 
-    //__cilkrts_worker_lock(curr_worker);
-    //full_frame *ff = *curr_worker->l->frame_ff;
-    //__cilkrts_frame_lock(curr_worker, ff);
-
     curr_fiber = cilk_fiber_get_current_fiber();
-    __cilkrts_enqueue_future_fiber(NULL, new_exec_fiber);
-
-    //__cilkrts_frame_unlock(curr_worker, ff);
-    //__cilkrts_worker_unlock(curr_worker);
-
-    //cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
+    __cilkrts_enqueue_future_fiber(new_exec_fiber);
 
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 

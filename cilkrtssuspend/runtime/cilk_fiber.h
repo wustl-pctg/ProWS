@@ -105,6 +105,9 @@
 
 // This is required by futures!
 // We need to get the current fiber without locks.
+// TODO: We could just store the current fiber
+//       outside the full frame, so that this would
+//       not be necessary. This may be faster though.
 #define SUPPORT_GET_CURRENT_FIBER 1
 
 /**

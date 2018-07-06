@@ -1,4 +1,5 @@
 #include <cilk/cilk.h>
+#include <cilk/cilk_api.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "ktiming.h"
@@ -48,6 +49,9 @@ int run(int n, uint64_t *running_time) {
 }
 
 int main(int argc, char * args[]) {
+    //__cilkrts_set_param("local stacks", "128");
+    //__cilkrts_set_param("shared stacks", "128");
+
     int n;
     uint64_t running_time[TIMES_TO_RUN];
 

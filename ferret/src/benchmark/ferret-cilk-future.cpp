@@ -539,14 +539,24 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     return 0;
 }
 
-int main(int argc, char *argv[]) {
+int __attribute__((noinline)) run(int argc, char *argv[]) {
     int result;
     result = cilk_spawn my_fancy_wrapper(argc, argv);
     cilk_sync;
+
+    return result;
+}
+
+int main(int argc, char *argv[]) {
+    __cilkrts_set_param("local stacks", "128");
+    __cilkrts_set_param("global stacks", "128");
+
+
+    int result = run(argc, argv);
+    return result;
     //while (prev == NULL);
     //prev->get();
-    while (!done);
-    return result;
+    //while (!done);
 /*
     char *db_dir = NULL;
     const char *table_name = NULL;

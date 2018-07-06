@@ -378,6 +378,10 @@ void __attribute__((noinline)) __cilkrts_c_kyles_THE_exception_check(__cilkrts_w
         NOTIFY_ZC_INTRINSIC("cilk_leave_stolen", saved_sf);
 
         DBGPRINTF ("%d: longjmp_into_runtime from __cilkrts_c_THE_exception_check\n", w->self);
+        if (cilkg_decrement_pending_futures(w->g) == 0) {
+            CILK_ASSERT(w->g->exit_frame);
+            __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
+        }
         longjmp_into_runtime(w, do_return_from_spawn, 0);
         DBGPRINTF ("%d: returned from longjmp_into_runtime from __cilkrts_c_THE_exception_check?!\n", w->self);
     }
@@ -396,10 +400,6 @@ void __attribute__((noinline)) __cilkrts_c_kyles_THE_exception_check(__cilkrts_w
 CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf) {
 	//__cilkrts_worker *w = sf->worker;
 	__cilkrts_worker *w = __cilkrts_get_tls_worker();
-    if (cilkg_decrement_pending_futures(w->g) == 0) {
-        CILK_ASSERT(w->g->exit_frame);
-        __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
-    }
 
 	/*    DBGPRINTF("%d-%p __cilkrts_leave_frame - sf %p, flags: %x\n", w->self, GetWorkerFiber(w), sf, sf->flags); */
 

@@ -53,9 +53,6 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
     // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
-        // TODO: This method can slow parallel code down a LOT
-        cilkg_increment_pending_futures(__cilkrts_get_tls_worker_fast()->g);
-
         __spawn_future_helper(std::move(func));
 
         __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
@@ -95,8 +92,6 @@ void suspend_return_from_initial(__cilkrts_worker *w)  {
         __cilkrts_put_stack((*w->l->frame_ff), &sf);
         kyles_longjmp_into_runtime(w, do_suspend_return_from_initial, &sf);
     }
-
-    //printf("Kyle's back!\n");
 
     // Just pop; cilkrts_leave_frame would do nothing
     // but check a bunch of branching conditions

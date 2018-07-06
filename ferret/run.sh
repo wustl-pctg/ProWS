@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+#set -x
 cilkview="../../../../piper_cilkview/cilkutil/bin/cilkview"
 
 curr=`pwd`

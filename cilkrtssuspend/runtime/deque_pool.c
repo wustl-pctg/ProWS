@@ -134,6 +134,7 @@ void __cilkrts_make_resumable(void* _deque)
 
     CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);
     deque_to_resume->resumable = 1;
+    deque_to_resume->worker = victim;
     __cilkrts_mutex_lock(w, &victim->l->lock);
     deque_pool_add(victim, &victim->l->resumable_deques, deque_to_resume);
     __cilkrts_mutex_unlock(w, &victim->l->lock);

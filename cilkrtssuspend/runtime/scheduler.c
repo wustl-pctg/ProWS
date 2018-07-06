@@ -851,8 +851,9 @@ static void random_steal(__cilkrts_worker *w)
     if (!d) goto done;
     
     // We own victim lock, so it can't change its active deque
-    if (d != victim->l->active_deque && d->resumable)
+    if (d != victim->l->active_deque && d->resumable) {
         return jump_to_suspended_fiber(w, victim, d); // will release lock
+    }
 
     if (w->l->active_deque == NULL) // the only thing we could have done is resume
         goto done;
@@ -919,6 +920,8 @@ static void random_steal(__cilkrts_worker *w)
             if (proceed_with_steal)
             {
                 START_INTERVAL(w, INTERVAL_STEAL_SUCCESS) {
+                    // Indicate my deque is about to have work on it.
+                    cilkg_increment_pending_futures(w->g);
                     success = 1;
                     detach_for_steal(w, victim, d, fiber);
                     victim_id = victim->self;
@@ -2047,7 +2050,6 @@ static void worker_scheduler_function(__cilkrts_worker *w)
     STOP_INTERVAL(w, INTERVAL_INIT_WORKER);
     
     // The main scheduling loop body.
-
     while (!w->g->work_done) {    
         // Execute the "body" of the scheduling loop, and figure
         // out the fiber to jump to next.
@@ -2354,6 +2356,10 @@ void __attribute__((noinline)) __cilkrts_c_THE_exception_check(__cilkrts_worker 
         NOTIFY_ZC_INTRINSIC("cilk_leave_stolen", saved_sf);
 
         DBGPRINTF ("%d: longjmp_into_runtime from __cilkrts_c_THE_exception_check\n", w->self);
+        if (cilkg_decrement_pending_futures(w->g) == 0) {
+            CILK_ASSERT(w->g->exit_frame);
+            __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
+        }
         longjmp_into_runtime(w, do_return_from_spawn, 0);
         DBGPRINTF ("%d: returned from longjmp_into_runtime from __cilkrts_c_THE_exception_check?!\n", w->self);
     }
@@ -2383,6 +2389,10 @@ NORETURN __cilkrts_exception_from_spawn(__cilkrts_worker *w,
     CILK_ASSERT(*w->head == *w->tail);
     w = execute_reductions_for_spawn_return(w, ff, returning_sf);
 
+    if (cilkg_decrement_pending_futures(w->g) == 0) {
+        CILK_ASSERT(w->g->exit_frame);
+        __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
+    }
     longjmp_into_runtime(w, do_return_from_spawn, 0);
     CILK_ASSERT(0);
 }
@@ -2462,6 +2472,10 @@ void __cilkrts_migrate_exception(__cilkrts_stack_frame *sf) {
         w = execute_reductions_for_spawn_return(w, ff, sf);
     }
 
+    if (cilkg_decrement_pending_futures(w->g) == 0) {
+        CILK_ASSERT(w->g->exit_frame);
+        __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
+    }
     longjmp_into_runtime(w, do_return_from_spawn, 0); /* does not return. */
     CILK_ASSERT(! "Shouldn't be here...");
 }

@@ -97,15 +97,16 @@ int  __attribute__((noinline)) fib(int n) {
     
     cilk::future<int> x_fut = cilk::future<int>();
      
-    __CILK_JUMP_BUFFER bkup;
+    __CILK_JUMP_BUFFER bkup[5];
 
     if (!CILK_SETJMP(sf->ctx)) {
-        memcpy(bkup, sf->ctx, 5*sizeof(void*));
+        memcpy((void*)bkup, sf->ctx, 5*sizeof(void*));
     //printf("switching fib fibers\n");
         __cilkrts_switch_fibers(sf);
 
     } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-        memcpy(sf->ctx, bkup, 5*sizeof(void*));
+        memcpy(sf->ctx, (void*)bkup, 5*sizeof(void*));
+        //__asm__ volatile ("" ::: "memory");
         //printf("in new fib fiber\n");
         fib_fut(&x_fut, n-1);
 
@@ -113,6 +114,7 @@ int  __attribute__((noinline)) fib(int n) {
 
         __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
     }
+
 
     if (sf->flags & CILK_FRAME_UNSYNCHED) {
         if (!CILK_SETJMP(sf->ctx)) {
@@ -158,7 +160,9 @@ int __attribute__((noinline)) run(int n, uint64_t *running_time) {
     for(int i = 0; i < TIMES_TO_RUN; i++) {
         begin = ktiming_getmark();
 
-        fib_helper(&res, n);
+        if (!CILK_SETJMP(sf->ctx)) {
+            fib_helper(&res, n);
+        }
 
         if (sf->flags & CILK_FRAME_UNSYNCHED) {
             if (!CILK_SETJMP(sf->ctx)) {

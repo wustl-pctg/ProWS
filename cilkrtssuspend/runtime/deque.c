@@ -263,7 +263,6 @@ void detach_for_steal(__cilkrts_worker *w,
     child_ff = make_child(w, loot_ff, 0, fiber);
 
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
-
       /* install child in the victim's work queue, taking
          the parent_ff's place */
       /* child is referenced by victim */

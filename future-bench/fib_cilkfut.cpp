@@ -6,7 +6,7 @@
 #include "../src/future.h"
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 3 
+#define TIMES_TO_RUN 1 
 #endif
 
 /* 
@@ -22,7 +22,7 @@ int fib(int n) {
     int x;
     int y;
 
-    if(n < 2) {
+    if(n <= 2) {
         return n;
     }
     

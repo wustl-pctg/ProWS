@@ -38,6 +38,7 @@
 
 #define USEC_TO_SEC(x) ((double)x*1.0e-9)
 
+int ZERO = 0;
 
 clockmark_t ktiming_getmark(void) {
     struct timespec temp;

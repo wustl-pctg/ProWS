@@ -55,7 +55,6 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
         __spawn_future_helper(std::move(func));
 
-        __cilkrts_worker *curr_worker = __cilkrts_get_tls_worker_fast();
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
 
         __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);

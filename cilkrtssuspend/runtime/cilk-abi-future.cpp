@@ -48,11 +48,14 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     // any locks later.
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
 
+    __CILK_JUMP_BUFFER bkup;
     if(!CILK_SETJMP(sf.ctx)) { 
+        memcpy(bkup, sf.ctx, 5*sizeof(void*));
         __cilkrts_switch_fibers(&sf);
 
     // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
+        memcpy(sf.ctx, bkup, 5*sizeof(void*));
         __spawn_future_helper(std::move(func));
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
@@ -85,7 +88,6 @@ void suspend_return_from_initial(__cilkrts_worker *w)  {
     (*w->l->frame_ff)->call_stack = &sf;
 
     if (!CILK_SETJMP(sf.ctx)) {
-        //printf("Greetings, human!\n");
         // KYLE_TODO: This function assumes there is a parent for the full frame!!!!
         //            Also that the fiber has been "removed" from the full frame first.
         __cilkrts_put_stack((*w->l->frame_ff), &sf);

@@ -59,9 +59,9 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     {
         char* new_sp = kyles_get_sp_for_executing_sf(cilk_fiber_get_stack_base(fiber), sf);
 
-        __CILK_JUMP_BUFFER dest;
-        memcpy(dest, sf->ctx, 5*sizeof(void*));
-        JMPBUF_SP(dest) = new_sp;
+        //__CILK_JUMP_BUFFER dest;
+        //memcpy(dest, sf->ctx, 5*sizeof(void*));
+        //JMPBUF_SP(dest) = new_sp;
         
         // TBD: We'd like to move TBB-interop methods into the fiber
         // eventually.
@@ -70,10 +70,14 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
         //CILK_ASSERT((sf->flags & CILK_FRAME_SUSPENDED) == 0);
         //sf->flags &= ~CILK_FRAME_SUSPENDED;
 
-        restore_x86_fp_state(sf);
-        cilk_fiber_get_data(fiber)->resume_sf = NULL;
-        CILK_LONGJMP(dest);
-
+        //restore_x86_fp_state(sf);
+        //printf("Jumping to stack frame!\n");
+        //for (int i = 0; i < 5; i++) {
+        //    printf("%p vs %p\n", sf->ctx[i], dest[i]);
+        //}
+        //CILK_LONGJMP(dest);
+        
+        sysdep_longjmp_to_sf(new_sp, sf, NULL);
         /*NOTREACHED*/
         // Intel's C compiler respects the preceding lint pragma
         CILK_ASSERT(! "Should not return into this function! :(\n");

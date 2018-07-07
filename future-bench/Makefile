@@ -19,7 +19,7 @@ fib-fut:
 
 fib-handcomp:
 	$(CXX) -O3 -g -flto -fcilkplus -mno-omit-leaf-frame-pointer -fno-omit-frame-pointer -fno-inline -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fno-inline -fcilk-no-inline -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/runtime/config/x86 -I/home/kdsinger/porridge/cilkrtssuspend/runtime/sslib -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fno-inline -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I/home/kdsinger/porridge/llvm-cilk/include -I/home/kdsinger/porridge/cilkrtssuspend/runtime/config/x86 -I/home/kdsinger/porridge/cilkrtssuspend/runtime/sslib -I/home/kdsinger/porridge/cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
 	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut /home/kdsinger/porridge/cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 .PHONY = clean

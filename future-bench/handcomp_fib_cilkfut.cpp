@@ -35,36 +35,11 @@ extern CILK_ABI_VOID __cilkrts_pop_frame(struct __cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
 }
 
-inline void my_cilkrts_detach(struct __cilkrts_stack_frame *self) {
-	struct __cilkrts_worker *w = __cilkrts_get_tls_worker();
-	struct __cilkrts_stack_frame *parent = self->call_parent;
-	struct __cilkrts_stack_frame *volatile *tail = *w->tail;
-
-	self->spawn_helper_pedigree = w->pedigree;
-	self->call_parent->parent_pedigree = w->pedigree;
-	w->pedigree.rank = 1; // Need nonzero for precomputing pedigrees
-	w->pedigree.parent = &self->spawn_helper_pedigree;
-
-	w->pedigree.length++;
-	w->pedigree.actual += w->g->ped_compression_vec[w->pedigree.length-1];
-	if (w->pedigree.actual >= w->g->big_prime)
-		w->pedigree.actual %= w->g->big_prime;
-
-	CILK_ASSERT(tail < *w->ltq_limit);
-	*tail++ = parent;
-
-	/* The stores are separated by a store fence (noop on x86)
-	 *  or the second store is a release (st8.rel on Itanium) */
-	*w->tail = tail;
-	self->flags |= CILK_FRAME_DETACHED;
-}
-
 int fib(int n);
 
 void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
     __cilkrts_enter_frame_fast_1(sf);
-    //my_cilkrts_detach(sf);
     __cilkrts_detach(sf);
     
     void *__cilk_deque = x->put(fib(n));
@@ -73,12 +48,10 @@ void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
     }
 
     __cilkrts_pop_frame(sf);
-    //if (sf->flags)
-        __cilkrts_leave_future_frame(sf);
+    __cilkrts_leave_future_frame(sf);
 }
 
 int  __attribute__((noinline)) fib(int n) {
-    //printf("fib %d\n", n);
     int x;
     int y;
 
@@ -88,7 +61,6 @@ int  __attribute__((noinline)) fib(int n) {
 
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
     __cilkrts_enter_frame_1(sf);
-    //printf("In fib frame\n");
     
 
     sf->flags |= CILK_FRAME_FUTURE_PARENT;
@@ -97,17 +69,14 @@ int  __attribute__((noinline)) fib(int n) {
     
     cilk::future<int> x_fut = cilk::future<int>();
      
-    __CILK_JUMP_BUFFER bkup[5];
+    __CILK_JUMP_BUFFER bkup;
 
     if (!CILK_SETJMP(sf->ctx)) {
         memcpy((void*)bkup, sf->ctx, 5*sizeof(void*));
-    //printf("switching fib fibers\n");
         __cilkrts_switch_fibers(sf);
 
     } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
         memcpy(sf->ctx, (void*)bkup, 5*sizeof(void*));
-        //__asm__ volatile ("" ::: "memory");
-        //printf("in new fib fiber\n");
         fib_fut(&x_fut, n-1);
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
@@ -128,8 +97,7 @@ int  __attribute__((noinline)) fib(int n) {
     int _tmp = x+y;
 
     __cilkrts_pop_frame(sf);
-    //if (sf->flags)
-        __cilkrts_leave_frame(sf);
+    __cilkrts_leave_frame(sf);
 
     return _tmp;
 }
@@ -137,23 +105,18 @@ int  __attribute__((noinline)) fib(int n) {
 void __attribute__((noinline)) fib_helper(int* res, int n) {
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
     __cilkrts_enter_frame_fast_1(sf);
-    //my_cilkrts_detach(sf);
     __cilkrts_detach(sf);
-    //printf("fib_helper\n");
 
     *res = fib(n);
-    //fib(n);
     
     __cilkrts_pop_frame(sf);
-    //if (sf->flags)
-        __cilkrts_leave_frame(sf);
+    __cilkrts_leave_frame(sf);
 }
 
 int __attribute__((noinline)) run(int n, uint64_t *running_time) {
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
     __cilkrts_enter_frame_1(sf);
 
-    //printf("run\n");
     int res;
     clockmark_t begin, end; 
 
@@ -174,18 +137,16 @@ int __attribute__((noinline)) run(int n, uint64_t *running_time) {
         running_time[i] = ktiming_diff_usec(&begin, &end);
     }
 
-    printf("Res: %d\n", res);
 
     __cilkrts_pop_frame(sf);
-    //if (sf->flags)
-        __cilkrts_leave_frame(sf);
+    __cilkrts_leave_frame(sf);
+
     return res;
 }
 
 int main(int argc, char * args[]) {
     int n;
-    //uint64_t running_time[TIMES_TO_RUN];
-    uint64_t *running_time = (uint64_t*)malloc(TIMES_TO_RUN * sizeof(uint64_t));
+    uint64_t running_time[TIMES_TO_RUN];
 
     if(argc != 2) {
         fprintf(stderr, "Usage: fib [<cilk-options>] <n>\n");
@@ -196,12 +157,12 @@ int main(int argc, char * args[]) {
 
     int res = run(n, &running_time[0]);
 
+    printf("Res: %d\n", res);
+
     if( TIMES_TO_RUN > 10 ) 
         print_runtime_summary(running_time, TIMES_TO_RUN); 
     else 
         print_runtime(running_time, TIMES_TO_RUN); 
-
-    free(running_time);
 
     return 0;
 }

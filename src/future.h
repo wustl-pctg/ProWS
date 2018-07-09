@@ -59,8 +59,9 @@ private:
   volatile status m_status;
   volatile T m_result;
 
-  pthread_spinlock_t m_touches_lock;
+  //pthread_spinlock_t m_touches_lock;
   void* m_suspended_deques[MAX_TOUCHES];
+  void**volatile m_deques;
   int m_num_suspended_deques;
   
 public:
@@ -68,33 +69,26 @@ public:
  future() {
     m_num_suspended_deques = 0;
     m_status = status::CREATED;
-    pthread_spin_init(&m_touches_lock, 0);
     m_suspended_deques[0] = NULL;
+    m_deques = m_suspended_deques;
   };
 
   ~future() {
-    // Make sure we don't delete in the middle of a put
-    pthread_spin_lock(&m_touches_lock);
-    pthread_spin_unlock(&m_touches_lock);
-    pthread_spin_destroy(&m_touches_lock);
   }
 
   void* __attribute__((always_inline)) put(T result) {
     assert(m_status != status::DONE);
     m_result = result;
-
-    // Make sure no worker is in the middle of
-    // suspending its own deque before proceeding.
-    pthread_spin_lock(&m_touches_lock);
+    __asm__ volatile ("" ::: "memory");
     m_status = status::DONE;
-    void* suspended_deques[MAX_TOUCHES];
-    suspended_deques[0] = NULL;
-    for (int i = 0; i < m_num_suspended_deques; i++) {
-        suspended_deques[i] = m_suspended_deques[i];
-    }
-    int num_suspended_deques = m_num_suspended_deques;
-    pthread_spin_unlock(&m_touches_lock);
     
+    void **suspended_deques;
+    do {
+        while (m_deques == NULL);
+        suspended_deques = __sync_val_compare_and_swap(&m_deques, m_deques, NULL);
+    } while (suspended_deques == NULL);
+    int num_suspended_deques = m_num_suspended_deques;
+
     // make resumable can be heavy, so keep it outside the lock
     void *ret = suspended_deques[0];
     for (int i = 1; i < num_suspended_deques; i++) {
@@ -110,21 +104,23 @@ public:
   } 
 
   T __attribute__((always_inline)) get() {
-    if (!this->ready()) {
-        pthread_spin_lock(&m_touches_lock);
-
         if (!this->ready()) {
             void *deque = __cilkrts_get_deque();
-            assert(deque);
-            assert(m_num_suspended_deques < MAX_TOUCHES);
-            m_suspended_deques[m_num_suspended_deques++] = deque;
-            pthread_spin_unlock(&m_touches_lock);
-            __cilkrts_suspend_deque();
-        } else {
-            pthread_spin_unlock(&m_touches_lock);
+            void **suspended_deques;
+            do {
+                while (!this->ready() && m_deques == NULL);
+                suspended_deques = __sync_val_compare_and_swap(&m_deques, m_deques, NULL);
+            } while (suspended_deques == NULL && !this->ready());
+
+            if (suspended_deques) {
+                assert(m_num_suspended_deques < MAX_TOUCHES);
+                m_suspended_deques[m_num_suspended_deques++] = deque;
+
+                m_deques = suspended_deques;
+                __cilkrts_suspend_deque();
+            }
         }
 
-    }
     assert(m_status==status::DONE);
     return m_result;
   }

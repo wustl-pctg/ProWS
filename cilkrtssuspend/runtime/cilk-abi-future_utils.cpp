@@ -92,7 +92,9 @@ CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, c
 
 CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     __cilkrts_worker* curr_worker = __cilkrts_get_tls_worker_fast();
-    cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
+    // This is a little faster on 1 core than normal allocate; there seems to be less of an effect on multicore
+    cilk_fiber* new_exec_fiber = cilk_fiber_allocate_with_try_allocate_from_pool(&(curr_worker->l->fiber_pool));
+    //cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
     // TODO: Handle the case that it is null more gracefully
     CILK_ASSERT(new_exec_fiber != NULL);
     cilk_fiber_data* new_exec_fiber_data = cilk_fiber_get_data(new_exec_fiber);

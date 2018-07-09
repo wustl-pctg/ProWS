@@ -233,6 +233,8 @@ void cilk_fiber_pool_destroy(cilk_fiber_pool* pool);
  */
 cilk_fiber* cilk_fiber_allocate(cilk_fiber_pool* pool);
 
+cilk_fiber* cilk_fiber_allocate_with_try_allocate_from_pool(cilk_fiber_pool* pool);
+
 /** @brief Allocate and initialize a new cilk_fiber using memory from
  * the heap and/or OS.
  *
@@ -662,6 +664,14 @@ protected:
 		m_flags = state ?  (m_flags | RESUMABLE) : (m_flags & (~RESUMABLE));
 	}
 
+    inline void set_resumable() {
+        m_flags |= RESUMABLE;
+    }
+
+    inline void set_not_resumable() {
+        m_flags &= ~RESUMABLE;
+    }
+
 	/**
 	 *@brief Set the allocated_from_thread flag. 
 	 */
@@ -678,6 +688,8 @@ public:
 	 * @pre pool should not be NULL.
 	 */
 	static cilk_fiber* allocate(cilk_fiber_pool* pool);
+
+    static cilk_fiber* allocate_with_try_allocate_from_pool(cilk_fiber_pool* pool);
 
 	/**
 	 * @brief Allocates a fiber from the heap.
@@ -874,7 +886,6 @@ private:
 	 * This method will not allocate a fiber from the heap.
 	 */
 	static cilk_fiber* try_allocate_from_pool_recursive(cilk_fiber_pool* pool);
-    
     
 #if NEED_FIBER_REF_COUNTS
 	/**

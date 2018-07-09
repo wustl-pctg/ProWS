@@ -11,7 +11,7 @@
 #include "../cilkrtssuspend/runtime/global_state.h"
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 1 
+#define TIMES_TO_RUN 5 
 #endif
 
 /* 

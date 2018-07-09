@@ -311,6 +311,11 @@ extern "C" {
     __cilkrts_free(pool->fibers);
   }
 
+  cilk_fiber* cilk_fiber_allocate_with_try_allocate_from_pool(cilk_fiber_pool* pool)
+  {
+    CILK_ASSERT(cilk_fiber_pool_sanity_check(pool, "allocate"));
+    return cilk_fiber::allocate_with_try_allocate_from_pool(pool);
+  }
 
   cilk_fiber* cilk_fiber_allocate(cilk_fiber_pool* pool)
   {
@@ -650,7 +655,7 @@ cilk_fiber* cilk_fiber::allocate_from_heap(std::size_t stack_size)
 }
 
 
-#if USE_FIBER_TRY_ALLOCATE_FROM_POOL
+//#if USE_FIBER_TRY_ALLOCATE_FROM_POOL
 /**
  * Helper method: try to allocate a fiber from this pool or its
  * ancestors without going to the OS / heap.
@@ -713,8 +718,102 @@ cilk_fiber* cilk_fiber::try_allocate_from_pool_recursive(cilk_fiber_pool* pool)
   }
   return ret;
 }
-#endif // USE_FIBER_TRY_ALLOCATE_FROM_POOL
+//#endif // USE_FIBER_TRY_ALLOCATE_FROM_POOL
 
+cilk_fiber* cilk_fiber::allocate_with_try_allocate_from_pool(cilk_fiber_pool* pool) {
+  // Pool should not be NULL in this method.  But I'm not going to
+  // actually assert it, because we are likely to seg fault anyway
+  // if it is.
+  // CILK_ASSERT(NULL != pool);
+
+  cilk_fiber *ret = NULL;
+
+  // "Fast" path, which doesn't go to the heap or OS until checking
+  // the ancestors first.
+  ret = try_allocate_from_pool_recursive(pool);
+  if (ret)
+    return ret;
+
+  // If we don't get anything from the "fast path", then go through
+  // a slower path to look for a fiber.
+  //
+  //  1. Lock the pool if it is shared.
+  //  2. Look in our local pool.  If we find one, release the lock
+  //     and quit searching.
+  //  3. Otherwise, check whether we can allocate from heap.
+  //  4. Release the lock if it was acquired.
+  //  5. Try to allocate from the heap, if step 3 said we could.
+  //     If we find a fiber, then quit searching.
+  //  6. If none of these steps work, just recursively try again
+  //     from the parent.
+
+  // 1. Lock the pool if it is shared.
+  if (pool->lock) {
+    spin_mutex_lock(pool->lock);
+  }
+
+  // 2. Look in local pool.
+  if (pool->size > 0) {
+    ret = pool->fibers[--pool->size];
+    if (ret) {
+      // If we found one, release the lock once we are
+      // done updating pool fields, and break out of the
+      // loop.
+      if (pool->lock) {
+        spin_mutex_unlock(pool->lock);
+      }
+
+      // When we pull a fiber out of the pool, set its reference
+      // count just in case.
+      ret->init_ref_count(1);
+      return ret;
+    }
+  }
+
+  // 3. Check whether we can allocate from the heap.
+  bool can_allocate_from_heap = false;
+  if (pool->total < pool->alloc_max) {
+    // Track that we are allocating a new fiber from the
+    // heap, originating from this pool.
+    // This increment may be undone if we happen to fail to
+    // allocate from the heap.
+    increment_pool_total(pool);
+    can_allocate_from_heap = true;
+  }
+
+  // 4. Unlock the pool, and then allocate from the heap.
+  if (pool->lock) {
+    spin_mutex_unlock(pool->lock);
+  }
+
+  // 5. Actually try to allocate from the heap / OS.
+  if (can_allocate_from_heap) {
+    ret = allocate_from_heap(pool->stack_size);
+    // If we got something from the heap, just return it.
+    if (ret) {
+      return ret;
+    }
+
+    // Otherwise, we failed in our attempt to allocate a
+    // fiber from the heap.  Grab the lock and decrement
+    // the total again.
+    if (pool->lock) {
+      spin_mutex_lock(pool->lock);
+    }
+    decrement_pool_total(pool, 1);
+    if (pool->lock) {
+      spin_mutex_unlock(pool->lock);
+    }
+  }
+
+  // 6. If we get here, then searching this pool failed.  Go search
+  // the parent instead if we have one.
+  if (pool->parent) {
+    return allocate(pool->parent);
+  }
+    
+  return ret;
+}
 
 cilk_fiber* cilk_fiber::allocate(cilk_fiber_pool* pool)
 {
@@ -896,7 +995,7 @@ cilk_fiber* cilk_fiber::get_current_fiber()
 void cilk_fiber::do_post_switch_actions()
 {
   if (m_from_fiber) {
-    m_from_fiber->set_resumable(true);
+    m_from_fiber->set_resumable();
     m_from_fiber = NULL;
   }
   if (m_post_switch_proc) 
@@ -992,7 +1091,7 @@ void cilk_fiber::deallocate_to_heap()
 
 void cilk_fiber::deallocate_self(cilk_fiber_pool* pool)
 {
-  this->set_resumable(false);
+  this->set_not_resumable();
 
   CILK_ASSERT(NULL != pool);
   CILK_ASSERT(!this->is_allocated_from_thread());
@@ -1005,9 +1104,10 @@ void cilk_fiber::deallocate_self(cilk_fiber_pool* pool)
   //                     enough to make space for the fiber we are deallocating.
   //                     Then put the fiber back into the pool.
     
-  const bool need_lock = pool->lock;
+  //const bool need_lock = pool->lock;
   // Grab the lock for the remaining cases.
-  if (need_lock) {
+  //if (need_lock) {
+  if (pool->lock) {
     spin_mutex_lock(pool->lock);
   }
 
@@ -1016,7 +1116,8 @@ void cilk_fiber::deallocate_self(cilk_fiber_pool* pool)
     {
       // Add this fiber to pool
       pool->fibers[pool->size++] = this;
-      if (need_lock) {
+      //if (need_lock) {
+      if (pool->lock) {
         spin_mutex_unlock(pool->lock);
       }
       return;
@@ -1033,7 +1134,8 @@ void cilk_fiber::deallocate_self(cilk_fiber_pool* pool)
       cilk_fiber_pool_move_fibers_to_parent_pool(pool, num_to_keep);
     }
 
-  if (need_lock) {
+  //if (need_lock) {
+  if (pool->lock) {
     spin_mutex_unlock(pool->lock);
   }
 

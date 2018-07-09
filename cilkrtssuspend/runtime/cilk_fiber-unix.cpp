@@ -138,12 +138,12 @@ cilk_fiber_sysdep* cilk_fiber_sysdep::get_current_fiber_sysdep()
 inline void cilk_fiber_sysdep::resume_other_sysdep(cilk_fiber_sysdep* other)
 {
 	if (other->is_resumable()) {
-		other->set_resumable(false);
+		other->set_not_resumable();
 		// Resume by longjmp'ing to the place where we suspended.
 		CILK_LONGJMP(other->m_resume_jmpbuf);
 	}
 	else {
-		// Otherwise, we've never ran this fiber before.  Start the
+		// Otherwise, we've never run this fiber before.  Start the
 		// proc method.
 		other->run();
 	}

@@ -20,7 +20,7 @@ namespace cilk {
   auto __temp_fut = fut; \
   __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
     void *__cilk_deque = __temp_fut->put(functor()); \
-    if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
+    if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 2);\
   }); \
   }
 

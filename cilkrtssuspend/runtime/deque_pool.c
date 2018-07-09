@@ -193,26 +193,44 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   // This must be marked before switching, otherwise a thief may mug
   // the deque, after which no one would resume it, since the critical
   // section has already been executed.
-  w->l->active_deque->resumable = (enable_resume) ? 1 : 0;
-
-  cilk_fiber *current_fiber = deque_suspend(w, deque_to_resume);
-
   fiber_to_resume = deque_to_resume->fiber;
-  CILK_ASSERT(w->l->active_deque);
-  CILK_ASSERT(fiber_to_resume == w->l->active_deque->fiber);
-  CILK_ASSERT(fiber_to_resume);
-  CILK_ASSERT(deque_to_resume->call_stack == w->current_stack_frame);
 
-  w->l->active_deque->fiber = NULL;
-  deque_to_resume->fiber = NULL;
-
-  // switch fibers
   cilk_fiber_data *data = cilk_fiber_get_data(fiber_to_resume);
   CILK_ASSERT(!data->resume_sf);
   data->owner = w;
 
-  //printf("resuming fiber %p\n", current_fiber);
-  cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
+  if (enable_resume == 2 && !can_steal_from(w, w->l->active_deque)) {
+    deque_destroy(w->l->active_deque);
+
+    cilk_fiber *current_fiber = cilk_fiber_get_current_fiber();
+
+    deque_to_resume->resumable = 0;
+
+    BEGIN_WITH_WORKER_LOCK(w) {
+        w->l->active_deque = deque_to_resume;
+        deque_switch(w, deque_to_resume);
+    } END_WITH_WORKER_LOCK(w);
+
+    deque_to_resume->fiber = NULL;
+
+    cilkg_decrement_pending_futures(w->g);
+
+    cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber, &(w->l->fiber_pool), fiber_to_resume);  
+  } else {
+    w->l->active_deque->resumable = (enable_resume) ? 1 : 0;
+    cilk_fiber *current_fiber = deque_suspend(w, deque_to_resume);
+
+    CILK_ASSERT(w->l->active_deque);
+    CILK_ASSERT(fiber_to_resume == w->l->active_deque->fiber);
+    CILK_ASSERT(fiber_to_resume);
+    CILK_ASSERT(deque_to_resume->call_stack == w->current_stack_frame);
+
+    w->l->active_deque->fiber = NULL;
+    deque_to_resume->fiber = NULL;
+
+    // switch fibers
+    cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
+  }
 
 }
 

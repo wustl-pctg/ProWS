@@ -15,7 +15,7 @@
 #endif
 
 //#define TEST_INTEROP_PRE_FUTURE_CREATE
-#define TEST_INTEROP_POST_FUTURE_CREATE
+//#define TEST_INTEROP_POST_FUTURE_CREATE
 //#define TEST_INTEROP_MULTI_FUTURE
 
 /* 
@@ -67,18 +67,18 @@ int  __attribute__((noinline)) fib(int n) {
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
     __cilkrts_enter_frame_1(sf);
 
-    volatile int done = 0;
-    volatile int done1 = 0;
-    volatile int done2 = 0;
-    volatile int done3 = 0;
-    volatile int done4 = 0;
-
     #ifdef TEST_INTEROP_PRE_FUTURE_CREATE
         #pragma message ("using spawn pre fut fib interop")
         if (!CILK_SETJMP(sf->ctx)) {
             fib_helper(&y, n-2);
         }
     #endif
+
+    //if (sf->flags & CILK_FRAME_UNSYNCHED) {
+    //    if (!CILK_SETJMP(sf->ctx)) {
+    //        __cilkrts_sync(sf);
+    //    }
+    //}
 
     cilk::future<int> x_fut = cilk::future<int>();
 
@@ -99,13 +99,15 @@ int  __attribute__((noinline)) fib(int n) {
         fib_fut(&x_fut, n-1);
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
+        CILK_ASSERT((sf->flags & CILK_FRAME_FUTURE_PARENT));
         sf->flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
         __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
+        CILK_ASSERT(0);
     }
 
     #ifdef TEST_INTEROP_POST_FUTURE_CREATE
-        #pragma messgae ("using using spawn post fut fib interop")
+        #pragma message ("using using spawn post fut fib interop")
         if (!CILK_SETJMP(sf->ctx)) {
             fib_helper(&y, n-2);
         }
@@ -116,34 +118,26 @@ int  __attribute__((noinline)) fib(int n) {
         CILK_ASSERT((sf->flags & CILK_FRAME_FUTURE_PARENT) == 0);
         sf->flags |= CILK_FRAME_FUTURE_PARENT;
 
-        cilk_fiber* initial_fiber2 = cilk_fiber_get_current_fiber();
+        initial_fiber = cilk_fiber_get_current_fiber();
 
-        __CILK_JUMP_BUFFER bkup2;
+        //__CILK_JUMP_BUFFER bkup2;
      
         if (!CILK_SETJMP(sf->ctx)) {
-            CILK_ASSERT(done == 0);
-            done = 1;
-            memcpy((void*)bkup2, sf->ctx, 5*sizeof(void*));
+            memcpy((void*)bkup, sf->ctx, 5*sizeof(void*));
             __cilkrts_switch_fibers(sf);
     
         } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-            CILK_ASSERT(done1 == 0);
-            done1 = 1;
-            memcpy(sf->ctx, (void*)bkup2, 5*sizeof(void*));
+            memcpy(sf->ctx, (void*)bkup, 5*sizeof(void*));
     
             fib_fut(&y_fut, n-1);
     
             cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
             sf->flags &= ~(CILK_FRAME_FUTURE_PARENT);
     
-            __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber2);
+            __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
         }
-            CILK_ASSERT(done2 == 0);
-            done2 = 1;
     
-            y = y_fut.get();
-            CILK_ASSERT(done3 == 0);
-            done3 = 1;
+        y = y_fut.get();
     #elif !defined(TEST_INTEROP_PRE_FUTURE_CREATE)
         #pragma message ("using regular fib (no interop)")
         y = fib(n-2);
@@ -161,7 +155,7 @@ int  __attribute__((noinline)) fib(int n) {
 
     // If we aren't careful, it turns out lto
     // gets too agressive and starts popping
-    // frames inappropriately
+    // frames at inappropriate moments
     __asm__ volatile ("" ::: "memory");
     __cilkrts_pop_frame(sf);
     __cilkrts_leave_frame(sf);

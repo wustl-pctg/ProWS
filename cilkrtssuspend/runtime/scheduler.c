@@ -1665,7 +1665,7 @@ static NORETURN longjmp_into_runtime(__cilkrts_worker *w, scheduling_stack_fcn_t
         // We should never come back here!
         CILK_ASSERT(0);
     }
-    else {        
+    else { 
         // Case 2: We are passing the fiber to our parent because we
         // are leftmost.  We should come back later to
         // resume execution of user code.

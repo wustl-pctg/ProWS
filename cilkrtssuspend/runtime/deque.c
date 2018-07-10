@@ -276,7 +276,6 @@ void detach_for_steal(__cilkrts_worker *w,
           CILK_ASSERT(child_ff->fiber_self);
           CILK_ASSERT(child_ff->fiber_self != loot_ff->fiber_self);
           CILK_ASSERT(!child_ff->fiber_child);
-          CILK_ASSERT(!loot_ff->fiber_child);
 
           unlink_child(loot_ff, child_ff);
           child_ff->parent = NULL;

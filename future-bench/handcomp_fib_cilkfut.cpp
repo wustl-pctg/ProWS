@@ -14,6 +14,9 @@
 #define TIMES_TO_RUN 5 
 #endif
 
+//#define TEST_INTEROP_PRE_FUTURE_CREATE
+//#define TEST_INTEROP_POST_FUTURE_CREATE
+
 /* 
  * fib 39: 63245986
  * fib 40: 102334155
@@ -36,6 +39,7 @@ extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
 }
 
 int fib(int n);
+void fib_helper(int *res, int n);
 
 void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
@@ -61,41 +65,63 @@ int  __attribute__((noinline)) fib(int n) {
 
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
     __cilkrts_enter_frame_1(sf);
-    
+
+    #ifdef TEST_INTEROP_PRE_FUTURE_CREATE
+        if (!CILK_SETJMP(sf->ctx)) {
+            fib_helper(&y, n-2);
+        }
+    #endif
+
+    cilk::future<int> x_fut = cilk::future<int>();
 
     sf->flags |= CILK_FRAME_FUTURE_PARENT;
 
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
-    
-    cilk::future<int> x_fut = cilk::future<int>();
      
     __CILK_JUMP_BUFFER bkup;
 
     if (!CILK_SETJMP(sf->ctx)) {
         memcpy((void*)bkup, sf->ctx, 5*sizeof(void*));
+        CILK_ASSERT(__cilkrts_get_tls_worker_fast()->current_stack_frame);
         __cilkrts_switch_fibers(sf);
 
     } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
         memcpy(sf->ctx, (void*)bkup, 5*sizeof(void*));
+
         fib_fut(&x_fut, n-1);
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
+        sf->flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
         __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
     }
 
+    if (sf->flags & CILK_FRAME_STOLEN) {
+        CILK_ASSERT((sf->flags & CILK_FRAME_FUTURE_PARENT)==0);
+    }
+
+    #ifdef TEST_INTEROP_POST_FUTURE_CREATE
+        if (!CILK_SETJMP(sf->ctx)) {
+            fib_helper(&y, n-2);
+        }
+    #elif !defined(TEST_INTEROP_PRE_FUTURE_CREATE)
+        y = fib(n-2);
+    #endif
+
+    x = x_fut.get();
 
     if (sf->flags & CILK_FRAME_UNSYNCHED) {
         if (!CILK_SETJMP(sf->ctx)) {
-            __cilkrts_future_sync(sf);
+            __cilkrts_sync(sf);
         }
     }
 
-    y = fib(n - 2);
-    x = x_fut.get();
-
     int _tmp = x+y;
 
+    // If we aren't careful, it turns out lto
+    // gets too agressive and starts popping
+    // frames inappropriately
+    __asm__ volatile ("" ::: "memory");
     __cilkrts_pop_frame(sf);
     __cilkrts_leave_frame(sf);
 

@@ -46,7 +46,6 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     data->resume_sf = NULL;
     CILK_ASSERT(sf->worker == data->owner);
 
-
     // For Win32, we need to overwrite the default exception handler
     // in this function, so that when the OS exception handling code
     // walks off the top of the current Cilk stack, it reaches our stub
@@ -100,6 +99,7 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     cilk_fiber_data* new_exec_fiber_data = cilk_fiber_get_data(new_exec_fiber);
 
     new_exec_fiber_data->resume_sf = first_frame;
+    //new_exec_fiber_data->owner = __cilkrts_get_tls_worker_fast();
     cilk_fiber_reset_state(new_exec_fiber, fiber_proc_to_resume_user_code_for_future);
 
     cilk_fiber *curr_fiber = NULL;

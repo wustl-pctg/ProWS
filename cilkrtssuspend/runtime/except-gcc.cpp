@@ -175,7 +175,7 @@ extern "C"
 CILK_ABI_THROWS_VOID
 __cilkrts_return_exception(__cilkrts_stack_frame *sf)
 {
-    __cilkrts_worker *w = sf->worker;
+    __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();//sf->worker;
     _Unwind_Exception *exc = (_Unwind_Exception *)sf->except_data;
 
     CILK_ASSERT(sf->flags & CILK_FRAME_DETACHED);

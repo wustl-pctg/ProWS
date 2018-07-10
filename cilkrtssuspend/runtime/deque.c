@@ -268,21 +268,18 @@ void detach_for_steal(__cilkrts_worker *w,
       /* child is referenced by victim */
       incjoin(child_ff);
 
-      if (loot_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
-          child_ff->future_flags = CILK_FUTURE;
-          loot_ff->future_flags = CILK_FUTURE_PARENT;
-          loot_ff->call_stack->flags &= ~(CILK_FRAME_FUTURE_PARENT);
+      if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
           CILK_ASSERT(child_ff->fiber_self);
           loot_ff->fiber_self = child_ff->fiber_self;
-          loot_ff->fiber_child = child_ff->fiber_self;
-          cilk_fiber_get_data(loot_ff->fiber_child)->resume_sf = NULL;
 
           child_ff->fiber_self = __cilkrts_pop_head_future_fiber(victim, d);
           CILK_ASSERT(child_ff->fiber_self);
+          CILK_ASSERT(child_ff->fiber_self != loot_ff->fiber_self);
+          CILK_ASSERT(!child_ff->fiber_child);
+          CILK_ASSERT(!loot_ff->fiber_child);
 
           unlink_child(loot_ff, child_ff);
           child_ff->parent = NULL;
-          decjoin(loot_ff);
       }
 
       // With this call, w is bestowing ownership of the newly
@@ -409,7 +406,11 @@ void deque_switch(__cilkrts_worker *w, deque *d)
     return;
   } 
 
-  if (d->resumable) CILK_ASSERT(d->fiber);
+  if (d->resumable) {
+    CILK_ASSERT(d->fiber);
+    CILK_ASSERT(d->call_stack);
+    d->call_stack->worker = w;
+  }
   CILK_ASSERT(d->worker == NULL);
   d->worker = w;
   d->self = ACTIVE_DEQUE_INDEX;//&w->l->active_deque;
@@ -591,8 +592,6 @@ void deque_mug(__cilkrts_worker *w, deque *d)
   CILK_ASSERT(d->worker->l->lock.owner == w);
   CILK_ASSERT(d->fiber);
 
-  
-
   deque_pool *p = (d->resumable) ?
     &d->worker->l->resumable_deques : &d->worker->l->suspended_deques;
   deque_pool_validate(p, d->worker);
@@ -602,4 +601,5 @@ void deque_mug(__cilkrts_worker *w, deque *d)
 
   //  d->worker->l->mugged++;
   deque_pool_remove(p, d);
+  d->call_stack->worker = w;
 }

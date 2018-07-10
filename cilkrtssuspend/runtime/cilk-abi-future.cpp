@@ -64,11 +64,11 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     }
 
     // TODO: Rework it so we don't do this on futures
-    if (sf.flags & CILK_FRAME_UNSYNCHED) {
-        if (!CILK_SETJMP(sf.ctx)) {
-            __cilkrts_future_sync(&sf);
-        }
-    }
+    //if (sf.flags & CILK_FRAME_UNSYNCHED) {
+    //    if (!CILK_SETJMP(sf.ctx)) {
+    //        __cilkrts_future_sync(&sf);
+    //    }
+    //}
 
 
     __cilkrts_pop_frame(&sf);

@@ -198,22 +198,28 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   cilk_fiber_data *data = cilk_fiber_get_data(fiber_to_resume);
   CILK_ASSERT(!data->resume_sf);
   data->owner = w;
+  deque_to_resume->call_stack->worker = w;
 
   if (enable_resume == 2 && !can_steal_from(w, w->l->active_deque)) {
-    deque_destroy(w->l->active_deque);
 
     cilk_fiber *current_fiber = cilk_fiber_get_current_fiber();
 
     deque_to_resume->resumable = 0;
+    deque *to_destroy = w->l->active_deque;
 
     BEGIN_WITH_WORKER_LOCK(w) {
         w->l->active_deque = deque_to_resume;
         deque_switch(w, deque_to_resume);
     } END_WITH_WORKER_LOCK(w);
 
+    deque_destroy(to_destroy);
+
     deque_to_resume->fiber = NULL;
 
     cilkg_decrement_pending_futures(w->g);
+
+    CILK_ASSERT(deque_to_resume->call_stack == w->current_stack_frame);
+    CILK_ASSERT(deque_to_resume->call_stack != NULL);
 
     cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber, &(w->l->fiber_pool), fiber_to_resume);  
   } else {

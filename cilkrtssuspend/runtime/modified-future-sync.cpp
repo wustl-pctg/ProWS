@@ -636,6 +636,8 @@ NORETURN __cilkrts_c_future_sync(__cilkrts_worker *w, __cilkrts_stack_frame *sf_
 }
 
 CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf) {
+    printf("NO!\n");
+    CILK_ASSERT(0);
 	//__cilkrts_worker *w = sf->worker;
 	__cilkrts_worker *w = __cilkrts_get_tls_worker();
 

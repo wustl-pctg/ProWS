@@ -90,7 +90,7 @@ print_runtime_helper(uint64_t *usec_elapsed, int size, int summary) {
     printf("Running time average: %g s\n", USEC_TO_SEC(ave));
     if( std_dev != 0 ) {
         printf( "Std. dev: %g s (%2.3f%%)\n", 
-                USEC_TO_SEC(std_dev), 100.0*USEC_TO_SEC(std_dev/ave) );
+                USEC_TO_SEC(std_dev), 100.0*std_dev/ave );
     }
 }
 

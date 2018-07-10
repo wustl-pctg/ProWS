@@ -200,8 +200,6 @@ struct full_frame
      */
     int is_call_child;
 
-    int future_flags;
-
     /**
      * TRUE if this frame is the loot of a simulated steal.
      *

@@ -971,13 +971,41 @@ done:
             CILK_ASSERT(0 == ref_count);
         } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
     } else {
-        if (w->l->next_frame_ff->future_flags == CILK_FUTURE_PARENT) {
+        if (w->l->next_frame_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
             START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
                 int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
                 // Fibers we use when trying to steal should not be active,
                 // and thus should not have any other references.
                 CILK_ASSERT(0 == ref_count);
             } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+
+            full_frame *loot_ff = w->l->next_frame_ff;
+            __cilkrts_stack_frame *sf = w->l->next_frame_ff->call_stack;
+            CILK_ASSERT(sf);
+            
+            sf->flags &= ~(CILK_FRAME_FUTURE_PARENT);
+            //loot_ff->fiber_child = loot_ff->fiber_self;
+            cilk_fiber_get_data(loot_ff->fiber_self)->resume_sf = NULL;
+            decjoin(loot_ff);
+            //decjoin(loot_ff); // I'm less sure this is correct...
+            
+            sf->parent_pedigree.rank = w->pedigree.rank;
+            sf->parent_pedigree.parent = w->pedigree.parent;
+
+            #ifdef PRECOMPUTE_PEDIGREES
+                sf->parent_pedigree.length = w->pedigree.length;
+                sf->parent_pedigree.actual = w->pedigree.actual;
+            #endif
+
+            sf->parent_pedigree = w->pedigree;
+            sf->flags |= CILK_FRAME_SF_PEDIGREE_UNSYNCHED;
+            if (loot_ff->join_counter == 1) {
+                sf->flags &= ~(CILK_FRAME_UNSYNCHED);
+            }
+            //decjoin(loot_ff);
+            //if (loot_ff->join_counter == 0) {
+                
+            //}
         } else {
             // Since our steal was successful, finish initialization of
             // the fiber.

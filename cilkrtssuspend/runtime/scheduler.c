@@ -590,6 +590,8 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
 
     /* The leafmost frame is unsynched. */
 
+    // TODO: I think I can put a check for whether or not the frame is a future
+    //       here, and only mark unsynched if not a future; else leave as is.
     /// @todo{ I think each stack frame should hold a deque pointer, not a worker pointer.}
     if (sf->worker != w || w->l->active_deque->frame_ff != ff)
         sf->flags |= CILK_FRAME_UNSYNCHED;
@@ -866,6 +868,7 @@ static void random_steal(__cilkrts_worker *w)
         goto done;
     }
 
+    // TODO: If we steal a future parent, no need to do this.
     START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
         /* Verify that we can get a stack.  If not, no need to continue. */
         fiber = cilk_fiber_allocate(&w->l->fiber_pool);
@@ -980,15 +983,11 @@ done:
             } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
 
             full_frame *loot_ff = w->l->next_frame_ff;
-            __cilkrts_stack_frame *sf = w->l->next_frame_ff->call_stack;
-            CILK_ASSERT(sf);
+            __cilkrts_stack_frame *sf = loot_ff->call_stack;
             
-            sf->flags &= ~(CILK_FRAME_FUTURE_PARENT);
-            //loot_ff->fiber_child = loot_ff->fiber_self;
             cilk_fiber_get_data(loot_ff->fiber_self)->resume_sf = NULL;
-            decjoin(loot_ff);
-            //decjoin(loot_ff); // I'm less sure this is correct...
             
+            // TODO: I don't think I'm handling pedigrees properly...
             sf->parent_pedigree.rank = w->pedigree.rank;
             sf->parent_pedigree.parent = w->pedigree.parent;
 
@@ -999,13 +998,8 @@ done:
 
             sf->parent_pedigree = w->pedigree;
             sf->flags |= CILK_FRAME_SF_PEDIGREE_UNSYNCHED;
-            if (loot_ff->join_counter == 1) {
-                sf->flags &= ~(CILK_FRAME_UNSYNCHED);
-            }
-            //decjoin(loot_ff);
-            //if (loot_ff->join_counter == 0) {
-                
-            //}
+
+            CILK_ASSERT(loot_ff->fiber_self);
         } else {
             // Since our steal was successful, finish initialization of
             // the fiber.

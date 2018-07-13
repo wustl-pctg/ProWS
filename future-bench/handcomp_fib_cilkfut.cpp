@@ -9,14 +9,19 @@
 #include "../cilkrtssuspend/runtime/os.h"
 #include "../cilkrtssuspend/runtime/jmpbuf.h"
 #include "../cilkrtssuspend/runtime/global_state.h"
+#include "../cilkrtssuspend/runtime/full_frame.h"
+#include "../cilkrtssuspend/runtime/scheduler.h"
+#include "../cilkrtssuspend/runtime/local_state.h"
 
 #ifndef TIMES_TO_RUN
 #define TIMES_TO_RUN 5 
 #endif
 
-//#define TEST_INTEROP_PRE_FUTURE_CREATE
+#define TEST_INTEROP_PRE_FUTURE_CREATE
 //#define TEST_INTEROP_POST_FUTURE_CREATE
 //#define TEST_INTEROP_MULTI_FUTURE
+
+#define FUTURE_AFTER_SYNC
 
 /* 
  * fib 39: 63245986
@@ -25,11 +30,7 @@
  * fib 42: 267914296
  */
 
-extern int ZERO;
-
-extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_leave_future_parent_frame(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
 extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
 
@@ -60,7 +61,7 @@ int  __attribute__((noinline)) fib(int n) {
     int x;
     int y;
 
-    if(n <= 2) {
+    if(n < 2) {
         return n;
     }
 
@@ -74,36 +75,26 @@ int  __attribute__((noinline)) fib(int n) {
         }
     #endif
 
-    //if (sf->flags & CILK_FRAME_UNSYNCHED) {
-    //    if (!CILK_SETJMP(sf->ctx)) {
-    //        __cilkrts_sync(sf);
-    //    }
-    //}
-
     cilk::future<int> x_fut = cilk::future<int>();
 
     sf->flags |= CILK_FRAME_FUTURE_PARENT;
 
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
      
-    __CILK_JUMP_BUFFER bkup;
+    void *bkup_sp;
 
     if (!CILK_SETJMP(sf->ctx)) {
-        memcpy((void*)bkup, sf->ctx, 5*sizeof(void*));
-        CILK_ASSERT(__cilkrts_get_tls_worker_fast()->current_stack_frame);
+        bkup_sp = SP(sf);
         __cilkrts_switch_fibers(sf);
 
     } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-        memcpy(sf->ctx, (void*)bkup, 5*sizeof(void*));
+        SP(sf) = bkup_sp;
 
         fib_fut(&x_fut, n-1);
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
-        CILK_ASSERT((sf->flags & CILK_FRAME_FUTURE_PARENT));
-        sf->flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
         __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
-        CILK_ASSERT(0);
     }
 
     #ifdef TEST_INTEROP_POST_FUTURE_CREATE
@@ -120,19 +111,16 @@ int  __attribute__((noinline)) fib(int n) {
 
         initial_fiber = cilk_fiber_get_current_fiber();
 
-        //__CILK_JUMP_BUFFER bkup2;
-     
         if (!CILK_SETJMP(sf->ctx)) {
-            memcpy((void*)bkup, sf->ctx, 5*sizeof(void*));
+            bkup_sp = SP(sf);
             __cilkrts_switch_fibers(sf);
     
         } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-            memcpy(sf->ctx, (void*)bkup, 5*sizeof(void*));
-    
+            SP(sf) = bkup_sp; 
+
             fib_fut(&y_fut, n-1);
     
             cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
-            sf->flags &= ~(CILK_FRAME_FUTURE_PARENT);
     
             __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
         }
@@ -143,13 +131,25 @@ int  __attribute__((noinline)) fib(int n) {
         y = fib(n-2);
     #endif
 
-    x = x_fut.get();
+    #ifndef FUTURE_AFTER_SYNC
+        #pragma message ("future get before sync")
+        x = x_fut.get();
+    #endif
 
-    if (sf->flags & CILK_FRAME_UNSYNCHED) {
-        if (!CILK_SETJMP(sf->ctx)) {
-            __cilkrts_sync(sf);
+    #if defined(TEST_INTEROP_PRE_FUTURE_CREATE) || defined(TEST_INTEROP_POST_FUTURE_CREATE)
+        #pragma message ("Added a synch to the function")
+
+        if (sf->flags & CILK_FRAME_UNSYNCHED) {
+            if (!CILK_SETJMP(sf->ctx)) {
+                __cilkrts_sync(sf);
+            }
         }
-    }
+    #endif
+
+    #ifdef FUTURE_AFTER_SYNC
+        #pragma message ("future get after sync")
+        x = x_fut.get();
+    #endif
 
     int _tmp = x+y;
 

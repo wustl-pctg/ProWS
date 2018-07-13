@@ -257,11 +257,14 @@ void detach_for_steal(__cilkrts_worker *w,
       loot_ff->simulated_stolen = 1;
     } else {
       __cilkrts_push_next_frame(w, loot_ff);
-    } 
+    }
+
 
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
 
+    // KYLE TODO: Is this frame lock REALLY needed? The child ff is new,
+    //            and is not installed anywhere yet.
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
       /* install child in the victim's work queue, taking
          the parent_ff's place */
@@ -269,16 +272,19 @@ void detach_for_steal(__cilkrts_worker *w,
       incjoin(child_ff);
 
       if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-          CILK_ASSERT(child_ff->fiber_self);
           loot_ff->fiber_self = child_ff->fiber_self;
 
           child_ff->fiber_self = __cilkrts_pop_head_future_fiber(victim, d);
           CILK_ASSERT(child_ff->fiber_self);
-          CILK_ASSERT(child_ff->fiber_self != loot_ff->fiber_self);
-          CILK_ASSERT(!child_ff->fiber_child);
 
           unlink_child(loot_ff, child_ff);
           child_ff->parent = NULL;
+
+          if (!loot_ff->rightmost_child) {
+            sf->flags &= ~(CILK_FRAME_UNSYNCHED);
+          }
+
+          decjoin(loot_ff);
       }
 
       // With this call, w is bestowing ownership of the newly

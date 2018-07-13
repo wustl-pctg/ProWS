@@ -533,7 +533,7 @@ void __cilkrts_make_unrunnable_sysdep(__cilkrts_worker *w,
         ff->frame_size = __cilkrts_get_frame_size(sf);
 
         // Null loot's sp for debugging purposes (so we'll know it's not valid)
-    SP(sf) = 0;
+        SP(sf) = 0;
     }
 }
 

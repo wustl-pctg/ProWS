@@ -48,14 +48,14 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     // any locks later.
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
 
-    __CILK_JUMP_BUFFER bkup;
+    void *sp_bkup;
     if(!CILK_SETJMP(sf.ctx)) { 
-        memcpy(bkup, sf.ctx, 5*sizeof(void*));
+        sp_bkup = SP(&sf);
         __cilkrts_switch_fibers(&sf);
 
     // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
-        memcpy(sf.ctx, bkup, 5*sizeof(void*));
+        SP(&sf) = sp_bkup;
         __spawn_future_helper(std::move(func));
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();

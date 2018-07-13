@@ -86,12 +86,15 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
 CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
     cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
 
+    first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
     cilk_fiber_remove_reference_from_self_and_resume_other(curr_fiber, &(__cilkrts_get_tls_worker()->l->fiber_pool), new_fiber);
 }
 
 CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     __cilkrts_worker* curr_worker = __cilkrts_get_tls_worker_fast();
-    // This is a little faster on 1 core than normal allocate; there seems to be less of an effect on multicore
+    // This is a little faster than normal allocate, though provides
+    // greater std. dev. of runtime when run on multiple cores.
     cilk_fiber* new_exec_fiber = cilk_fiber_allocate_with_try_allocate_from_pool(&(curr_worker->l->fiber_pool));
     //cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
 
@@ -107,16 +110,33 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
 
     cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
 
-    const int saved_flags = first_frame->flags;
-    first_frame->flags &= ~(CILK_FRAME_STOLEN);
+    // The unsynched flag will be cleared if the frame is stolen.
+    // TODO: Find a cleaner & faster way to do this, if possible
+    volatile int saved_flags = first_frame->flags & (CILK_FRAME_UNSYNCHED);
+    volatile char *saved_sp = __cilkrts_get_sp(first_frame);
 
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 
-    // We don't jump to the sf until the "user_code_resume..." func on a steal
-    if (first_frame->flags & CILK_FRAME_STOLEN) {
-        cilk_fiber_get_data(curr_fiber)->resume_sf = first_frame;
-        user_code_resume_after_switch_into_runtime(curr_fiber);
+    // If this flag is still set, then the frame was stolen.
+    if (first_frame->flags & CILK_FRAME_FUTURE_PARENT) {
+        cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
+        //cilk_fiber_get_data(curr_fiber)->resume_sf = first_frame;
+
+        CILK_ASSERT(cilk_fiber_get_data(curr_fiber)->owner == __cilkrts_get_tls_worker_fast());
+        first_frame->flags = (first_frame->flags & ~(CILK_FRAME_FUTURE_PARENT)) | saved_flags;
+        SP(first_frame) = (void*)saved_sp;
+
+        // Technically, it would be better to hold some locks here, but it is safe
+        // because we haven't done anything yet that would allow stealing (and thus
+        // the frame cannot change underneath us)
+        if (saved_flags) {
+            (*__cilkrts_get_tls_worker_fast()->l->frame_ff)->sync_sp -= saved_sp;
+            
+        } else {
+            (*__cilkrts_get_tls_worker_fast()->l->frame_ff)->sync_sp = 0;
+        }
+        CILK_LONGJMP(first_frame->ctx);
+
         CILK_ASSERT(! "We should not return here!");
     }
-    first_frame->flags |= saved_flags & CILK_FRAME_STOLEN;
 }

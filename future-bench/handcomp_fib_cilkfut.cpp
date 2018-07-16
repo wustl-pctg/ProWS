@@ -81,7 +81,7 @@ int  __attribute__((noinline)) fib(int n) {
 
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
      
-    void *bkup_sp;
+    void *volatile bkup_sp;
 
     if (!CILK_SETJMP(sf->ctx)) {
         bkup_sp = SP(sf);

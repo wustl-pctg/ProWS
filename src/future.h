@@ -59,7 +59,6 @@ private:
   volatile status m_status;
   volatile T m_result;
 
-  //pthread_spinlock_t m_touches_lock;
   void* m_suspended_deques[MAX_TOUCHES];
   void**volatile m_deques;
   int m_num_suspended_deques;

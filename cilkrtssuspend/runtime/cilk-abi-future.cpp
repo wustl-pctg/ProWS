@@ -48,7 +48,9 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     // any locks later.
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
 
-    void *sp_bkup;
+    // Technically not needed here,
+    // but would be needed for handcomp futures.
+    void *volatile sp_bkup;
     if(!CILK_SETJMP(sf.ctx)) { 
         sp_bkup = SP(&sf);
         __cilkrts_switch_fibers(&sf);
@@ -62,14 +64,6 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
         __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
     }
-
-    // TODO: Rework it so we don't do this on futures
-    //if (sf.flags & CILK_FRAME_UNSYNCHED) {
-    //    if (!CILK_SETJMP(sf.ctx)) {
-    //        __cilkrts_future_sync(&sf);
-    //    }
-    //}
-
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_frame(&sf);

@@ -22,7 +22,7 @@ extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber);
 
 }
 
-static char* __attribute__((alwaysinline)) kyles_get_sp_for_executing_sf(char* stack_base) {
+static char* __attribute__((always_inline)) kyles_get_sp_for_executing_sf(char* stack_base) {
     char* new_stack_base = stack_base - 256;
     const uintptr_t align_mask = ~(256 -1);
     new_stack_base = (char*)((size_t)new_stack_base & align_mask);
@@ -57,8 +57,6 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
 CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
     cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
 
-    first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
     cilk_fiber_remove_reference_from_self_and_resume_other(curr_fiber, &(__cilkrts_get_tls_worker()->l->fiber_pool), new_fiber);
 }
 
@@ -78,31 +76,8 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     cilk_fiber *curr_fiber = cilk_fiber_get_current_fiber();
     __cilkrts_enqueue_future_fiber(new_exec_fiber);
 
-    cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
-
-    // TODO: Find a cleaner & faster way to do this, if possible
-    volatile void *saved_sp = SP(first_frame);
-
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 
-    // If this flag is still set, then the frame was stolen.
-    if (first_frame->flags & CILK_FRAME_FUTURE_PARENT) {
-
-        first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
-        cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
-
-        SP(first_frame) = (void*)saved_sp;
-
-        // Technically, it would be better to hold some locks here, but it is safe
-        // because we haven't done anything yet that would allow stealing (and thus
-        // the frame cannot change underneath us)
-        if (!(first_frame->flags & CILK_FRAME_UNSYNCHED)) {
-            (*__cilkrts_get_tls_worker_fast()->l->frame_ff)->sync_sp = 0;
-        }
-
-        CILK_LONGJMP(first_frame->ctx);
-
-        CILK_ASSERT(! "We should not return here!");
-    }
+    first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
 }

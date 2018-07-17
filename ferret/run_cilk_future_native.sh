@@ -1,5 +1,5 @@
-taskset -c 0 ./run.sh cilk-future native cilk-future-1-native.out 1 4
-taskset -c 0-1 ./run.sh cilk-future native cilk-future-2-native.out 2 8
+#taskset -c 0 ./run.sh cilk-future native cilk-future-1-native.out 1 4
+#taskset -c 0-1 ./run.sh cilk-future native cilk-future-2-native.out 2 8
 taskset -c 0-3 ./run.sh cilk-future native cilk-future-4-native.out 4 16
 taskset -c 0-7 ./run.sh cilk-future native cilk-future-8-native.out 8 32 
 taskset -c 0-11 ./run.sh cilk-future native cilk-future-12-native.out 12 48

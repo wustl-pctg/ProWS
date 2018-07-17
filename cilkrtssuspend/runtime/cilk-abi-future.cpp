@@ -14,9 +14,7 @@
 #include "jmpbuf.h"
 #include <cstring>
 
-extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_leave_future_parent_frame(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
 extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
 
@@ -50,14 +48,14 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
     // Technically not needed here,
     // but would be needed for handcomp futures.
-    void *volatile sp_bkup;
     if(!CILK_SETJMP(sf.ctx)) { 
-        sp_bkup = SP(&sf);
         __cilkrts_switch_fibers(&sf);
 
-    // The CILK_FRAME_FUTURE_PARENT flag gets cleared on a steal
+    // Technically, this 'else if' could be removed,
+    // HOWEVER, performance is better with it here.
+    // Probably something related to the compiler's
+    // branch optimization heuristics...
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
-        SP(&sf) = sp_bkup;
         __spawn_future_helper(std::move(func));
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();

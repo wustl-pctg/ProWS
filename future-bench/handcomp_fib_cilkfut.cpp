@@ -79,11 +79,15 @@ int  __attribute__((noinline)) fib(int n) {
 
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
+    // TODO: Is there an easier/better way to do this? Doing this avoids
+    //       locking the frame when we run out of fibers on the future fiber deque.
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
      
     if (!CILK_SETJMP(sf.ctx)) {
         __cilkrts_switch_fibers(&sf);
-
+    // This if is unnecessary; however, I think compiler
+    // heuristics related to branching optimizations mean
+    // we get better compiler optimizations if we leave it.
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
         fib_fut(&x_fut, n-1);
 
@@ -208,7 +212,7 @@ int main(int argc, char * args[]) {
     n = atoi(args[1]);
 
     int res = run(n, &running_time[0]);
-    cilkg_set_param("local stacks", args[1]);
+    cilkg_set_param("local stacks", "256");
 
     printf("Res: %d\n", res);
 

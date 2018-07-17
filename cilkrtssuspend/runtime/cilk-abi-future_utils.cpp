@@ -33,8 +33,6 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
 
     cilk_fiber_data *data = cilk_fiber_get_data(fiber);
     __cilkrts_stack_frame* sf = data->resume_sf;
-    full_frame *ff;
-
     CILK_ASSERT(sf);
 
     // When we pull the resume_sf out of the fiber to resume it, clear
@@ -43,6 +41,7 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     CILK_ASSERT(sf->worker == data->owner);
 
     SP(sf) = kyles_get_sp_for_executing_sf(cilk_fiber_get_stack_base(fiber));
+
     #ifdef RESTORE_X86_FP_STATE
         restore_x86_fp_state(sf);
     #endif
@@ -79,5 +78,4 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 
     first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
-    cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
 }

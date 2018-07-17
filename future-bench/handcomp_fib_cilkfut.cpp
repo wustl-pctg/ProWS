@@ -88,6 +88,7 @@ int  __attribute__((noinline)) fib(int n) {
     // This if is unnecessary; however, I think compiler
     // heuristics related to branching optimizations mean
     // we get better compiler optimizations if we leave it.
+    // (based on results from testing)
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
         fib_fut(&x_fut, n-1);
 

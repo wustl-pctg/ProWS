@@ -1969,7 +1969,10 @@ static cilk_fiber* worker_scheduling_loop_body(cilk_fiber* current_fiber,
     current_fiber_data->resume_sf = NULL;
     // The scheduling fiber should have the right owner from before.
     CILK_ASSERT(current_fiber_data->owner == w);
-    other_data->resume_sf = sf;
+
+    // We don't need to jump into the stack frame if we stole a future parent;
+    // just resume the previous fiber!
+    if (!(sf->flags & CILK_FRAME_FUTURE_PARENT)) other_data->resume_sf = sf;
         
 
 #if FIBER_DEBUG >= 3

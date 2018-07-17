@@ -19,7 +19,7 @@
 
 //#define TEST_INTEROP_PRE_FUTURE_CREATE
 //#define TEST_INTEROP_POST_FUTURE_CREATE
-#define TEST_INTEROP_MULTI_FUTURE
+//#define TEST_INTEROP_MULTI_FUTURE
 
 //#define FUTURE_AFTER_SYNC
 
@@ -65,7 +65,7 @@ int  __attribute__((noinline)) fib(int n) {
         return n;
     }
 
-    __cilkrts_stack_frame sf;// = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
+    __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
 
     #ifdef TEST_INTEROP_PRE_FUTURE_CREATE
@@ -81,15 +81,10 @@ int  __attribute__((noinline)) fib(int n) {
 
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
      
-    void *volatile bkup_sp;
-
     if (!CILK_SETJMP(sf.ctx)) {
-        bkup_sp = SP(&sf);
         __cilkrts_switch_fibers(&sf);
 
     } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
-        SP(&sf) = bkup_sp;
-
         fib_fut(&x_fut, n-1);
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
@@ -111,13 +106,10 @@ int  __attribute__((noinline)) fib(int n) {
         initial_fiber = cilk_fiber_get_current_fiber();
 
         if (!CILK_SETJMP(sf.ctx)) {
-            bkup_sp = SP(&sf);
             __cilkrts_switch_fibers(&sf);
     
         } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
-            SP(&sf) = bkup_sp; 
-
-            fib_fut(&y_fut, n-1);
+            fib_fut(&y_fut, n-2);
     
             cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
     
@@ -216,6 +208,7 @@ int main(int argc, char * args[]) {
     n = atoi(args[1]);
 
     int res = run(n, &running_time[0]);
+    cilkg_set_param("local stacks", args[1]);
 
     printf("Res: %d\n", res);
 

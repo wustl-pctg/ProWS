@@ -415,7 +415,7 @@ void make_unrunnable(__cilkrts_worker *w,
         sf->flags |= CILK_FRAME_STOLEN | CILK_FRAME_SUSPENDED;
         sf->worker = 0;
 
-        if (is_loot)
+        if (is_loot && !(sf->flags & CILK_FRAME_FUTURE_PARENT))
             __cilkrts_put_stack(ff, sf);
 
         /* perform any system-dependent action, such as saving the
@@ -509,42 +509,46 @@ full_frame *make_child(__cilkrts_worker *w,
 {
     full_frame *child_ff = __cilkrts_make_full_frame(w, child_sf);
 
-    child_ff->parent = parent_ff;
-    push_child(parent_ff, child_ff);
-
-    //DBGPRINTF("%d-          make_child - child_frame: %p, parent_frame: %p, child_sf: %p\n"
-    //    "            parent - parent: %p, left_sibling: %p, right_sibling: %p, rightmost_child: %p\n"
-    //    "            child  - parent: %p, left_sibling: %p, right_sibling: %p, rightmost_child: %p\n",
-    //          w->self, child, parent, child_sf,
-    //          parent->parent, parent->left_sibling, parent->right_sibling, parent->rightmost_child,
-    //          child->parent, child->left_sibling, child->right_sibling, child->rightmost_child);
     CILK_ASSERT(parent_ff->call_stack);
-    child_ff->is_call_child = (fiber == NULL);
 
-    /* PLACEHOLDER_FIBER is used as non-null marker indicating that
-       child should be treated as a spawn child even though we have not
-       yet assigned a real fiber to its parent. */
-    if (fiber == PLACEHOLDER_FIBER)
-        fiber = NULL; /* Parent actually gets a null fiber, for now */
+    if (!(parent_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT)) {
+        child_ff->parent = parent_ff;
+        push_child(parent_ff, child_ff);
 
-    /* perform any system-dependent actions, such as capturing
-       parameter passing information */
-    /*__cilkrts_make_child_sysdep(child, parent);*/
+        //DBGPRINTF("%d-          make_child - child_frame: %p, parent_frame: %p, child_sf: %p\n"
+        //    "            parent - parent: %p, left_sibling: %p, right_sibling: %p, rightmost_child: %p\n"
+        //    "            child  - parent: %p, left_sibling: %p, right_sibling: %p, rightmost_child: %p\n",
+        //          w->self, child, parent, child_sf,
+        //          parent->parent, parent->left_sibling, parent->right_sibling, parent->rightmost_child,
+        //          child->parent, child->left_sibling, child->right_sibling, child->rightmost_child);
+        child_ff->is_call_child = (fiber == NULL);
 
-    /* Child gets reducer map and stack of parent.
-       Parent gets a new map and new stack. */
-    child_ff->fiber_self = parent_ff->fiber_self;
-    child_ff->sync_master = NULL;
+        /* PLACEHOLDER_FIBER is used as non-null marker indicating that
+           child should be treated as a spawn child even though we have not
+           yet assigned a real fiber to its parent. */
+        if (fiber == PLACEHOLDER_FIBER)
+            fiber = NULL; /* Parent actually gets a null fiber, for now */
 
-    if (child_ff->is_call_child) {
-        /* Cause segfault on any attempted access.  The parent gets
-           the child map and stack when the child completes. */
-        parent_ff->fiber_self = 0;
-    } else {
-        parent_ff->fiber_self = fiber;
+        /* perform any system-dependent actions, such as capturing
+           parameter passing information */
+        /*__cilkrts_make_child_sysdep(child, parent);*/
+
+        /* Child gets reducer map and stack of parent.
+           Parent gets a new map and new stack. */
+        child_ff->fiber_self = parent_ff->fiber_self;
+        child_ff->sync_master = NULL;
+
+        if (child_ff->is_call_child) {
+            /* Cause segfault on any attempted access.  The parent gets
+               the child map and stack when the child completes. */
+            parent_ff->fiber_self = 0;
+        } else {
+            parent_ff->fiber_self = fiber;
+        }
+
+        incjoin(parent_ff);
     }
 
-    incjoin(parent_ff);
     return child_ff;
 }
 
@@ -981,25 +985,6 @@ done:
                 // and thus should not have any other references.
                 CILK_ASSERT(0 == ref_count);
             } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
-
-            full_frame *loot_ff = w->l->next_frame_ff;
-            __cilkrts_stack_frame *sf = loot_ff->call_stack;
-            
-            cilk_fiber_get_data(loot_ff->fiber_self)->resume_sf = NULL;
-            
-            // TODO: I don't think I'm handling pedigrees properly...
-            sf->parent_pedigree.rank = w->pedigree.rank;
-            sf->parent_pedigree.parent = w->pedigree.parent;
-
-            #ifdef PRECOMPUTE_PEDIGREES
-                sf->parent_pedigree.length = w->pedigree.length;
-                sf->parent_pedigree.actual = w->pedigree.actual;
-            #endif
-
-            sf->parent_pedigree = w->pedigree;
-            sf->flags |= CILK_FRAME_SF_PEDIGREE_UNSYNCHED;
-
-            CILK_ASSERT(loot_ff->fiber_self);
         } else {
             // Since our steal was successful, finish initialization of
             // the fiber.

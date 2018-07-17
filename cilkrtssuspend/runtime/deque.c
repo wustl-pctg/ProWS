@@ -269,16 +269,10 @@ void detach_for_steal(__cilkrts_worker *w,
       /* child is referenced by victim */
       incjoin(child_ff);
 
+      // It would be great to find a cleaner way to do this.
       if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-          loot_ff->fiber_self = child_ff->fiber_self;
-
           child_ff->fiber_self = __cilkrts_pop_head_future_fiber(victim, d);
           CILK_ASSERT(child_ff->fiber_self);
-
-          unlink_child(loot_ff, child_ff);
-          child_ff->parent = NULL;
-
-          decjoin(loot_ff);
       }
 
       // With this call, w is bestowing ownership of the newly

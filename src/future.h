@@ -86,11 +86,10 @@ public:
         while (m_deques == NULL);
         suspended_deques = __sync_val_compare_and_swap(&m_deques, m_deques, NULL);
     } while (suspended_deques == NULL);
-    int num_suspended_deques = m_num_suspended_deques;
 
     // make resumable can be heavy, so keep it outside the lock
     void *ret = suspended_deques[0];
-    for (int i = 1; i < num_suspended_deques; i++) {
+    for (int i = 1; i < m_num_suspended_deques; i++) {
         __cilkrts_make_resumable(suspended_deques[i]);
     }
 
@@ -113,8 +112,8 @@ public:
 
             if (suspended_deques) {
                 assert(m_num_suspended_deques < MAX_TOUCHES);
-                m_suspended_deques[m_num_suspended_deques++] = deque;
-
+                suspended_deques[m_num_suspended_deques++] = deque;
+                __asm__ volatile ("" ::: "memory");
                 m_deques = suspended_deques;
                 __cilkrts_suspend_deque();
             }

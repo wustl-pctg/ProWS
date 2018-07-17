@@ -14,14 +14,14 @@
 #include "../cilkrtssuspend/runtime/local_state.h"
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 5 
+#define TIMES_TO_RUN 1 
 #endif
 
-#define TEST_INTEROP_PRE_FUTURE_CREATE
+//#define TEST_INTEROP_PRE_FUTURE_CREATE
 //#define TEST_INTEROP_POST_FUTURE_CREATE
-//#define TEST_INTEROP_MULTI_FUTURE
+#define TEST_INTEROP_MULTI_FUTURE
 
-#define FUTURE_AFTER_SYNC
+//#define FUTURE_AFTER_SYNC
 
 /* 
  * fib 39: 63245986
@@ -65,64 +65,63 @@ int  __attribute__((noinline)) fib(int n) {
         return n;
     }
 
-    __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
-    __cilkrts_enter_frame_1(sf);
+    __cilkrts_stack_frame sf;// = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
+    __cilkrts_enter_frame_1(&sf);
 
     #ifdef TEST_INTEROP_PRE_FUTURE_CREATE
         #pragma message ("using spawn pre fut fib interop")
-        if (!CILK_SETJMP(sf->ctx)) {
+        if (!CILK_SETJMP(sf.ctx)) {
             fib_helper(&y, n-2);
         }
     #endif
 
     cilk::future<int> x_fut = cilk::future<int>();
 
-    sf->flags |= CILK_FRAME_FUTURE_PARENT;
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
      
     void *volatile bkup_sp;
 
-    if (!CILK_SETJMP(sf->ctx)) {
-        bkup_sp = SP(sf);
-        __cilkrts_switch_fibers(sf);
+    if (!CILK_SETJMP(sf.ctx)) {
+        bkup_sp = SP(&sf);
+        __cilkrts_switch_fibers(&sf);
 
-    } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-        SP(sf) = bkup_sp;
+    } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
+        SP(&sf) = bkup_sp;
 
         fib_fut(&x_fut, n-1);
 
         cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
 
-        __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
+        __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
     }
 
     #ifdef TEST_INTEROP_POST_FUTURE_CREATE
         #pragma message ("using using spawn post fut fib interop")
-        if (!CILK_SETJMP(sf->ctx)) {
+        if (!CILK_SETJMP(sf.ctx)) {
             fib_helper(&y, n-2);
         }
     #elif defined(TEST_INTEROP_MULTI_FUTURE)
         #pragma message ("using future fib interop")
         cilk::future<int> y_fut = cilk::future<int>();
 
-        CILK_ASSERT((sf->flags & CILK_FRAME_FUTURE_PARENT) == 0);
-        sf->flags |= CILK_FRAME_FUTURE_PARENT;
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
         initial_fiber = cilk_fiber_get_current_fiber();
 
-        if (!CILK_SETJMP(sf->ctx)) {
-            bkup_sp = SP(sf);
-            __cilkrts_switch_fibers(sf);
+        if (!CILK_SETJMP(sf.ctx)) {
+            bkup_sp = SP(&sf);
+            __cilkrts_switch_fibers(&sf);
     
-        } else if (sf->flags & CILK_FRAME_FUTURE_PARENT) {
-            SP(sf) = bkup_sp; 
+        } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
+            SP(&sf) = bkup_sp; 
 
             fib_fut(&y_fut, n-1);
     
             cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
     
-            __cilkrts_switch_fibers_back(sf, fut_fiber, initial_fiber);
+            __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
         }
     
         y = y_fut.get();
@@ -139,9 +138,9 @@ int  __attribute__((noinline)) fib(int n) {
     #if defined(TEST_INTEROP_PRE_FUTURE_CREATE) || defined(TEST_INTEROP_POST_FUTURE_CREATE)
         #pragma message ("Added a synch to the function")
 
-        if (sf->flags & CILK_FRAME_UNSYNCHED) {
-            if (!CILK_SETJMP(sf->ctx)) {
-                __cilkrts_sync(sf);
+        if (sf.flags & CILK_FRAME_UNSYNCHED) {
+            if (!CILK_SETJMP(sf.ctx)) {
+                __cilkrts_sync(&sf);
             }
         }
     #endif
@@ -157,8 +156,8 @@ int  __attribute__((noinline)) fib(int n) {
     // gets too agressive and starts popping
     // frames at inappropriate moments
     __asm__ volatile ("" ::: "memory");
-    __cilkrts_pop_frame(sf);
-    __cilkrts_leave_frame(sf);
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 
     return _tmp;
 }

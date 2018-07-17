@@ -20,10 +20,6 @@ extern CILK_ABI_VOID user_code_resume_after_switch_into_runtime(cilk_fiber*);
 
 extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber);
 
-//extern char* get_sp_for_executing_sf(char* stack_base,
-//                                     full_frame *ff,
-//                                     __cilkrts_stack_frame *sf);
-
 }
 
 static char* __attribute__((alwaysinline)) kyles_get_sp_for_executing_sf(char* stack_base, __cilkrts_stack_frame *sf) {
@@ -46,25 +42,12 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     data->resume_sf = NULL;
     CILK_ASSERT(sf->worker == data->owner);
 
-    // For Win32, we need to overwrite the default exception handler
-    // in this function, so that when the OS exception handling code
-    // walks off the top of the current Cilk stack, it reaches our stub
-    // handler.
-    
-    // Also, this function needs to be wrapped into a try-catch block
-    // so the compiler generates the appropriate exception information
-    // in this frame.
-    
     {
         char* new_sp = kyles_get_sp_for_executing_sf(cilk_fiber_get_stack_base(fiber), sf);
 
         //__CILK_JUMP_BUFFER dest;
         //memcpy(dest, sf->ctx, 5*sizeof(void*));
         //JMPBUF_SP(dest) = new_sp;
-        
-        // TBD: We'd like to move TBB-interop methods into the fiber
-        // eventually.
-        cilk_fiber_invoke_tbb_stack_op(fiber, CILK_TBB_STACK_ADOPT);
         
         //CILK_ASSERT((sf->flags & CILK_FRAME_SUSPENDED) == 0);
         //sf->flags &= ~CILK_FRAME_SUSPENDED;
@@ -112,29 +95,26 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
 
     // The unsynched flag will be cleared if the frame is stolen.
     // TODO: Find a cleaner & faster way to do this, if possible
-    volatile int saved_flags = first_frame->flags & (CILK_FRAME_UNSYNCHED);
-    volatile char *saved_sp = __cilkrts_get_sp(first_frame);
+    volatile void *saved_sp = SP(first_frame);
 
     cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 
     // If this flag is still set, then the frame was stolen.
     if (first_frame->flags & CILK_FRAME_FUTURE_PARENT) {
         cilk_fiber_get_data(curr_fiber)->resume_sf = NULL;
-        //cilk_fiber_get_data(curr_fiber)->resume_sf = first_frame;
 
-        CILK_ASSERT(cilk_fiber_get_data(curr_fiber)->owner == __cilkrts_get_tls_worker_fast());
-        first_frame->flags = (first_frame->flags & ~(CILK_FRAME_FUTURE_PARENT)) | saved_flags;
+        first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
         SP(first_frame) = (void*)saved_sp;
 
         // Technically, it would be better to hold some locks here, but it is safe
         // because we haven't done anything yet that would allow stealing (and thus
         // the frame cannot change underneath us)
-        if (saved_flags) {
-            (*__cilkrts_get_tls_worker_fast()->l->frame_ff)->sync_sp -= saved_sp;
-            
-        } else {
+        if (!(first_frame->flags & CILK_FRAME_UNSYNCHED)) {
             (*__cilkrts_get_tls_worker_fast()->l->frame_ff)->sync_sp = 0;
+        } else {
+            (*__cilkrts_get_tls_worker_fast()->l->frame_ff)->sync_sp -= (char*)saved_sp;
         }
+
         CILK_LONGJMP(first_frame->ctx);
 
         CILK_ASSERT(! "We should not return here!");

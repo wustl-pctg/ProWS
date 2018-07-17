@@ -593,7 +593,7 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
     // TODO: I think I can put a check for whether or not the frame is a future
     //       here, and only mark unsynched if not a future; else leave as is.
     /// @todo{ I think each stack frame should hold a deque pointer, not a worker pointer.}
-    if (sf->worker != w || w->l->active_deque->frame_ff != ff)
+    if ((sf->worker != w || w->l->active_deque->frame_ff != ff) && !(sf->flags & CILK_FRAME_FUTURE_PARENT))
         sf->flags |= CILK_FRAME_UNSYNCHED;
 
     /* Reverse the call stack to make a linked list ordered from parent

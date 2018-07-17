@@ -263,8 +263,6 @@ void detach_for_steal(__cilkrts_worker *w,
     // After this "push_next_frame" call, w now owns loot_ff.
     child_ff = make_child(w, loot_ff, 0, fiber);
 
-    // KYLE TODO: Is this frame lock REALLY needed? The child ff is new,
-    //            and is not installed anywhere yet.
     BEGIN_WITH_FRAME_LOCK(w, child_ff) {
       /* install child in the victim's work queue, taking
          the parent_ff's place */
@@ -279,10 +277,6 @@ void detach_for_steal(__cilkrts_worker *w,
 
           unlink_child(loot_ff, child_ff);
           child_ff->parent = NULL;
-
-          if (!loot_ff->rightmost_child) {
-            sf->flags &= ~(CILK_FRAME_UNSYNCHED);
-          }
 
           decjoin(loot_ff);
       }

@@ -149,6 +149,15 @@ inline void cilk_fiber_sysdep::resume_other_sysdep(cilk_fiber_sysdep* other)
 	}
 }
 
+// GCC doesn't allow us to call __builtin_longjmp in the same function that
+// calls __builtin_setjmp, so create a new function to house the call to
+// __builtin_longjmp
+static void __attribute__((noinline))
+do_cilk_longjmp(__CILK_JUMP_BUFFER jmpbuf)
+{
+	CILK_LONGJMP(jmpbuf);
+}
+
 void cilk_fiber_sysdep::suspend_self_and_resume_other_sysdep(cilk_fiber_sysdep* other)
 {
 #if SUPPORT_GET_CURRENT_FIBER
@@ -162,7 +171,18 @@ void cilk_fiber_sysdep::suspend_self_and_resume_other_sysdep(cilk_fiber_sysdep* 
 
 	// Jump to the other fiber.  We expect to come back.
 	if (! CILK_SETJMP(m_resume_jmpbuf)) {
-		resume_other_sysdep(other);
+        // This unfortunate code duplication saves
+        // a fair amount of time with futures.
+	    if (other->is_resumable()) {
+	    	other->set_not_resumable();
+	    	// Resume by longjmp'ing to the place where we suspended.
+	    	do_cilk_longjmp(other->m_resume_jmpbuf);
+	    }
+	    else {
+	    	// Otherwise, we've never run this fiber before.  Start the
+	    	// proc method.
+	    	other->run();
+	    }
 	}
 
 	// Return here when another fiber resumes me.
@@ -183,15 +203,6 @@ NORETURN cilk_fiber_sysdep::jump_to_resume_other_sysdep(cilk_fiber_sysdep* other
 
 	// We should never come back here...
 	__cilkrts_bug("Should not get here");
-}
-
-// GCC doesn't allow us to call __builtin_longjmp in the same function that
-// calls __builtin_setjmp, so create a new function to house the call to
-// __builtin_longjmp
-static void __attribute__((noinline))
-do_cilk_longjmp(__CILK_JUMP_BUFFER jmpbuf)
-{
-	CILK_LONGJMP(jmpbuf);
 }
 
 NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()

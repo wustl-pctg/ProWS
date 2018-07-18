@@ -53,9 +53,7 @@ static void fiber_proc_to_resume_user_code_for_future(cilk_fiber *fiber) {
     CILK_ASSERT(! "Should not return into this function!");
 }
 
-CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
-    cilk_fiber_data* new_fiber_data = cilk_fiber_get_data(new_fiber);
-
+CILK_ABI_VOID __attribute__((always_inline)) __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber) {
     cilk_fiber_remove_reference_from_self_and_resume_other(curr_fiber, &(__cilkrts_get_tls_worker()->l->fiber_pool), new_fiber);
 }
 
@@ -65,9 +63,8 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     // greater std. dev. of runtime when run on multiple cores.
     //cilk_fiber* new_exec_fiber = cilk_fiber_allocate_with_try_allocate_from_pool(&(curr_worker->l->fiber_pool));
     cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
-
-    // TODO: Handle the case that it is null more gracefully
     CILK_ASSERT(new_exec_fiber != NULL);
+
     cilk_fiber_data* new_exec_fiber_data = cilk_fiber_get_data(new_exec_fiber);
 
     new_exec_fiber_data->resume_sf = first_frame;

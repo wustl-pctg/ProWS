@@ -95,9 +95,10 @@ CILK_API_VOID __cilkrts_end_cilk(void)
                     "running");
     __cilkrts_stop_workers(g);
     __cilkrts_deinit_internal(g);
+    #if FIBER_DEBUG >= 1
     fprintf(stderr, "Current stacks: %zu\n", g->active_stacks);
     fprintf(stderr, "Stacks high watermark: %zu\n", g->stacks_high_watermark);
-
+    #endif
   }
 
   global_os_mutex_unlock();

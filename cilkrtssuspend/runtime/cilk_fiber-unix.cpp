@@ -257,13 +257,11 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
                       "sub %%rsp,%0"
                       : "=r" (frame_size));
 
-    if (frame_size & (16-1)) {
-        frame_size += 16 - (frame_size & (16-1));
-    }
+    //if (frame_size & (16-1)) {
+        // Make sure the frame size 16-byte aligned
+        frame_size += ((16 - (frame_size & (0xF))) & 0xF);
+    //}
 
-    if (frame_size >= 4096) {
-        printf("%d\n", frame_size);
-    }
     CILK_ASSERT(frame_size < 4096);
 
     char *new_sp = m_stack_base - frame_size;
@@ -349,6 +347,8 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 		
 		return;
 	}
+
+    #if FIBER_DEBUG >= 1
 	//fprintf(stderr, "Stack mmap: %p\n", p);
 	size_t newval = __sync_fetch_and_add(&__cilkrts_global_state->active_stacks, 1) + 1;
 	size_t oldval = __cilkrts_global_state->stacks_high_watermark;
@@ -356,6 +356,7 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 				 &&  !__sync_bool_compare_and_swap(&__cilkrts_global_state->stacks_high_watermark, oldval, newval)) {
 		oldval = __cilkrts_global_state->stacks_high_watermark;
 	}
+    #endif
 
 	// mprotect guard pages.
 	mprotect(p + rounded_stack_size - s_page_size, s_page_size, PROT_NONE);
@@ -375,7 +376,9 @@ void cilk_fiber_sysdep::free_stack()
 			fprintf(stderr, "Cilk: stack munmap failed error %s\n", strerror(errno));
 			raise(SIGSTOP);
 		}
+        #if FIBER_DEBUG >= 1
 		__sync_fetch_and_sub(&__cilkrts_global_state->active_stacks, 1);
+        #endif
 		
 		//fprintf(stderr, "Stack munmap: %p\n", m_stack);
 	}

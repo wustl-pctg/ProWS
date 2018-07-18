@@ -14,18 +14,12 @@
 #include "jmpbuf.h"
 #include <cstring>
 
-extern "C" {
-
-extern CILK_ABI_VOID user_code_resume_after_switch_into_runtime(cilk_fiber*);
-
-extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber);
-
-}
+#define ALIGN_MASK  (~((uintptr_t)0xFF))
 
 static char* __attribute__((always_inline)) kyles_get_sp_for_executing_sf(char* stack_base) {
+    // Make the stack pointer 256-byte aligned
     char* new_stack_base = stack_base - 256;
-    const uintptr_t align_mask = ~(256 -1);
-    new_stack_base = (char*)((size_t)new_stack_base & align_mask);
+    new_stack_base = (char*)((size_t)new_stack_base & ALIGN_MASK);
     return new_stack_base;
 }
 

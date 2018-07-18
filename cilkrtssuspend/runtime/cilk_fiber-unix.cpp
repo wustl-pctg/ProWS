@@ -194,7 +194,7 @@ do_cilk_longjmp(__CILK_JUMP_BUFFER jmpbuf)
 	CILK_LONGJMP(jmpbuf);
 }
 
-NORETURN cilk_fiber_sysdep::run()
+NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
 {
 	// Only fibers created from a pool have a proc method to run and execute. 
 	CILK_ASSERT(m_start_proc);
@@ -203,7 +203,7 @@ NORETURN cilk_fiber_sysdep::run()
 
 	// TBD: This setjmp/longjmp pair simply changes the stack pointer.
 	// We could probably replace this code with some assembly.
-	if (! CILK_SETJMP(m_resume_jmpbuf))
+	/*if (! CILK_SETJMP(m_resume_jmpbuf))
     {
 			// Calculate the size of the current stack frame (i.e., this
 			// run() function.  
@@ -235,7 +235,32 @@ NORETURN cilk_fiber_sysdep::run()
 			// that calls __builtin_setjmp, so it's been moved into it's own
 			// function that cannot be inlined.
 			do_cilk_longjmp(m_resume_jmpbuf);
+    }*/
+
+    // Following the suggestion from above,
+    // because setjmp/longjmp isn't fast.
+    register uint64_t frame_size;
+
+    // equivalent to: frame_size = rbp - rsp;
+    __asm__ volatile ("mov %%rbp,%0\n" 
+                      "sub %%rsp,%0"
+                      : "=r" (frame_size));
+
+    if (frame_size & (16-1)) {
+        frame_size += 16 - (frame_size & (16-1));
     }
+
+    if (frame_size >= 4096) {
+        printf("%d\n", frame_size);
+    }
+    CILK_ASSERT(frame_size < 4096);
+
+    char *new_sp = m_stack_base - frame_size;
+
+    // equivalent to: rsp = new_sp;
+    __asm__ volatile ("mov %0,%%rsp"
+                      :
+                      : "r" (new_sp));
 
 	// Note: our resetting of the stack pointer is valid only if the
 	// compiler has not saved any temporaries onto the stack for this
@@ -257,6 +282,12 @@ NORETURN cilk_fiber_sysdep::run()
 	// code should never actually be executed.
 	int* dummy = (int*) alloca((sizeof(int) + (std::size_t) m_start_proc) & 0x1);
 	*dummy = 0xface;
+
+    // Evidence points toward the compiler optimizing the frame pointer away
+    // if there isn't a setjmp on m_resume_jmpbuf as well.
+    if (!CILK_SETJMP(m_resume_jmpbuf)) {
+        __cilkrts_bug("Should not exec this setjmp");
+    }
 
 	// User proc should never return.
 	__cilkrts_bug("Should not get here");

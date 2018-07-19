@@ -270,15 +270,27 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 {
 	char* p;
 
-    size_t page_size_x3 = s_page_size * 3;
+    // We've already validated that the stack size is page-aligned and
+    // is a reasonable value.  No need to do any extra rounding here.
+    size_t rounded_stack_size = stack_size;
 
-	// We've already validated that the stack size is page-aligned and
-	// is a reasonable value.  No need to do any extra rounding here.
-
-    // This is slightly faster than the previous version that contained branches.
-    // The previous branching probably did not translate to conditional statements.
-    size_t rounded_stack_size = (stack_size > page_size_x3 ? stack_size : page_size_x3);
-    rounded_stack_size += (rounded_stack_size & (s_page_size-1)); // Page sizes are powers of 2
+    // Normally, we have already validated that the stack size is
+    // aligned to 4K.  In the rare case that pages are huge though, we
+    // need to do some extra checks.
+    if (rounded_stack_size < 3 * (size_t)s_page_size) {
+        // If the specified stack size is too small, round up to 3
+        // pages.  We need at least 2 extra for the guard pages.
+        rounded_stack_size = 3 * (size_t)s_page_size;
+    }   
+    else {
+        // Otherwise, the stack size is large enough, but might not be
+        // a multiple of page size.  Round up to nearest multiple of
+        // s_page_size, just to be safe.
+        size_t remainder = rounded_stack_size % s_page_size;
+        if (remainder) {
+            rounded_stack_size += s_page_size - remainder;
+        }
+    } 
 
 	p = (char*)mmap(0, rounded_stack_size,
 									PROT_READ|PROT_WRITE,

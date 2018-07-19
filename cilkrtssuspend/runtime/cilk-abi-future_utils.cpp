@@ -59,14 +59,18 @@ CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame) {
     cilk_fiber* new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
     CILK_ASSERT(new_exec_fiber != NULL);
 
-    new_exec_fiber->get_data()->resume_sf = first_frame;
+    cilk_fiber_data *fdata = cilk_fiber_get_data(new_exec_fiber);
+    fdata->resume_sf = first_frame;
+    //new_exec_fiber->get_data()->resume_sf = first_frame;
 
     //new_exec_fiber_data->resume_sf = first_frame;
-    new_exec_fiber->reset_state(fiber_proc_to_resume_user_code_for_future);
+    //new_exec_fiber->reset_state(fiber_proc_to_resume_user_code_for_future);
+    cilk_fiber_reset_state(new_exec_fiber, fiber_proc_to_resume_user_code_for_future);
     cilk_fiber *curr_fiber = cilk_fiber_get_current_fiber();
     __cilkrts_enqueue_future_fiber(new_exec_fiber);
 
-    curr_fiber->suspend_self_and_resume_other(new_exec_fiber);
+    //curr_fiber->suspend_self_and_resume_other(new_exec_fiber);
+    cilk_fiber_suspend_self_and_resume_other(curr_fiber, new_exec_fiber);
 
     first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
 }

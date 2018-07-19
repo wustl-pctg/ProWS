@@ -767,6 +767,12 @@ public:
 	 */ 
 	void suspend_self_and_resume_other(cilk_fiber* other);
 
+	/** @brief Suspend execution on current fiber runs future on another fiber.
+	 * 
+	 * Control returns after resuming execution of the self fiber.
+	 */ 
+    void suspend_self_and_run_future(cilk_fiber* other, __cilkrts_stack_frame *sf);
+
 
 	/** @brief Removes a reference from the currently executing fiber
 	 * and resumes other fiber.

@@ -158,6 +158,75 @@ do_cilk_longjmp(__CILK_JUMP_BUFFER jmpbuf)
 	CILK_LONGJMP(jmpbuf);
 }
 
+void __attribute__((noinline)) cilk_fiber_sysdep::run_future(__cilkrts_stack_frame *sf)
+{
+	// Only fibers created from a pool have a proc method to run and execute. 
+	CILK_ASSERT(!this->is_allocated_from_thread());
+	CILK_ASSERT(!this->is_resumable());
+
+	// Verify that 1) 'this' is still valid and 2) '*this' has not been
+	// corrupted.
+	CILK_ASSERT(magic_number == m_magic);
+
+    // TODO: Assert the previous fiber is NOT being deallocated
+	do_post_switch_actions();
+
+    char* new_sp = m_stack_base - 256;
+
+    #define ALIGN_MASK  (~((uintptr_t)0xFF))
+    new_sp = (char*)((size_t)new_sp & ALIGN_MASK);
+    #undef ALIGN_MASK // Just to be safe
+
+    SP(sf) = new_sp;
+
+    #ifdef RESTORE_X86_FP_STATE
+        restore_x86_fp_state(sf);
+    #endif
+
+    CILK_LONGJMP(sf->ctx);
+
+	// User proc should never return.
+	__cilkrts_bug("Should not get here");
+}
+
+void cilk_fiber_sysdep::suspend_self_and_run_future_sysdep(cilk_fiber_sysdep* other, __cilkrts_stack_frame *sf)
+{
+#if SUPPORT_GET_CURRENT_FIBER
+    cilkos_set_tls_cilk_fiber(other);
+#endif
+
+    // This is now set in the other fiber
+    //    CILK_ASSERT(this->is_resumable());
+    CILK_ASSERT(!this->is_resumable());
+    CILK_ASSERT(!other->is_resumable());
+
+    // Jump to the other fiber.  We expect to come back.
+    if (! CILK_SETJMP(m_resume_jmpbuf)) {
+        // We've never run this fiber before.  Start the
+        // proc method.
+        //other->run_future(sf);
+        other->do_post_switch_actions();
+        char* new_sp = other->m_stack_base - 256;
+        
+        #define ALIGN_MASK  (~((uintptr_t)0xFF))
+        new_sp = (char*)((size_t)new_sp & ALIGN_MASK);
+        #undef ALIGN_MASK // Just to be safe
+        SP(sf) = new_sp;
+        #ifdef RESTORE_X86_FP_STATE
+            restore_x86_fp_state(sf);
+        #endif
+
+        do_cilk_longjmp(sf->ctx);
+
+	    int* dummy = (int*) alloca((sizeof(int) + (std::size_t) m_start_proc) & 0x1);
+	    *dummy = 0xface;
+    }
+
+    // Return here when another fiber resumes me.
+    // If the fiber that switched to me wants to be deallocated, do it now.
+    do_post_switch_actions();
+}
+
 void cilk_fiber_sysdep::suspend_self_and_resume_other_sysdep(cilk_fiber_sysdep* other)
 {
 #if SUPPORT_GET_CURRENT_FIBER
@@ -221,10 +290,8 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
                       "sub %%rsp,%0"
                       : "=r" (frame_size));
 
-    //if (frame_size & (16-1)) {
-        // Make sure the frame size 16-byte aligned
-        frame_size += ((16 - (frame_size & (0xF))) & 0xF);
-    //}
+    // Make sure the frame size 16-byte aligned
+    frame_size += ((16 - (frame_size & (0xF))) & 0xF);
 
     CILK_ASSERT(frame_size < 4096);
 
@@ -296,7 +363,7 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 									PROT_READ|PROT_WRITE,
 									MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK|MAP_GROWSDOWN,
 									-1, 0);
-	if (MAP_FAILED == p) {
+	if (__builtin_expect(MAP_FAILED == p, 0)) {
 		// For whatever reason (probably ran out of memory), mmap() failed.
 		// There is no stack to return, so the program loses parallelism.
 		m_stack = NULL;
@@ -336,7 +403,7 @@ void cilk_fiber_sysdep::free_stack()
 {
 	if (m_stack) {
 		size_t rounded_stack_size = m_stack_base - m_stack + s_page_size;
-		if (munmap(m_stack, rounded_stack_size) < 0) {
+		if (__builtin_expect(munmap(m_stack, rounded_stack_size) < 0, 0)) {
 			__cilkrts_bug("Cilk: stack munmap failed error %s\n", strerror(errno));
 			fprintf(stderr, "Cilk: stack munmap failed error %s\n", strerror(errno));
 			raise(SIGSTOP);

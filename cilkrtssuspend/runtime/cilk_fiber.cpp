@@ -636,12 +636,12 @@ cilk_fiber* cilk_fiber::allocate_from_heap(std::size_t stack_size)
 
   // Error condition. If we failed to allocate a fiber from the
   // heap, we are in trouble though...
-  if (!ret)
+  if (__builtin_expect(!ret, 0))
     return NULL;
 
   ::new(ret) cilk_fiber_sysdep(stack_size);
 
-	if (ret->get_stack_sysdep() == NULL) { // mmap failed!
+	if (__builtin_expect(ret->get_stack_sysdep() == NULL, 0)) { // mmap failed!
 		__cilkrts_free(ret);
 		return NULL;
 	}
@@ -1013,6 +1013,42 @@ void cilk_fiber::do_post_switch_actions()
       m_pending_remove_ref = NULL;
       m_pending_pool   = NULL;
     }
+}
+
+void cilk_fiber::suspend_self_and_run_future(cilk_fiber* other, __cilkrts_stack_frame* sf)
+{
+#if FIBER_DEBUG >=1
+  fprintf(stderr, "suspend_self_and_resume_other: self =%p, other=%p [owner=%p, sf=%p]\n",
+          this, other, other->owner, sf);
+#endif
+
+  // Decrement my reference count (to suspend)
+  // Increment other's count (to resume)
+  // Suspended fiber should have a reference count of at least 1.  (It is not in a pool).
+  this->dec_ref_count();
+  other->inc_ref_count();
+  this->assert_ref_count_at_least(1);
+
+  // Pass along my owner.
+  other->owner = this->owner;
+  this->owner  = NULL;
+
+  // We used to change this fiber to resumable. But with suspended
+  // deques we may have one worker trying to take a fiber out from
+  // under another, so we set resumable upon resuming the other fiber.
+  CILK_ASSERT(!this->is_resumable());
+  //this->set_resumable(true);
+  other->m_from_fiber = this;
+
+  // Normally, I'd assert other->is_resumable().  But this flag may
+  // be false the first time we try to "resume" a fiber.
+  cilk_fiber_sysdep* self = this->sysdep();
+  self->suspend_self_and_run_future_sysdep(other->sysdep(), sf);
+
+  // HAVE RESUMED EXECUTION
+  // When we come back here, we should have at least two references:
+  // one for the fiber being allocated / out of a pool, and one for it being active.
+  this->assert_ref_count_at_least(2);
 }
 
 void cilk_fiber::suspend_self_and_resume_other(cilk_fiber* other)

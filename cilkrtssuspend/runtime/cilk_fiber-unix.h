@@ -107,11 +107,23 @@ public:
 	 *
 	 * This fiber is suspended.
 	 *          
-	 * @pre @c is_resumable() should be true. 
+	 * @pre @c is_resumable() should be false. 
 	 *
 	 * @param other              Fiber to resume.
 	 */
 	void suspend_self_and_resume_other_sysdep(cilk_fiber_sysdep* other);
+
+	/**
+	 * @brief System-dependent function to suspend self and run a future on "other".
+	 *
+	 * This fiber is suspended.
+	 *          
+	 * @pre @c is_resumable() should be false. 
+	 *
+	 * @param other              Fiber to run a future on.
+     * @param sf                 stack frame to jump to on the other fiber.
+	 */
+	void suspend_self_and_run_future_sysdep(cilk_fiber_sysdep* other, __cilkrts_stack_frame *sf);
 
 	/**
 	 * @brief System-dependent function called to jump to @p other
@@ -122,6 +134,8 @@ public:
 	 * @param other  Fiber to resume.
 	 */
 	NORETURN jump_to_resume_other_sysdep(cilk_fiber_sysdep* other);
+
+	NORETURN run_future(__cilkrts_stack_frame *sf);
     
 	/**
 	 * @brief Runs the start_proc.

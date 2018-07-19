@@ -305,6 +305,13 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
 void cilk_fiber_sysdep::make_stack(size_t stack_size)
 {
 	char* p;
+
+    // TODO: The following could replace everything up until the mmap.
+    //       Need to determine which is better.
+    //size_t page_size_x3 = s_page_size * 3;
+    //size_t rounded_stack_size = (stack_size > page_size_x3 ? stack_size : page_size_x3);
+    //rounded_stack_size += (rounded_stack_size & (s_page_size-1)); // Page sizes are powers of 2
+
 	// We've already validated that the stack size is page-aligned and
 	// is a reasonable value.  No need to do any extra rounding here.
 	size_t rounded_stack_size = stack_size;

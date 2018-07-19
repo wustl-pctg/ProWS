@@ -212,42 +212,6 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
 	CILK_ASSERT(!this->is_allocated_from_thread());
 	CILK_ASSERT(!this->is_resumable());
 
-	// TBD: This setjmp/longjmp pair simply changes the stack pointer.
-	// We could probably replace this code with some assembly.
-	/*if (! CILK_SETJMP(m_resume_jmpbuf))
-    {
-			// Calculate the size of the current stack frame (i.e., this
-			// run() function.  
-			size_t frame_size = (size_t)JMPBUF_FP(m_resume_jmpbuf) - (size_t)JMPBUF_SP(m_resume_jmpbuf);
-
-			// Macs require 16-byte alignment.  Do it always because it just
-			// doesn't matter
-			if (frame_size & (16-1))
-				frame_size += 16 - (frame_size  & (16-1));
-
-			// Assert that we are getting a reasonable frame size out of
-			// it.  If this run() function is using more than 4096 bytes
-			// of space for its local variables / any state that spills to
-			// registers, something is probably *very* wrong here...
-			//
-			// 4096 bytes just happens to be a number that seems "large
-			// enough" --- for an example GCC 32-bit compilation, the
-			// frame size was 48 bytes.
-			CILK_ASSERT(frame_size < 4096);
-
-			// Change stack pointer to fiber stack.  Offset the
-			// calculation by the frame size, so that we've allocated
-			// enough extra space from the top of the stack we are
-			// switching to for any temporaries required for this run()
-			// function.
-			JMPBUF_SP(m_resume_jmpbuf) = m_stack_base - frame_size;
-
-			// GCC doesn't allow us to call __builtin_longjmp in the same function
-			// that calls __builtin_setjmp, so it's been moved into it's own
-			// function that cannot be inlined.
-			do_cilk_longjmp(m_resume_jmpbuf);
-    }*/
-
     // Following the suggestion from above,
     // because setjmp/longjmp isn't fast.
     register uint64_t frame_size;
@@ -306,33 +270,15 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 {
 	char* p;
 
-    // TODO: The following could replace everything up until the mmap.
-    //       Need to determine which is better.
-    //size_t page_size_x3 = s_page_size * 3;
-    //size_t rounded_stack_size = (stack_size > page_size_x3 ? stack_size : page_size_x3);
-    //rounded_stack_size += (rounded_stack_size & (s_page_size-1)); // Page sizes are powers of 2
+    size_t page_size_x3 = s_page_size * 3;
 
 	// We've already validated that the stack size is page-aligned and
 	// is a reasonable value.  No need to do any extra rounding here.
-	size_t rounded_stack_size = stack_size;
 
-	// Normally, we have already validated that the stack size is
-	// aligned to 4K.  In the rare case that pages are huge though, we
-	// need to do some extra checks.
-	if (rounded_stack_size < 3 * (size_t)s_page_size) {
-		// If the specified stack size is too small, round up to 3
-		// pages.  We need at least 2 extra for the guard pages.
-		rounded_stack_size = 3 * (size_t)s_page_size;
-	}
-	else {
-		// Otherwise, the stack size is large enough, but might not be
-		// a multiple of page size.  Round up to nearest multiple of
-		// s_page_size, just to be safe.
-		size_t remainder = rounded_stack_size % s_page_size;
-		if (remainder) {
-			rounded_stack_size += s_page_size - remainder;
-		}
-	}
+    // This is slightly faster than the previous version that contained branches.
+    // The previous branching probably did not translate to conditional statements.
+    size_t rounded_stack_size = (stack_size > page_size_x3 ? stack_size : page_size_x3);
+    rounded_stack_size += (rounded_stack_size & (s_page_size-1)); // Page sizes are powers of 2
 
 	p = (char*)mmap(0, rounded_stack_size,
 									PROT_READ|PROT_WRITE,

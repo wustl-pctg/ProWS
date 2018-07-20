@@ -247,6 +247,11 @@ cilk_fiber* cilk_fiber_allocate_with_try_allocate_from_pool(cilk_fiber_pool* poo
  */
 cilk_fiber* cilk_fiber_allocate_from_heap(size_t stack_size);
 
+void cilk_fiber_setup_for_future(cilk_fiber *self, cilk_fiber *future);
+
+void cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume);
+
+void cilk_fiber_do_post_switch_actions(cilk_fiber *fiber);
 
 /** @brief Resets an fiber object just allocated from a pool with the
  * specified proc.
@@ -490,6 +495,7 @@ int cilk_fiber_is_resumable(cilk_fiber* fiber);
  */
 char* cilk_fiber_get_stack_base(cilk_fiber* fiber);
 
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber* fiber);
 
 /****************************************************************************
  * TBB interop functions
@@ -638,16 +644,6 @@ protected:
 	~cilk_fiber();
 
 	/**
-	 * @brief Performs any actions that happen after switching from
-	 * one fiber to another.
-	 *
-	 * These actions are:
-	 *   1. Execute m_post_switch_proc on a fiber.
-	 *   2. Do any pending deallocations from the previous fiber.
-	 */
-	void do_post_switch_actions();
-
-	/**
 	 *@brief Helper method that converts a @c cilk_fiber object into a
 	 * @c cilk_fiber_sysdep object.
 	 *
@@ -704,6 +700,20 @@ public:
 	 * @brief Return a fiber to the heap.
 	 */
 	void deallocate_to_heap();
+
+    void setup_for_future(cilk_fiber *other);
+
+    void setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other);
+
+	/**
+	 * @brief Performs any actions that happen after switching from
+	 * one fiber to another.
+	 *
+	 * These actions are:
+	 *   1. Execute m_post_switch_proc on a fiber.
+	 *   2. Do any pending deallocations from the previous fiber.
+	 */
+	void do_post_switch_actions();
 
 	/**
 	 * @brief Reset the state of a fiber just allocated from a pool.
@@ -814,6 +824,8 @@ public:
 	 *@brief Get the address at the base of the stack for this fiber.
 	 */
 	inline char* get_stack_base();
+
+	inline void** get_resume_jmpbuf();
     
 	/** @brief Return the data for this fiber. */ 
 	cilk_fiber_data*       get_data()       { return this; }

@@ -328,6 +328,20 @@ extern "C" {
     return cilk_fiber::allocate_from_heap(stack_size);
   }
 
+  void cilk_fiber_setup_for_future(cilk_fiber *self, cilk_fiber *future) {
+    self->setup_for_future(future);
+  }
+
+  void cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume)
+  {
+    self->setup_for_future_return(self_pool, resume);
+  }
+
+  void cilk_fiber_do_post_switch_actions(cilk_fiber *fiber)
+  {
+    fiber->do_post_switch_actions();
+  }
+
   void cilk_fiber_reset_state(cilk_fiber* fiber, cilk_fiber_proc start_proc) 
   {
     fiber->reset_state(start_proc);
@@ -435,6 +449,11 @@ extern "C" {
   char* cilk_fiber_get_stack_base(cilk_fiber *fiber)
   {
     return fiber->get_stack_base();
+  }
+
+  void** cilk_fiber_get_resume_jmpbuf(cilk_fiber *fiber)
+  {
+    return fiber->get_resume_jmpbuf();
   }
 
 
@@ -632,6 +651,11 @@ cilk_fiber::~cilk_fiber()
 char* cilk_fiber::get_stack_base()
 {
   return this->sysdep()->get_stack_base_sysdep();
+}
+
+void** cilk_fiber::get_resume_jmpbuf()
+{
+  return this->sysdep()->get_resume_jmpbuf();
 }
 
 cilk_fiber* cilk_fiber::allocate_from_heap(std::size_t stack_size)
@@ -998,6 +1022,51 @@ cilk_fiber* cilk_fiber::get_current_fiber()
   return cilk_fiber_sysdep::get_current_fiber_sysdep();
 }
 #endif
+
+void cilk_fiber::setup_for_future(cilk_fiber *other)
+{
+  // Decrement my reference count (to suspend)
+  // Increment other's count (to resume)
+  // Suspended fiber should have a reference count of at least 1.  (It is not in a pool).
+  this->dec_ref_count();
+  other->inc_ref_count();
+  this->assert_ref_count_at_least(1);
+
+  // Pass along my owner.
+  other->owner = this->owner;
+  this->owner  = NULL;
+
+  this->set_resumable();
+
+// We aren't quite there, but close enough
+#if SUPPORT_GET_CURRENT_FIBER
+    cilkos_set_tls_cilk_fiber(other->sysdep());
+#endif
+}
+
+void cilk_fiber::setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other)
+{
+  // Decrement my reference count once (to suspend)
+  // Increment other's count (to resume)
+  // Suspended fiber should have a reference count of at least 1.  (It is not in a pool).
+  this->dec_ref_count();
+  other->inc_ref_count();
+
+  // Set a pending remove reference for this fiber, once we have
+  // actually switched off.
+  other->m_pending_remove_ref = this;
+  other->m_pending_pool   = self_pool;
+
+  other->set_not_resumable();
+
+  // Pass along my owner.
+  other->owner = this->owner;
+  this->owner  = NULL;
+
+#if SUPPORT_GET_CURRENT_FIBER
+	cilkos_set_tls_cilk_fiber(other->sysdep());
+#endif
+}
 
 void cilk_fiber::do_post_switch_actions()
 {

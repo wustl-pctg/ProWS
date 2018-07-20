@@ -7,7 +7,7 @@ PIPER_HOME=/home/kdsinger/porridge/cilkrtssuspend
 RTS_INCLUDE=$(PIPER_HOME)/include/
 RTS_STATIC_LIB=$(PIPER_HOME)/.libs/libcilkrts.a
 #RTS_DYNAMIC_LIB=-Wl,-rpath -Wl,$(PIPER_HOME)/.libs/libcilkrts.so -lcilkrts
-CXXFLAGS=-std=c++11 #-flto
+CXXFLAGS=-std=c++11 -flto
 
 # compilation flags
 PIPER_CC=$(COMPILER_HOME)/bin/clang

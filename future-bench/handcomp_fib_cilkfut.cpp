@@ -31,17 +31,29 @@
  */
 
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
-extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
+extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
+extern CILK_ABI(cilk_fiber*) __cilkrts_switch_fibers();
 
 extern "C" {
 extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_pop_frame(struct __cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
+
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber *self);
+void cilk_fiber_do_post_switch_actions(cilk_fiber *self);
+char* cilk_fiber_get_stack_base(cilk_fiber *self);
 }
 
 int fib(int n);
 void fib_helper(int *res, int n);
+
+#define ALIGN_MASK  (~((uintptr_t)0xFF))
+static char* __attribute__((always_inline)) get_sp_for_fiber(char* stack_base) {
+    // Make the stack pointer 256-byte aligned
+    char* new_stack_base = stack_base - 256;
+    new_stack_base = (char*)((size_t)new_stack_base & ALIGN_MASK);
+    return new_stack_base;
+}
 
 void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
@@ -83,19 +95,28 @@ int  __attribute__((noinline)) fib(int n) {
     //       locking the frame when we run out of fibers on the future fiber deque.
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
      
-    if (!CILK_SETJMP(sf.ctx)) {
-        __cilkrts_switch_fibers(&sf);
-    // This if is unnecessary; however, I think compiler
-    // heuristics related to branching optimizations mean
-    // we get better compiler optimizations if we leave it.
-    // (based on results from testing)
-    } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+        cilk_fiber *fut_fiber = __cilkrts_switch_fibers();
+
+        volatile char* old_sp = NULL;
+        __asm__ volatile ("mov %%rsp,%0"
+                          : "=r" (old_sp));
+
+        char* new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
+
+        __asm__ volatile ("mov %0,%%rsp"
+                          : : "r" (new_sp));
+
         fib_fut(&x_fut, n-1);
 
-        cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
+        // Move our stack back!
+        __asm__ volatile ("mov %0,%%rsp"
+                          : : "r" (old_sp));
 
-        __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
+        __cilkrts_switch_fibers_back(fut_fiber, initial_fiber);
     }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
     #ifdef TEST_INTEROP_POST_FUTURE_CREATE
         #pragma message ("using using spawn post fut fib interop")
@@ -110,16 +131,28 @@ int  __attribute__((noinline)) fib(int n) {
 
         initial_fiber = cilk_fiber_get_current_fiber();
 
-        if (!CILK_SETJMP(sf.ctx)) {
-            __cilkrts_switch_fibers(&sf);
-    
-        } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            cilk_fiber *fut_fiber = __cilkrts_switch_fibers();
+
+            volatile char* old_sp = NULL;
+            __asm__ volatile ("mov %%rsp,%0"
+                              : "=r" (old_sp));
+
+            char* new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
+
+            __asm__ volatile ("mov %0,%%rsp"
+                              : : "r" (new_sp));
+
             fib_fut(&y_fut, n-2);
-    
-            cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
-    
-            __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
+
+            // Move our stack back!
+            __asm__ volatile ("mov %0,%%rsp"
+                              : : "r" (old_sp));
+
+            __cilkrts_switch_fibers_back(fut_fiber, initial_fiber);
         }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
     
         y = y_fut.get();
     #elif !defined(TEST_INTEROP_PRE_FUTURE_CREATE)

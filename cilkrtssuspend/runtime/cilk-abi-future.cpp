@@ -15,8 +15,8 @@
 #include <cstring>
 
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_switch_fibers_back(__cilkrts_stack_frame* first_frame, cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
-extern CILK_ABI_VOID __cilkrts_switch_fibers(__cilkrts_stack_frame* first_frame);
+extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
+extern CILK_ABI(cilk_fiber*) __cilkrts_switch_fibers();
 
 extern "C" {
 extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
@@ -36,6 +36,14 @@ static void __attribute__((noinline)) __spawn_future_helper(std::function<void(v
     __cilkrts_leave_future_frame(&sf);
 }
 
+#define ALIGN_MASK  (~((uintptr_t)0xFF))
+static char* __attribute__((always_inline)) get_sp_for_fiber(char* stack_base) {
+    // Make the stack pointer 256-byte aligned
+    char* new_stack_base = stack_base - 256;
+    new_stack_base = (char*)((size_t)new_stack_base & ALIGN_MASK);
+    return new_stack_base;
+}
+
 CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
@@ -46,22 +54,31 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     // any locks later.
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
 
-    // Technically not needed here,
-    // but would be needed for handcomp futures.
-    if(!CILK_SETJMP(sf.ctx)) { 
-        __cilkrts_switch_fibers(&sf);
+    if(!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) { 
+        cilk_fiber *fut_fiber = __cilkrts_switch_fibers();
 
-    // Technically, this 'else if' could be removed,
-    // HOWEVER, performance is better with it here.
-    // Probably something related to the compiler's
-    // branch optimization heuristics...
-    } else if (sf.flags & CILK_FRAME_FUTURE_PARENT) {
+        volatile char* old_sp = NULL;
+        __asm__ volatile ("mov %%rsp,%0"
+                          : "=r" (old_sp));
+
+        char* new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
+
+        __asm__ volatile ("mov %0,%%rsp"
+                          : : "r" (new_sp));
+
         __spawn_future_helper(std::move(func));
 
-        cilk_fiber *fut_fiber = __cilkrts_pop_tail_future_fiber();
+        // Move our stack back!
+        __asm__ volatile ("mov %0,%%rsp"
+                          : : "r" (old_sp));
 
-        __cilkrts_switch_fibers_back(&sf, fut_fiber, initial_fiber);
+        __cilkrts_switch_fibers_back(fut_fiber, initial_fiber);
     }
+
+    // However we got here, we need to do some post switch magic
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_frame(&sf);

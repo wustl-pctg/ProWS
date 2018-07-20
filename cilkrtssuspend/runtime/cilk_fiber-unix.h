@@ -148,6 +148,8 @@ public:
 	inline char* get_stack_base_sysdep() { return m_stack_base; }
 	inline char* get_stack_sysdep() { return m_stack; }
 
+    inline void** get_resume_jmpbuf() { return m_resume_jmpbuf; }
+
 private:
 	char*                       m_stack_base;    ///< The base of this fiber's stack.
 	char*                       m_stack;         ///< Stack memory (low address)

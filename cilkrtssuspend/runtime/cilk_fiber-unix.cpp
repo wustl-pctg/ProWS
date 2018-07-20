@@ -167,37 +167,6 @@ static char* __attribute__((always_inline)) get_sp_for_executing_sf(char* stack_
     return new_stack_base;
 }
 
-// TODO: Inlining is fine if we aren't unsynched, or so it would appear. Inlining saves ~5% of the total run time in my fib benchmark...
-void __attribute__((noinline)) cilk_fiber_sysdep::suspend_self_and_run_future_sysdep(cilk_fiber_sysdep* other, __cilkrts_stack_frame* sf)
-{
-#if SUPPORT_GET_CURRENT_FIBER
-    cilkos_set_tls_cilk_fiber(other);
-#endif
-
-    //CILK_ASSERT(this->is_resumable());
-    //CILK_ASSERT(!other->is_resumable());
-
-    // Jump to the other fiber.  We expect to come back.
-    if (! CILK_SETJMP(m_resume_jmpbuf)) {
-        // Replaces do_post_switch_actions;
-        // We can't be stolen until we are on the other
-        // fiber anyway.
-        SP(sf) = get_sp_for_executing_sf(other->m_stack_base);
-        
-        #ifdef RESTORE_X86_FP_STATE
-            restore_x86_fp_state(sf);
-        #endif
-
-        CILK_LONGJMP(sf->ctx);
-
-        __builtin_unreachable();
-    }
-
-    // Return here when another fiber resumes me.
-    // If the fiber that switched to me wants to be deallocated, do it now.
-    do_post_switch_actions();
-}
-
 void cilk_fiber_sysdep::suspend_self_and_resume_other_sysdep(cilk_fiber_sysdep* other)
 {
 #if SUPPORT_GET_CURRENT_FIBER

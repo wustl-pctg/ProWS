@@ -379,13 +379,6 @@ extern "C" {
   }
 #endif
 
-  void __attribute__((always_inline)) cilk_fiber_suspend_self_and_run_future(cilk_fiber* self,
-                                                                             cilk_fiber* other,
-                                                                             __cilkrts_stack_frame* sf)
-  {
-    self->suspend_self_and_run_future(other, sf);
-  }
-
   void cilk_fiber_suspend_self_and_resume_other(cilk_fiber* self,
                                                 cilk_fiber* other)
   {
@@ -1089,35 +1082,6 @@ void cilk_fiber::do_post_switch_actions()
       m_pending_remove_ref = NULL;
       m_pending_pool   = NULL;
     }
-}
-
-void __attribute__((always_inline)) cilk_fiber::suspend_self_and_run_future(cilk_fiber* other, __cilkrts_stack_frame* sf)
-{
-#if FIBER_DEBUG >=1
-  fprintf(stderr, "suspend_self_and_resume_other: self =%p, other=%p [owner=%p, sf=%p]\n",
-          this, other, other->owner, sf);
-#endif
-
-  // Decrement my reference count (to suspend)
-  // Increment other's count (to resume)
-  // Suspended fiber should have a reference count of at least 1.  (It is not in a pool).
-  this->dec_ref_count();
-  other->inc_ref_count();
-  this->assert_ref_count_at_least(1);
-
-  // Pass along my owner.
-  other->owner = this->owner;
-  this->owner  = NULL;
-
-  this->set_resumable();
-
-  cilk_fiber_sysdep* self = this->sysdep();
-  self->suspend_self_and_run_future_sysdep(other->sysdep(), sf);
-
-  // HAVE RESUMED EXECUTION
-  // When we come back here, we should have at least two references:
-  // one for the fiber being allocated / out of a pool, and one for it being active.
-  this->assert_ref_count_at_least(2);
 }
 
 void cilk_fiber::suspend_self_and_resume_other(cilk_fiber* other)

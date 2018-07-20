@@ -48,6 +48,9 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
 
+    // Mark the frame as a future parent so
+    // that if we steal this frame we will
+    // know what to do with the fibers.
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
     // Read the initial fiber so we can switch back to it without taking
@@ -58,26 +61,35 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
         cilk_fiber *fut_fiber = __cilkrts_switch_fibers();
 
         volatile char* old_sp = NULL;
+
+        // Save the old stack pointer
         __asm__ volatile ("mov %%rsp,%0"
                           : "=r" (old_sp));
 
+        // Get the location to move the stack to
         char* new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
 
+        // Move the stack pointer to the new stack
         __asm__ volatile ("mov %0,%%rsp"
                           : : "r" (new_sp));
 
+        // Now that we are on the new stack, we can
+        // run the future
         __spawn_future_helper(std::move(func));
 
-        // Move our stack back!
+        // Move our stack back to the original!
+        // We were not stolen from.
         __asm__ volatile ("mov %0,%%rsp"
                           : : "r" (old_sp));
 
+        // Set the proper flags & pointers related to switching
+        // back to the old fiber.
         __cilkrts_switch_fibers_back(fut_fiber, initial_fiber);
     }
 
-    // However we got here, we need to do some post switch magic
+    // However we got here, we need to do some post switch
+    // actions to clean up data related to the previous fiber.
     cilk_fiber_do_post_switch_actions(initial_fiber);
-
     sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
     __cilkrts_pop_frame(&sf);

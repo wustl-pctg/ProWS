@@ -23,9 +23,6 @@ CILK_ABI(cilk_fiber*) __attribute__((always_inline)) __cilkrts_switch_fibers() {
     __cilkrts_enqueue_future_fiber(new_exec_fiber);
 
     cilk_fiber_setup_for_future(curr_fiber, new_exec_fiber);
-    //cilk_fiber_suspend_self_and_run_future(curr_fiber, new_exec_fiber, first_frame);
-
-    //first_frame->flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
     return new_exec_fiber;
 }

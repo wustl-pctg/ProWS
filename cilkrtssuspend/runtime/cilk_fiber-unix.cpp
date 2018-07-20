@@ -156,70 +156,41 @@ static void __attribute__((noinline))
 do_cilk_longjmp(__CILK_JUMP_BUFFER jmpbuf)
 {
 	CILK_LONGJMP(jmpbuf);
+    __builtin_unreachable();
 }
 
-void __attribute__((noinline)) cilk_fiber_sysdep::run_future(__cilkrts_stack_frame *sf)
-{
-	// Only fibers created from a pool have a proc method to run and execute. 
-	CILK_ASSERT(!this->is_allocated_from_thread());
-	CILK_ASSERT(!this->is_resumable());
-
-	// Verify that 1) 'this' is still valid and 2) '*this' has not been
-	// corrupted.
-	CILK_ASSERT(magic_number == m_magic);
-
-    // TODO: Assert the previous fiber is NOT being deallocated
-	do_post_switch_actions();
-
-    char* new_sp = m_stack_base - 256;
-
-    #define ALIGN_MASK  (~((uintptr_t)0xFF))
-    new_sp = (char*)((size_t)new_sp & ALIGN_MASK);
-    #undef ALIGN_MASK // Just to be safe
-
-    SP(sf) = new_sp;
-
-    #ifdef RESTORE_X86_FP_STATE
-        restore_x86_fp_state(sf);
-    #endif
-
-    CILK_LONGJMP(sf->ctx);
-
-	// User proc should never return.
-	__cilkrts_bug("Should not get here");
+#define ALIGN_MASK  (~((uintptr_t)0xFF))
+static char* __attribute__((always_inline)) get_sp_for_executing_sf(char* stack_base) {
+    // Make the stack pointer 256-byte aligned
+    char* new_stack_base = stack_base - 256;
+    new_stack_base = (char*)((size_t)new_stack_base & ALIGN_MASK);
+    return new_stack_base;
 }
 
-void cilk_fiber_sysdep::suspend_self_and_run_future_sysdep(cilk_fiber_sysdep* other, __cilkrts_stack_frame *sf)
+// TODO: Inlining is fine if we aren't unsynched, or so it would appear. Inlining saves ~5% of the total run time in my fib benchmark...
+void __attribute__((noinline)) cilk_fiber_sysdep::suspend_self_and_run_future_sysdep(cilk_fiber_sysdep* other, __cilkrts_stack_frame* sf)
 {
 #if SUPPORT_GET_CURRENT_FIBER
     cilkos_set_tls_cilk_fiber(other);
 #endif
 
-    // This is now set in the other fiber
-    //    CILK_ASSERT(this->is_resumable());
-    CILK_ASSERT(!this->is_resumable());
-    CILK_ASSERT(!other->is_resumable());
+    //CILK_ASSERT(this->is_resumable());
+    //CILK_ASSERT(!other->is_resumable());
 
     // Jump to the other fiber.  We expect to come back.
     if (! CILK_SETJMP(m_resume_jmpbuf)) {
-        // We've never run this fiber before.  Start the
-        // proc method.
-        //other->run_future(sf);
-        other->do_post_switch_actions();
-        char* new_sp = other->m_stack_base - 256;
+        // Replaces do_post_switch_actions;
+        // We can't be stolen until we are on the other
+        // fiber anyway.
+        SP(sf) = get_sp_for_executing_sf(other->m_stack_base);
         
-        #define ALIGN_MASK  (~((uintptr_t)0xFF))
-        new_sp = (char*)((size_t)new_sp & ALIGN_MASK);
-        #undef ALIGN_MASK // Just to be safe
-        SP(sf) = new_sp;
         #ifdef RESTORE_X86_FP_STATE
             restore_x86_fp_state(sf);
         #endif
 
-        do_cilk_longjmp(sf->ctx);
+        CILK_LONGJMP(sf->ctx);
 
-	    int* dummy = (int*) alloca((sizeof(int) + (std::size_t) m_start_proc) & 0x1);
-	    *dummy = 0xface;
+        __builtin_unreachable();
     }
 
     // Return here when another fiber resumes me.

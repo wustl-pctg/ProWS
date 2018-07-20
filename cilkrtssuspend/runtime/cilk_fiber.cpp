@@ -365,6 +365,13 @@ extern "C" {
   }
 #endif
 
+  void __attribute__((always_inline)) cilk_fiber_suspend_self_and_run_future(cilk_fiber* self,
+                                                                             cilk_fiber* other,
+                                                                             __cilkrts_stack_frame* sf)
+  {
+    self->suspend_self_and_run_future(other, sf);
+  }
+
   void cilk_fiber_suspend_self_and_resume_other(cilk_fiber* self,
                                                 cilk_fiber* other)
   {
@@ -1015,7 +1022,7 @@ void cilk_fiber::do_post_switch_actions()
     }
 }
 
-void cilk_fiber::suspend_self_and_run_future(cilk_fiber* other, __cilkrts_stack_frame* sf)
+void __attribute__((always_inline)) cilk_fiber::suspend_self_and_run_future(cilk_fiber* other, __cilkrts_stack_frame* sf)
 {
 #if FIBER_DEBUG >=1
   fprintf(stderr, "suspend_self_and_resume_other: self =%p, other=%p [owner=%p, sf=%p]\n",
@@ -1033,15 +1040,8 @@ void cilk_fiber::suspend_self_and_run_future(cilk_fiber* other, __cilkrts_stack_
   other->owner = this->owner;
   this->owner  = NULL;
 
-  // We used to change this fiber to resumable. But with suspended
-  // deques we may have one worker trying to take a fiber out from
-  // under another, so we set resumable upon resuming the other fiber.
-  CILK_ASSERT(!this->is_resumable());
-  //this->set_resumable(true);
-  other->m_from_fiber = this;
+  this->set_resumable();
 
-  // Normally, I'd assert other->is_resumable().  But this flag may
-  // be false the first time we try to "resume" a fiber.
   cilk_fiber_sysdep* self = this->sysdep();
   self->suspend_self_and_run_future_sysdep(other->sysdep(), sf);
 
@@ -1072,7 +1072,7 @@ void cilk_fiber::suspend_self_and_resume_other(cilk_fiber* other)
   // We used to change this fiber to resumable. But with suspended
   // deques we may have one worker trying to take a fiber out from
   // under another, so we set resumable upon resuming the other fiber.
-  CILK_ASSERT(!this->is_resumable());
+  //CILK_ASSERT(!this->is_resumable());
   //this->set_resumable(true);
   other->m_from_fiber = this;
 

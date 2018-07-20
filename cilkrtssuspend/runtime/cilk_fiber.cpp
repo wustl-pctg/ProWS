@@ -328,11 +328,11 @@ extern "C" {
     return cilk_fiber::allocate_from_heap(stack_size);
   }
 
-  void cilk_fiber_setup_for_future(cilk_fiber *self, cilk_fiber *future) {
+  void __attribute__((always_inline)) cilk_fiber_setup_for_future(cilk_fiber *self, cilk_fiber *future) {
     self->setup_for_future(future);
   }
 
-  void cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume)
+  void __attribute__((always_inline)) cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume)
   {
     self->setup_for_future_return(self_pool, resume);
   }
@@ -451,7 +451,7 @@ extern "C" {
     return fiber->get_stack_base();
   }
 
-  void** cilk_fiber_get_resume_jmpbuf(cilk_fiber *fiber)
+  void** __attribute__((always_inline)) cilk_fiber_get_resume_jmpbuf(cilk_fiber *fiber)
   {
     return fiber->get_resume_jmpbuf();
   }
@@ -653,7 +653,7 @@ char* cilk_fiber::get_stack_base()
   return this->sysdep()->get_stack_base_sysdep();
 }
 
-void** cilk_fiber::get_resume_jmpbuf()
+void** __attribute__((always_inline)) cilk_fiber::get_resume_jmpbuf()
 {
   return this->sysdep()->get_resume_jmpbuf();
 }
@@ -1023,7 +1023,7 @@ cilk_fiber* cilk_fiber::get_current_fiber()
 }
 #endif
 
-void cilk_fiber::setup_for_future(cilk_fiber *other)
+void __attribute__((always_inline)) cilk_fiber::setup_for_future(cilk_fiber *other)
 {
   // Decrement my reference count (to suspend)
   // Increment other's count (to resume)
@@ -1044,7 +1044,7 @@ void cilk_fiber::setup_for_future(cilk_fiber *other)
 #endif
 }
 
-void cilk_fiber::setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other)
+void __attribute__((always_inline)) cilk_fiber::setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other)
 {
   // Decrement my reference count once (to suspend)
   // Increment other's count (to resume)

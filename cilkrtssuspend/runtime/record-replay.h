@@ -122,7 +122,7 @@
  * functions, the resulting build should have no performance impact due to
  * the implementation or record/replay.
  */
- #define CILK_RECORD_REPLAY 1
+// #define CILK_RECORD_REPLAY 1
 
 /**
  * Define RECORD_ON_REPLAY=1 to write logs when we're replaying a log.  This

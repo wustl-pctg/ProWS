@@ -413,6 +413,7 @@ void __cilkrts_dump_stats_to_stderr(global_state_t *g);
 #ifdef CILK_RECORD_REPLAY
 COMMON_PORTABLE
 char * walk_pedigree_nodes(char *p, const __cilkrts_pedigree *pnode);
+#endif
 
 /**
  * @brief Used by exception handling code to simulate the popping of
@@ -443,7 +444,6 @@ void make_unrunnable(__cilkrts_worker *w, full_frame *ff,
 void make_runnable(__cilkrts_worker *w, full_frame *ff, deque* d);
 void unlink_child(full_frame *parent_ff, full_frame *child_ff);
 
-#endif
 
 __CILKRTS_END_EXTERN_C
 

@@ -1042,6 +1042,7 @@ static void provably_good_steal_stacks(__cilkrts_worker *w, full_frame *ff)
     CILK_ASSERT(NULL == ff->fiber_self);
     ff->fiber_self = ff->fiber_child;
     ff->fiber_child = NULL;
+    cilk_fiber_take(ff->fiber_self);
 }
 
 static void __cilkrts_mark_synched(full_frame *ff)

@@ -1,7 +1,7 @@
 include ../common.mk
 
 OBJ = simple_future_cilkr.o
-MY_LDFLAGS= -flto ../cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+MY_LDFLAGS= -flto ../cilkrtssuspend/.libs/libcilkrts.a -lnuma -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 MY_CXXFLAGS=-O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c
 APP = simple-future
 .SECONDARY: $(OBJ)
@@ -13,7 +13,7 @@ default:
 
 qsort: qsort.cpp
 	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c qsort.cpp -o qsort.o
-	$(CXX) -flto qsort.o -o qsort ../cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+	$(CXX) -flto qsort.o -o qsort ../cilkrtssuspend/.libs/libcilkrts.a -lnuma -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
 
 .PHONY = clean
 clean:

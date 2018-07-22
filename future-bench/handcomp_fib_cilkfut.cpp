@@ -87,7 +87,7 @@ int  __attribute__((noinline)) fib(int n) {
         }
     #endif
 
-    cilk::future<int> x_fut = cilk::future<int>(1);
+    cilk::future<int> x_fut = cilk::future<int>();
 
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
@@ -129,7 +129,7 @@ int  __attribute__((noinline)) fib(int n) {
         }
     #elif defined(TEST_INTEROP_MULTI_FUTURE)
         #pragma message ("using future fib interop")
-        cilk::future<int> y_fut = cilk::future<int>(1);
+        cilk::future<int> y_fut = cilk::future<int>();
 
         sf.flags |= CILK_FRAME_FUTURE_PARENT;
 

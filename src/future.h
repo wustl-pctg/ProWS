@@ -60,7 +60,7 @@ private:
   volatile T m_result;
 
   void* m_suspended_deques[MAX_TOUCHES];
-  void**volatile m_deques;
+  void *volatile * m_deques;
   int m_num_suspended_deques;
   
 public:
@@ -84,7 +84,7 @@ public:
     void **suspended_deques;
     do {
         while (m_deques == NULL);
-        suspended_deques = __sync_val_compare_and_swap(&m_deques, m_deques, NULL);
+        suspended_deques = (void**)__sync_val_compare_and_swap(&m_deques, m_deques, NULL);
     } while (suspended_deques == NULL);
 
     // make resumable can be heavy, so keep it outside the lock
@@ -107,7 +107,7 @@ public:
             void **suspended_deques;
             do {
                 while (!this->ready() && m_deques == NULL);
-                suspended_deques = __sync_val_compare_and_swap(&m_deques, m_deques, NULL);
+                suspended_deques = (void**)__sync_val_compare_and_swap(&m_deques, m_deques, NULL);
             } while (suspended_deques == NULL && !this->ready());
 
             if (suspended_deques) {

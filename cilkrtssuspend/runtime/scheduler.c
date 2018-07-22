@@ -743,6 +743,7 @@ static void jump_to_suspended_fiber(__cilkrts_worker *w,
 
     CILK_ASSERT(*w->l->frame_ff);
 
+    cilk_fiber_take(fiber);
     cilk_fiber_data *data = cilk_fiber_get_data(fiber);
     CILK_ASSERT(!data->resume_sf);
     data->owner = w;
@@ -985,7 +986,9 @@ done:
                 // and thus should not have any other references.
                 CILK_ASSERT(0 == ref_count);
             } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+            cilk_fiber_take(w->l->next_frame_ff->fiber_self);
         } else {
+            cilk_fiber_take(fiber);
             // Since our steal was successful, finish initialization of
             // the fiber.
             cilk_fiber_reset_state(fiber,

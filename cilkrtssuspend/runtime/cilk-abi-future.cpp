@@ -60,7 +60,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     if(!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) { 
         cilk_fiber *fut_fiber = __cilkrts_switch_fibers();
 
-        volatile char* old_sp = NULL;
+        char *volatile old_sp = NULL;
 
         // Save the old stack pointer
         __asm__ volatile ("mov %%rsp,%0"

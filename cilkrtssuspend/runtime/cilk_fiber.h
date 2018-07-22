@@ -491,6 +491,10 @@ int cilk_fiber_is_resumable(cilk_fiber* fiber);
  */
 char* cilk_fiber_get_stack_base(cilk_fiber* fiber);
 
+char* cilk_fiber_get_stack(cilk_fiber* fiber);
+
+void cilk_fiber_take(cilk_fiber* fiber);
+
 void** cilk_fiber_get_resume_jmpbuf(cilk_fiber* fiber);
 
 /****************************************************************************
@@ -618,8 +622,8 @@ protected:
 	cilk_fiber_proc  m_post_switch_proc;  ///< Function that executes when we first switch to a new fiber from a different one.
 
 	cilk_fiber*				m_pending_remove_ref;	///< Fiber to possibly delete on start up or resume
-	cilk_fiber_pool*	m_pending_pool;	///< Pool where m_pending_remove_ref should go if it is deleted.
-	unsigned					m_flags;    ///< Captures the status of this fiber.
+	cilk_fiber_pool*	    m_pending_pool;	///< Pool where m_pending_remove_ref should go if it is deleted.
+	unsigned				m_flags;    ///< Captures the status of this fiber.
 	cilk_fiber*				m_from_fiber;  ///< Fiber we switched from
 
 #if NEED_FIBER_REF_COUNTS
@@ -691,6 +695,8 @@ public:
 	 * @brief Allocates a fiber from the heap.
 	 */
 	static cilk_fiber* allocate_from_heap(size_t stack_size);
+
+    void take();
 
 	/**
 	 * @brief Return a fiber to the heap.
@@ -813,6 +819,8 @@ public:
 	 *@brief Get the address at the base of the stack for this fiber.
 	 */
 	inline char* get_stack_base();
+
+    inline char* get_stack();
 
 	inline void** get_resume_jmpbuf();
     

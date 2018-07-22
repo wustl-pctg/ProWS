@@ -444,6 +444,15 @@ extern "C" {
     return fiber->get_stack_base();
   }
 
+  char* cilk_fiber_get_stack(cilk_fiber *fiber)
+  {
+    return fiber->get_stack();
+  }
+
+  void cilk_fiber_take(cilk_fiber *fiber) {
+    fiber->take();
+  }
+
   void** __attribute__((always_inline)) cilk_fiber_get_resume_jmpbuf(cilk_fiber *fiber)
   {
     return fiber->get_resume_jmpbuf();
@@ -640,6 +649,17 @@ cilk_fiber::~cilk_fiber()
   // Empty destructor.
 }
 
+
+char* cilk_fiber::get_stack()
+{
+  return this->sysdep()->get_stack_sysdep();
+}
+
+#include "numa.h"
+void cilk_fiber::take()
+{
+  numa_setlocal_memory(get_stack(), get_stack_base() - get_stack());
+}
 
 char* cilk_fiber::get_stack_base()
 {

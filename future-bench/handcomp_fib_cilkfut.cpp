@@ -87,7 +87,7 @@ int  __attribute__((noinline)) fib(int n) {
         }
     #endif
 
-    cilk::future<int> x_fut = cilk::future<int>();
+    cilk::future<int> x_fut = cilk::future<int>(1);
 
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
 
@@ -96,13 +96,17 @@ int  __attribute__((noinline)) fib(int n) {
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
      
     if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-        cilk_fiber *fut_fiber = __cilkrts_switch_fibers();
 
-        volatile char* old_sp = NULL;
+        char *volatile old_sp = NULL;
         __asm__ volatile ("mov %%rsp,%0"
                           : "=r" (old_sp));
 
-        char* new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
+        char* new_sp = NULL;
+
+        // TODO: Why does writing it this way result in significant performance gains!?
+        cilk_fiber *volatile fut_fiber = NULL;
+        fut_fiber = __cilkrts_switch_fibers();
+        new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
 
         __asm__ volatile ("mov %0,%%rsp"
                           : : "r" (new_sp));
@@ -125,7 +129,7 @@ int  __attribute__((noinline)) fib(int n) {
         }
     #elif defined(TEST_INTEROP_MULTI_FUTURE)
         #pragma message ("using future fib interop")
-        cilk::future<int> y_fut = cilk::future<int>();
+        cilk::future<int> y_fut = cilk::future<int>(1);
 
         sf.flags |= CILK_FRAME_FUTURE_PARENT;
 

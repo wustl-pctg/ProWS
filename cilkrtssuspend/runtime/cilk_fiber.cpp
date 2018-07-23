@@ -332,9 +332,9 @@ extern "C" {
     self->setup_for_future(future);
   }
 
-  void __attribute__((always_inline)) cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume)
+  void __attribute__((always_inline)) cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume, int dealloc)
   {
-    self->setup_for_future_return(self_pool, resume);
+    self->setup_for_future_return(self_pool, resume, dealloc);
   }
 
   void cilk_fiber_do_post_switch_actions(cilk_fiber *fiber)
@@ -1057,7 +1057,7 @@ void __attribute__((always_inline)) cilk_fiber::setup_for_future(cilk_fiber *oth
 #endif
 }
 
-void __attribute__((always_inline)) cilk_fiber::setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other)
+void __attribute__((always_inline)) cilk_fiber::setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other, bool dealloc)
 {
   // Decrement my reference count once (to suspend)
   // Increment other's count (to resume)
@@ -1067,8 +1067,10 @@ void __attribute__((always_inline)) cilk_fiber::setup_for_future_return(cilk_fib
 
   // Set a pending remove reference for this fiber, once we have
   // actually switched off.
-  other->m_pending_remove_ref = this;
-  other->m_pending_pool   = self_pool;
+  if (dealloc) {
+    other->m_pending_remove_ref = this;
+    other->m_pending_pool   = self_pool;
+  }
 
   other->set_not_resumable();
 

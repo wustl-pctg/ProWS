@@ -249,7 +249,7 @@ cilk_fiber* cilk_fiber_allocate_from_heap(size_t stack_size);
 
 void cilk_fiber_setup_for_future(cilk_fiber *self, cilk_fiber *future);
 
-void cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume);
+void cilk_fiber_setup_for_future_return(cilk_fiber *self, cilk_fiber_pool *self_pool, cilk_fiber *resume, int dealloc);
 
 void cilk_fiber_do_post_switch_actions(cilk_fiber *fiber);
 
@@ -705,7 +705,7 @@ public:
 
     void setup_for_future(cilk_fiber *other);
 
-    void setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other);
+    void setup_for_future_return(cilk_fiber_pool *self_pool, cilk_fiber *other, bool dealloc);
 
 	/**
 	 * @brief Performs any actions that happen after switching from

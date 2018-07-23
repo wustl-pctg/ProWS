@@ -80,7 +80,7 @@ public:
     m_result = result;
     __asm__ volatile ("" ::: "memory");
     m_status = status::DONE;
-    //__asm__ volatile ("" ::: "memory");
+    __asm__ volatile ("" ::: "memory");
     
     void **suspended_deques = NULL;
     do {

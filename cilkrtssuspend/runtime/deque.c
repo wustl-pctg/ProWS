@@ -435,7 +435,9 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   d->saved_ped = w->pedigree;
   d->call_stack = w->current_stack_frame;
 
-  if (!new_deque) {
+  int allocate_new_deque = !new_deque;
+
+  if (allocate_new_deque) {
     // Before we allocate a new deque, let's see if we have something to resume
     __cilkrts_mutex_lock(w, &w->l->lock);
     int size = w->l->resumable_deques.size;
@@ -471,35 +473,11 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   if (w->l->type == WORKER_USER && new_deque)
     CILK_ASSERT(new_deque->team == w);
 
-  /*int victim_idx = myrand(w) % w->g->total_workers;
-  int victim2_idx = myrand(w) % (w->g->total_workers-1);
-  if (victim2_idx >= victim_idx) {
-      victim2_idx += 1;
-  }
-
-  int victim_deque_count = w->g->workers[victim_idx]->l->resumable_deques.size + w->g->workers[victim_idx]->l->suspended_deques.size;
-  int victim2_deque_count = w->g->workers[victim2_idx]->l->resumable_deques.size + w->g->workers[victim2_idx]->l->suspended_deques.size;
-
-  __cilkrts_worker *victim = NULL;
-
-  if (victim_deque_count > victim2_deque_count) {
-    victim = w->g->workers[victim2_idx];
-  } else if (victim2_deque_count > victim_deque_count) {
-    victim = w->g->workers[victim_idx];
-  } else {
-    int which = myrand(w) % 2;
-    victim = (which == 0) ? w->g->workers[victim_idx] : w->g->workers[victim2_idx];
-  }*/
-
-  // Original victim selection
-  //__cilkrts_worker *victim = w->g->workers[myrand(w) % (w->g->total_workers)];
-
-  /* victim = w; */
-
   cilk_fiber *fiber;
   BEGIN_WITH_WORKER_LOCK(w) { // I'm not entirely sure this is necessary
     // Switch to new deque
     w->l->active_deque = new_deque;
+
 
     // This will immediately succeed, but we need to make sure no one 
 
@@ -521,6 +499,37 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     //    deque_pool_validate(p, w);
 
     deque_switch(w, w->l->active_deque);
+    // TODO: We could do an immediate steal here from the deque being
+    //       suspended. Right now the following commented out code
+    //       causes segfaults.
+    /*extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber*);
+    if (allocate_new_deque && new_deque && can_steal_from(w,d)) {
+        cilk_fiber *fiber;
+        START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
+            // Verify that we can get a stack.  If not, no need to continue.
+            fiber = cilk_fiber_allocate(&w->l->fiber_pool);
+        } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
+        if (fiber) {
+            cilkg_increment_pending_futures(w->g);
+            detach_for_steal(w, w, d, fiber);
+            w->l->work_stolen = 1;
+        if (w->l->next_frame_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
+            START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
+                int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
+                // Fibers we use when trying to steal should not be active,
+                // and thus should not have any other references.
+                CILK_ASSERT(0 == ref_count);
+            } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+            cilk_fiber_take(w->l->next_frame_ff->fiber_self);
+        } else {
+            cilk_fiber_take(fiber);
+            // Since our steal was successful, finish initialization of
+            // the fiber.
+            cilk_fiber_reset_state(fiber,
+                                   fiber_proc_to_resume_user_code_for_random_steal);
+        }
+        }
+    }*/
 
   } END_WITH_WORKER_LOCK(w);
 

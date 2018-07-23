@@ -80,8 +80,9 @@ public:
     m_result = result;
     __asm__ volatile ("" ::: "memory");
     m_status = status::DONE;
+    //__asm__ volatile ("" ::: "memory");
     
-    void **suspended_deques;
+    void **suspended_deques = NULL;
     do {
         while (m_deques == NULL);
         suspended_deques = (void**)__sync_val_compare_and_swap(&m_deques, m_deques, NULL);

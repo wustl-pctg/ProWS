@@ -318,7 +318,7 @@ void cilk_fiber_sysdep::make_stack(size_t stack_size)
 		raise(SIGSTOP);
 		
 		return;
-	}
+	} 
 
     #if FIBER_DEBUG >= 1
 	//fprintf(stderr, "Stack mmap: %p\n", p);

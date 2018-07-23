@@ -15,9 +15,8 @@
 #include <cstring>
 
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
-extern CILK_ABI(cilk_fiber*) __cilkrts_switch_fibers();
-extern char* __cilkrts_get_exec_sp(cilk_fiber* fiber);
+extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* new_fiber);
+extern CILK_ABI(char*) __cilkrts_switch_fibers();
 
 extern "C" {
 extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
@@ -51,16 +50,16 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
     cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
 
     if(!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) { 
-        cilk_fiber *fut_fiber = __cilkrts_switch_fibers();
+        char *new_sp = __cilkrts_switch_fibers();
 
-        char *volatile old_sp = NULL;
+        char *old_sp = NULL;
 
-        // Save the old stack pointer
-        __asm__ volatile ("mov %%rsp,%0"
-                          : "=r" (old_sp));
-
-        // Get the location to move the stack to
-        char* new_sp = __cilkrts_get_exec_sp(fut_fiber);
+        // Save the old stack pointer and
+        // move it to point to the new fiber.
+        __asm__ volatile ("mov %%rsp,%0\n"
+                          "mov %1,%%rsp"
+                          : "=r" (old_sp)
+                          : "r" (new_sp));
 
         // Move the stack pointer to the new stack
         __asm__ volatile ("mov %0,%%rsp"
@@ -77,7 +76,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
         // Set the proper flags & pointers related to switching
         // back to the old fiber.
-        __cilkrts_switch_fibers_back(fut_fiber, initial_fiber);
+        __cilkrts_switch_fibers_back(initial_fiber);
     }
 
     // However we got here, we need to do some post switch

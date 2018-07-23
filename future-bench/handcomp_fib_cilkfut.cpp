@@ -33,6 +33,7 @@
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
 extern CILK_ABI(cilk_fiber*) __cilkrts_switch_fibers();
+extern char* __cilkrts_get_exec_sp(cilk_fiber* fiber);
 
 extern "C" {
 extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
@@ -46,14 +47,6 @@ char* cilk_fiber_get_stack_base(cilk_fiber *self);
 
 int fib(int n);
 void fib_helper(int *res, int n);
-
-#define ALIGN_MASK  (~((uintptr_t)0xFF))
-static char* __attribute__((always_inline)) get_sp_for_fiber(char* stack_base) {
-    // Make the stack pointer 256-byte aligned
-    char* new_stack_base = stack_base - 256;
-    new_stack_base = (char*)((size_t)new_stack_base & ALIGN_MASK);
-    return new_stack_base;
-}
 
 void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
     __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
@@ -106,7 +99,7 @@ int  __attribute__((noinline)) fib(int n) {
         // TODO: Why does writing it this way result in significant performance gains!?
         cilk_fiber *volatile fut_fiber = NULL;
         fut_fiber = __cilkrts_switch_fibers();
-        new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
+        new_sp = __cilkrts_get_exec_sp(fut_fiber);
 
         __asm__ volatile ("mov %0,%%rsp"
                           : : "r" (new_sp));
@@ -142,7 +135,7 @@ int  __attribute__((noinline)) fib(int n) {
             __asm__ volatile ("mov %%rsp,%0"
                               : "=r" (old_sp));
 
-            char* new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
+            char* new_sp = __cilkrts_get_exec_sp(fut_fiber);
 
             __asm__ volatile ("mov %0,%%rsp"
                               : : "r" (new_sp));

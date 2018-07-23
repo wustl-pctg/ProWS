@@ -17,6 +17,7 @@
 extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
 extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* curr_fiber, cilk_fiber* new_fiber);
 extern CILK_ABI(cilk_fiber*) __cilkrts_switch_fibers();
+extern char* __cilkrts_get_exec_sp(cilk_fiber* fiber);
 
 extern "C" {
 extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
@@ -34,14 +35,6 @@ static void __attribute__((noinline)) __spawn_future_helper(std::function<void(v
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_future_frame(&sf);
-}
-
-#define ALIGN_MASK  (~((uintptr_t)0xFF))
-static char* __attribute__((always_inline)) get_sp_for_fiber(char* stack_base) {
-    // Make the stack pointer 256-byte aligned
-    char* new_stack_base = stack_base - 256;
-    new_stack_base = (char*)((size_t)new_stack_base & ALIGN_MASK);
-    return new_stack_base;
 }
 
 CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
@@ -67,7 +60,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
                           : "=r" (old_sp));
 
         // Get the location to move the stack to
-        char* new_sp = get_sp_for_fiber(cilk_fiber_get_stack_base(fut_fiber));
+        char* new_sp = __cilkrts_get_exec_sp(fut_fiber);
 
         // Move the stack pointer to the new stack
         __asm__ volatile ("mov %0,%%rsp"

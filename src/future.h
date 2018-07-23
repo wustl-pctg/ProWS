@@ -60,7 +60,7 @@ private:
   volatile T m_result;
 
   void* m_suspended_deques[MAX_TOUCHES];
-  void *volatile * m_deques;
+  void **volatile m_deques;
   int m_num_suspended_deques;
   
 public:

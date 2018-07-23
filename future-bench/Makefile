@@ -39,14 +39,15 @@ fib-interop-tests: default fib-handcomp
 	# Test futures working with futures
 	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DTEST_INTEROP_MULTI_FUTURE -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
 	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_future-interop ../cilkrtssuspend/.libs/libcilkrts.a -lrt -ldl -lpthread -ljemalloc -lnuma -lpthread -lm -lrt
+	make run-tests
+
+run-tests:
 	./handcomp_fib_cilkfut_spawn-before-sync-after 40
 	./handcomp_fib_cilkfut_spawn-before-sync-before 40
 	./handcomp_fib_cilkfut_spawn-after-sync-after 40
 	./handcomp_fib_cilkfut_spawn-after-sync-before 40
 	./handcomp_fib_cilkfut_future-interop 40
 	./handcomp_fib_cilkfut 40
-	./fib_cilkplus 40
-	taskset -c 8 ./fib_cilkplus 40
 	taskset -c 8 ./handcomp_fib_cilkfut 40
 
 

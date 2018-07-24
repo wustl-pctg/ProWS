@@ -237,7 +237,8 @@ int main(int argc, char * args[]) {
     n = atoi(args[1]);
 
     int res = run(n, &running_time[0]);
-    cilkg_set_param("local stacks", "256");
+    cilkg_set_param("local stacks", "128");
+    cilkg_set_param("shared stacks", "128");
 
     printf("Res: %d\n", res);
 

@@ -94,6 +94,7 @@ libcilkrts_la_SOURCES =            \
   runtime/cilk-abi-cilk-for.cpp    \
   runtime/cilk-abi-vla-internal.c  \
   runtime/cilk_api.c               \
+  runtime/cilk_fiber_pool.cpp      \
   runtime/cilk_fiber.cpp           \
   runtime/cilk_fiber-unix.cpp      \
   runtime/cilk_malloc.c            \

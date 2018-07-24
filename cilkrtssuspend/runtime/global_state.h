@@ -63,6 +63,7 @@
 #include "stats.h"
 #include "bug.h"
 #include "cilk_fiber.h"
+#include "cilk_fiber_pool.h"
 #include "full_frame.h"
 
 typedef struct deque deque; /// @todo{fix redefinition of deque in global_state.h}
@@ -222,7 +223,7 @@ struct global_state_t { /* COMMON_PORTABLE */
 	/// Global fiber pool
 	cilk_fiber_pool fiber_pool;
 
-  deque *original_deque;
+    deque *original_deque;
 
 	/**
 	 * @brief Track whether the runtime has failed to allocate a

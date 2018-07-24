@@ -298,7 +298,7 @@ namespace {
         // ** UNDOCUMENTED **
         //
         // Number of stacks we'll hold in the per-worker stack cache.  Maximum
-        // value is 42.  See __cilkrts_make_global_state for details.
+        // value is 128.  See __cilkrts_make_global_state for details.
         return store_int(&g->fiber_pool_size, value, 0, 128);
 			}
     else if (strmatch(param, s_shared_stacks))
@@ -306,7 +306,7 @@ namespace {
         // ** UNDOCUMENTED **
         //
         // Maximum number of stacks we'll hold in the global stack
-        // cache. Maximum value is 42.  See __cilkrts_make_global_state for
+        // cache. Maximum value is 128.  See __cilkrts_make_global_state for
         // details.
         return store_int(&g->global_fiber_pool_size, value, 0, 128);
 			}

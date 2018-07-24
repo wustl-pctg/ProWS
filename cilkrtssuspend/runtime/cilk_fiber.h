@@ -153,33 +153,6 @@ typedef struct cilk_fiber_data
 
 } cilk_fiber_data;
 
-/** @brief Pool of cilk_fiber for fiber reuse
- *
- * Pools form a hierarchy, with each pool pointing to its parent.  When the
- * pool undeflows, it gets a fiber from its parent.  When a pool overflows,
- * it returns some fibers to its parent.  If the root pool underflows, it
- * allocates and initializes a new fiber from the heap but only if the total
- * is less than max_size; otherwise, fiber creation fails.
- */
-struct cilk_fiber_pool
-{
-	spin_mutex*      lock;       ///< Mutual exclusion for pool operations 
-	__STDNS size_t   stack_size; ///< Size of stacks for fibers in this pool.
-	cilk_fiber_pool* parent;     ///< @brief Parent pool.
-	///< If this pool is empty, get from parent 
-
-	// Describes inactive fibers stored in the pool.
-	cilk_fiber**     fibers;     ///< Array of max_size fiber pointers 
-	unsigned         max_size;   ///< Limit on number of fibers in pool 
-	unsigned         size;       ///< Number of fibers currently in the pool
-
-	// Statistics on active fibers that were allocated from this pool,
-	// but no longer in the pool.
-	int              total;      ///< @brief Fibers allocated - fiber deallocated from pool
-	///< total may be negative for non-root pools.
-	int              high_water; ///< High water mark of total fibers
-	int              alloc_max;  ///< Limit on number of fibers allocated from the heap/OS
-};
 
 /** @brief Initializes a cilk_fiber_pool structure
  *

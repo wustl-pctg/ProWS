@@ -48,79 +48,84 @@ namespace cilk {
     }); \
   }
 
+typedef struct touch_node_t {
+    void* deque;
+    touch_node_t *volatile next;
+} touch_node_t;
+
 template<typename T>
 class future {
 private:
-  enum class status { 
-    CREATED, // memory allocated, initialized
-    DONE, // strand has finished execution
-  };
-
-  volatile status m_status;
   volatile T m_result;
 
-  void* m_suspended_deques[MAX_TOUCHES];
-  void **volatile m_deques;
-  int m_num_suspended_deques;
+  touch_node_t m_suspended_deques[MAX_TOUCHES];
+  touch_node_t head = {
+    .next = NULL
+  };
+  touch_node_t *volatile tail;
+  volatile int m_num_suspended_deques;
   
 public:
 
  future() {
     m_num_suspended_deques = 0;
-    m_status = status::CREATED;
-    m_suspended_deques[0] = NULL;
-    m_deques = m_suspended_deques;
+    tail = &head;
   };
 
   ~future() {
   }
 
   void* __attribute__((always_inline)) put(T result) {
-    assert(m_status != status::DONE);
+    //assert(m_status != status::DONE);
+    assert(m_num_suspended_deques >= 0);
     m_result = result;
     __asm__ volatile ("" ::: "memory");
-    m_status = status::DONE;
-    __asm__ volatile ("" ::: "memory");
-    
-    void **suspended_deques = NULL;
-    do {
-        while (m_deques == NULL);
-        suspended_deques = (void**)__sync_val_compare_and_swap(&m_deques, m_deques, NULL);
-    } while (suspended_deques == NULL);
 
-    // make resumable can be heavy, so keep it outside the lock
-    void *ret = suspended_deques[0];
-    for (int i = 1; i < m_num_suspended_deques; i++) {
-        __cilkrts_make_resumable(suspended_deques[i]);
+    int num_deques = __atomic_exchange_n(&m_num_suspended_deques, INT32_MIN, __ATOMIC_SEQ_CST);
+
+    void *ret = NULL;
+
+    if (num_deques) {
+        touch_node_t *node = &head;
+        while (!node->next);
+        node = node->next;
+        num_deques--;
+        ret = node->deque;
+        while (num_deques) {
+            while (!node->next);
+            node = node->next;
+            num_deques--;
+            __cilkrts_make_resumable(node->deque);
+        }
     }
 
     return ret;
   };
 
   bool __attribute__((always_inline)) ready() {
-    // If the status is done, then the value is ready.
-    return m_status==status::DONE;
+    // If the put has replaced the value with INT32_MIN,
+    // then the value is ready.
+    return (m_num_suspended_deques < 0);
   } 
 
   T __attribute__((always_inline)) get() {
         if (!this->ready()) {
             void *deque = __cilkrts_get_deque();
-            void **suspended_deques;
-            do {
-                while (!this->ready() && m_deques == NULL);
-                suspended_deques = (void**)__sync_val_compare_and_swap(&m_deques, m_deques, NULL);
-            } while (suspended_deques == NULL && !this->ready());
+            int ticket = __atomic_fetch_add(&m_num_suspended_deques, 1, __ATOMIC_SEQ_CST);
+            if (ticket >= 0) {
+                m_suspended_deques[ticket].deque = deque;
+                m_suspended_deques[ticket].next = NULL;
+                touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
+                prev->next = &m_suspended_deques[ticket];
 
-            if (suspended_deques) {
-                assert(m_num_suspended_deques < MAX_TOUCHES);
-                suspended_deques[m_num_suspended_deques++] = deque;
-                __asm__ volatile ("" ::: "memory");
-                m_deques = suspended_deques;
+                // Memory barrier
+                //__sync_synchronize();
                 __cilkrts_suspend_deque();
             }
         }
 
-    assert(m_status==status::DONE);
+    //assert(m_status==status::DONE);
+    assert(m_num_suspended_deques < 0);
     return m_result;
   }
 }; // class future

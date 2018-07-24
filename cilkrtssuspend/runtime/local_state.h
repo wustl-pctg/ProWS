@@ -284,7 +284,7 @@ struct local_state  /* COMMON_PORTABLE */
 	cilk_fiber_pool fiber_pool;
 
     int future_fiber_pool_idx;
-    #define MAX_FUTURE_FIBERS_IN_POOL (40)
+    #define MAX_FUTURE_FIBERS_IN_POOL (256)
 
     cilk_fiber* future_fiber_pool[MAX_FUTURE_FIBERS_IN_POOL];
 

@@ -29,6 +29,9 @@ fi
 
 msg "Modified clang compiled."
 
+cd ./SuperMalloc/release
+make
+
 # # Build the runtime (ability to suspend/resume deques)
 cd ./cilkrtssuspend
 libtoolize

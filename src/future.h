@@ -81,7 +81,7 @@ public:
     m_result = result;
     __asm__ volatile ("" ::: "memory");
 
-    int num_deques = __atomic_exchange_n(&m_num_suspended_deques, INT32_MIN, __ATOMIC_SEQ_CST);
+    int num_deques = __atomic_fetch_add(&m_num_suspended_deques, INT32_MIN, __ATOMIC_SEQ_CST);
 
     void *ret = NULL;
 

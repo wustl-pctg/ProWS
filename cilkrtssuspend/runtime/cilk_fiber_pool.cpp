@@ -195,7 +195,8 @@ extern "C" {
     // threshold (of about 3/4) of fibers to keep in the pool when
     // transferring fibers to the parent.
     
-    int pre_allocate_count = buffer_size/2;
+    //int pre_allocate_count = buffer_size/4;
+    int pre_allocate_count = buffer_size/2 + buffer_size/4;
     for (pool->size = 0; pool->size < pre_allocate_count; pool->size++) {
       pool->fibers[pool->size] = cilk_fiber::allocate_from_heap(pool->stack_size);
     }

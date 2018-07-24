@@ -674,14 +674,14 @@ cilk_fiber* cilk_fiber::allocate(cilk_fiber_pool* pool)
 
   // 3. Check whether we can allocate from the heap.
   bool can_allocate_from_heap = false;
-  if (pool->total < pool->alloc_max) {
+  //if (pool->total < pool->alloc_max) {
     // Track that we are allocating a new fiber from the
     // heap, originating from this pool.
     // This increment may be undone if we happen to fail to
     // allocate from the heap.
     increment_pool_total(pool);
     can_allocate_from_heap = true;
-  }
+  //}
 
   // 4. Unlock the pool, and then allocate from the heap.
   if (pool->lock) {
@@ -977,13 +977,13 @@ void cilk_fiber::deallocate_self(cilk_fiber_pool* pool)
   // Case 2: Pool is full.
   //
   // First free up some space by giving fibers to the parent.
-  if (pool->parent)
-    {
+  //if (pool->parent)
+  //  {
       // Pool is full.  Move all but "num_to_keep" fibers to parent,
       // if we can.
-      unsigned num_to_keep = pool->max_size/2 + pool->max_size/4;
-      cilk_fiber_pool_move_fibers_to_parent_pool(pool, num_to_keep);
-    }
+  //    unsigned num_to_keep = pool->max_size/2 + pool->max_size/4;
+  //    cilk_fiber_pool_move_fibers_to_parent_pool(pool, num_to_keep);
+  //  }
 
   //if (need_lock) {
   if (pool->lock) {

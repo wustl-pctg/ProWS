@@ -2905,11 +2905,11 @@ __cilkrts_worker *make_worker(global_state_t *g,
                          0,   // alloc_max is 0.  We don't allocate from the heap directly without checking the parent pool.
                          0);
 
-    //w->l->future_fiber_pool_idx = -1;
-    //for (int i = 0; i < MAX_FUTURE_FIBERS_IN_POOL; i++) {
-    //    w->l->future_fiber_pool[i] = cilk_fiber_allocate(&w->l->fiber_pool);
-    //}
-    //w->l->future_fiber_pool_idx = MAX_FUTURE_FIBERS_IN_POOL-1;
+    w->l->future_fiber_pool_idx = -1;
+    for (int i = 0; i < MAX_FUTURE_FIBERS_IN_POOL; i++) {
+        w->l->future_fiber_pool[i] = cilk_fiber_allocate(&w->l->fiber_pool);
+    }
+    w->l->future_fiber_pool_idx = MAX_FUTURE_FIBERS_IN_POOL-1;
 
 #if FIBER_DEBUG >= 2
     fprintf(stderr, "ThreadId=%p: Making w=%d (%p), pool = %p\n",
@@ -2990,10 +2990,10 @@ void destroy_worker(__cilkrts_worker *w)
     CILK_ASSERT(NULL == w->l->stats);
 #endif
     
-    //for (int i = 0; i <= w->l->future_fiber_pool_idx; i++) {
-    //    cilk_fiber_remove_reference(w->l->future_fiber_pool[i], NULL /*&w->l->fiber_pool*/);
-    //}
-    //w->l->future_fiber_pool_idx = -1;
+    for (int i = 0; i <= w->l->future_fiber_pool_idx; i++) {
+        cilk_fiber_remove_reference(w->l->future_fiber_pool[i], NULL /*&w->l->fiber_pool*/);
+    }
+    w->l->future_fiber_pool_idx = -1;
     /* Free any cached fibers. */
     cilk_fiber_pool_destroy(&w->l->fiber_pool);
 

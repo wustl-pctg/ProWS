@@ -17,10 +17,10 @@ CILK_ABI_VOID __attribute__((always_inline)) __cilkrts_switch_fibers_back(cilk_f
     cilk_fiber *curr_fiber = cilk_fiber_get_current_fiber();
 
     int dealloc = 1;
-    //if (curr_worker->l->future_fiber_pool_idx < (MAX_FUTURE_FIBERS_IN_POOL-1)) {
-    //    curr_worker->l->future_fiber_pool[++curr_worker->l->future_fiber_pool_idx] = curr_fiber;
-        //dealloc = 0;
-    //}
+    if (curr_worker->l->future_fiber_pool_idx < (MAX_FUTURE_FIBERS_IN_POOL-1)) {
+        curr_worker->l->future_fiber_pool[++curr_worker->l->future_fiber_pool_idx] = curr_fiber;
+        dealloc = 0;
+    }
 
     cilk_fiber_setup_for_future_return(curr_fiber, &(curr_worker->l->fiber_pool), new_fiber, dealloc);
 
@@ -36,11 +36,12 @@ CILK_ABI(char*) __attribute__((always_inline)) __cilkrts_switch_fibers() {
 
     // This is a little faster than normal fiber allocate when used for future fibers.
     cilk_fiber* new_exec_fiber = NULL;
-    //if (curr_worker->l->future_fiber_pool_idx >= 0) {
-    //    new_exec_fiber = curr_worker->l->future_fiber_pool[curr_worker->l->future_fiber_pool_idx--];
-    //} else {
-        new_exec_fiber = cilk_fiber_allocate_with_try_allocate_from_pool(&(curr_worker->l->fiber_pool));
-    //}
+    if (curr_worker->l->future_fiber_pool_idx >= 0) {
+        new_exec_fiber = curr_worker->l->future_fiber_pool[curr_worker->l->future_fiber_pool_idx--];
+    } else {
+        //new_exec_fiber = cilk_fiber_allocate_with_try_allocate_from_pool(&(curr_worker->l->fiber_pool));
+        new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
+    }
     CILK_ASSERT(new_exec_fiber != NULL);
 
     // Prefetch the stack so it is less painful to jump to!

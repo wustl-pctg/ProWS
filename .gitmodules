@@ -1,0 +1,3 @@
+[submodule "SuperMalloc"]
+	path = SuperMalloc
+	url = https://github.com/kuszmaul/SuperMalloc.git

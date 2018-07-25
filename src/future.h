@@ -9,7 +9,7 @@
 
 #define MAX_TOUCHES (10)
 
-extern void __spawn_future_helper_helper(std::function<void(void)>);
+extern void __spawn_future_helper_helper(std::function<void*(void)>);
 
 namespace cilk {
 
@@ -18,9 +18,8 @@ namespace cilk {
   auto functor = std::bind(func, ##args);  \
   fut = new (loc) cilk::future<T>();  \
   auto __temp_fut = fut; \
-  __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
-    void *__cilk_deque = __temp_fut->put(functor()); \
-    if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 2);\
+  __spawn_future_helper_helper([__temp_fut,functor]() -> void* { \
+    return __temp_fut->put(functor()); \
   }); \
   }
 
@@ -31,9 +30,8 @@ namespace cilk {
   auto functor = std::bind(func, ##args);  \
   fut = new cilk::future<T>();  \
   auto __temp_fut = fut; \
-  __spawn_future_helper_helper([__temp_fut,functor]() -> void { \
-    void *__cilk_deque = __temp_fut->put(functor()); \
-    if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
+  __spawn_future_helper_helper([__temp_fut,functor]() -> void* { \
+    return __temp_fut->put(functor()); \
   }); \
   }
 
@@ -42,9 +40,8 @@ namespace cilk {
   cilk::future<T> fut;\
   { \
     auto functor = std::bind(func, ##args); \
-    __spawn_future_helper_helper([&fut,functor]() -> void { \
-      void *__cilk_deque = fut.put(functor()); \
-      if (__cilk_deque) __cilkrts_resume_suspended(__cilk_deque, 1);\
+    __spawn_future_helper_helper([&fut,functor]() -> void* { \
+      return fut.put(functor()); \
     }); \
   }
 
@@ -75,9 +72,13 @@ public:
   ~future() {
   }
 
+  inline void reset() {
+    m_num_suspended_deques = 0;
+  }
+
   void* __attribute__((always_inline)) put(T result) {
     //assert(m_status != status::DONE);
-    assert(m_num_suspended_deques >= 0);
+    //assert(m_num_suspended_deques >= 0);
     m_result = result;
     __asm__ volatile ("" ::: "memory");
 
@@ -115,8 +116,9 @@ public:
             if (ticket >= 0) {
                 m_suspended_deques[ticket].deque = deque;
                 m_suspended_deques[ticket].next = NULL;
-                touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
-                prev->next = &m_suspended_deques[ticket];
+                head.next = &m_suspended_deques[ticket];
+                //touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
+                //prev->next = &m_suspended_deques[ticket];
 
                 // Memory barrier
                 //__sync_synchronize();

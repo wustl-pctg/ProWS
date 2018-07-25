@@ -199,7 +199,8 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   data->owner = w;
   deque_to_resume->call_stack->worker = w;
 
-  if (enable_resume == 2 && !can_steal_from(w, w->l->active_deque)) {
+  // If you use futures per the theoretical analysis, this should be the case
+  /*if (__builtin_expect(enable_resume == 2 && !w->current_stack_frame->call_parent, 1)) {
 
     cilk_fiber *current_fiber = cilk_fiber_get_current_fiber();
 
@@ -220,8 +221,16 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
     CILK_ASSERT(deque_to_resume->call_stack == w->current_stack_frame);
     CILK_ASSERT(deque_to_resume->call_stack != NULL);
 
-    cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber, &(w->l->fiber_pool), fiber_to_resume);  
-  } else {
+    cilk_fiber_take(fiber_to_resume);
+    if (w->l->future_fiber_pool_idx < (MAX_FUTURE_FIBERS_IN_POOL-1)) {
+        w->l->future_fiber_pool[++w->l->future_fiber_pool_idx] = current_fiber;
+        cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
+        CILK_ASSERT(!"Should not get back here!");
+    } else {
+        CILK_ASSERT(!cilk_fiber_is_resumable(current_fiber));
+        cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber, &(w->l->fiber_pool), fiber_to_resume);  
+    }
+  } else {*/
     w->l->active_deque->resumable = (enable_resume) ? 1 : 0;
     cilk_fiber *current_fiber = deque_suspend(w, deque_to_resume);
 
@@ -235,7 +244,7 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 
     // switch fibers
     cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
-  }
+  //}
 
 }
 

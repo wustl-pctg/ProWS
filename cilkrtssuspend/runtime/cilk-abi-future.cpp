@@ -25,18 +25,26 @@ extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
 }
 
 
-static void __attribute__((noinline)) __spawn_future_helper(std::function<void(void)> func) {
+static void __attribute__((noinline)) __spawn_future_helper(std::function<void*(void)> func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
 
-        func();
+        void* __cilk_deque = func();
+        
+        if (__builtin_expect(__cilk_deque != NULL, 0)) {
+            if (__builtin_expect(!sf.call_parent, 1)) {
+                __cilkrts_resume_suspended(__cilk_deque, 2);
+            } else {
+                __cilkrts_make_resumable(__cilk_deque);
+            }
+        }
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_future_frame(&sf);
 }
 
-CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void(void)> func) {
+CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void*(void)> func) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
 
@@ -47,7 +55,7 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
     // Read the initial fiber so we can switch back to it without taking
     // any locks later.
-    cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
 
     if(!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) { 
         char *new_sp = __cilkrts_switch_fibers();

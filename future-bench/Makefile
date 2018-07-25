@@ -54,6 +54,25 @@ run-tests:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut 40
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./handcomp_fib_cilkfut 40
 
+strassen: strassen.cpp
+	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
+	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c getoptions.cpp -o getoptions.o
+	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c strassen.cpp -o strassen.o
+	$(CXX) -flto strassen.o getoptions.o ktiming.o -o strassen ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+	make run-strassen
+
+run-strassen:
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen -n 4096
+    
+strassen-future: strassen-future.cpp
+	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
+	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c getoptions.cpp -o getoptions.o
+	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c strassen-future.cpp -o strassen-future.o
+	$(CXX) -flto strassen-future.o getoptions.o ktiming.o -o strassen-future ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+	make run-strassen-future
+
+run-strassen-future:
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future -n 4096
 
 .PHONY = clean
 clean:

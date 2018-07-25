@@ -288,7 +288,7 @@ CILK_ABI_VOID __cilkrts_leave_frame(__cilkrts_stack_frame *sf) {
 				 leave_frame is called from a cleanup (destructor)
 				 for the frame object.  The caller will reraise the
 				 exception. */
-	    return;
+	        return;
 		}
 #endif
 

@@ -53,8 +53,12 @@ void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
     __cilkrts_detach(sf);
     
     void *__cilk_deque = x->put(fib(n));
-    if (__cilk_deque) {
-        __cilkrts_resume_suspended(__cilk_deque, 1);
+    if (__builtin_expect(__cilk_deque != NULL, 0)) {
+        if (__builtin_expect(!sf->call_parent, 1)) {
+            __cilkrts_resume_suspended(__cilk_deque, 2);
+        } else {
+            __cilkrts_make_resumable(__cilk_deque);
+        }
     }
 
     __cilkrts_pop_frame(sf);
@@ -85,7 +89,7 @@ int  __attribute__((noinline)) fib(int n) {
 
     // TODO: Is there an easier/better way to do this? Doing this avoids
     //       locking the frame when we run out of fibers on the future fiber deque.
-    cilk_fiber *volatile initial_fiber = cilk_fiber_get_current_fiber();
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
      
     if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
         char *new_sp = __cilkrts_switch_fibers();

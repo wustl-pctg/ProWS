@@ -197,7 +197,7 @@ struct global_state_t { /* COMMON_PORTABLE */
 	 */
 	volatile int work_done;
 
-    volatile int pending_futures;
+    volatile int active_workers;
 
     full_frame *exit_frame;
 
@@ -290,8 +290,8 @@ struct global_state_t { /* COMMON_PORTABLE */
  */
 global_state_t* cilkg_init_global_state();
 
-int cilkg_decrement_pending_futures(global_state_t* g);
-int cilkg_increment_pending_futures(global_state_t* g);
+int cilkg_decrement_active_workers(global_state_t* g);
+int cilkg_increment_active_workers(global_state_t* g);
 
 /**
  * @brief Publish the global state object, so that

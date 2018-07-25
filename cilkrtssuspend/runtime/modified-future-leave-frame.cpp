@@ -378,7 +378,7 @@ void __attribute__((noinline)) __cilkrts_c_kyles_THE_exception_check(__cilkrts_w
         NOTIFY_ZC_INTRINSIC("cilk_leave_stolen", saved_sf);
 
         DBGPRINTF ("%d: longjmp_into_runtime from __cilkrts_c_THE_exception_check\n", w->self);
-        if (cilkg_decrement_pending_futures(w->g) == 0) {
+        if (cilkg_decrement_active_workers(w->g) == 0) {
             CILK_ASSERT(w->g->exit_frame);
             __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
         }

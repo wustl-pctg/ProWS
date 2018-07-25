@@ -929,7 +929,7 @@ static void random_steal(__cilkrts_worker *w)
             {
                 START_INTERVAL(w, INTERVAL_STEAL_SUCCESS) {
                     // Indicate my deque is about to have work on it.
-                    cilkg_increment_pending_futures(w->g);
+                    cilkg_increment_active_workers(w->g);
                     success = 1;
                     detach_for_steal(w, victim, d, fiber);
                     victim_id = victim->self;
@@ -2370,7 +2370,7 @@ void __attribute__((noinline)) __cilkrts_c_THE_exception_check(__cilkrts_worker 
         NOTIFY_ZC_INTRINSIC("cilk_leave_stolen", saved_sf);
 
         DBGPRINTF ("%d: longjmp_into_runtime from __cilkrts_c_THE_exception_check\n", w->self);
-        if (cilkg_decrement_pending_futures(w->g) == 0) {
+        if (cilkg_decrement_active_workers(w->g) == 0) {
             CILK_ASSERT(w->g->exit_frame);
             __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
         }
@@ -2403,7 +2403,7 @@ NORETURN __cilkrts_exception_from_spawn(__cilkrts_worker *w,
     CILK_ASSERT(*w->head == *w->tail);
     w = execute_reductions_for_spawn_return(w, ff, returning_sf);
 
-    if (cilkg_decrement_pending_futures(w->g) == 0) {
+    if (cilkg_decrement_active_workers(w->g) == 0) {
         CILK_ASSERT(w->g->exit_frame);
         __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
     }
@@ -2486,7 +2486,7 @@ void __cilkrts_migrate_exception(__cilkrts_stack_frame *sf) {
         w = execute_reductions_for_spawn_return(w, ff, sf);
     }
 
-    if (cilkg_decrement_pending_futures(w->g) == 0) {
+    if (cilkg_decrement_active_workers(w->g) == 0) {
         CILK_ASSERT(w->g->exit_frame);
         __cilkrts_push_next_frame(w->g->exit_frame->sync_master, w->g->exit_frame);
     }
@@ -2641,7 +2641,7 @@ static void __cilkrts_unbind_thread()
 void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *sf) {
     w->g->exit_frame = ff;
 
-    if (cilkg_decrement_pending_futures(w->g) == 0) {
+    if (cilkg_decrement_active_workers(w->g) == 0) {
         __cilkrts_push_next_frame(ff->sync_master, ff);
     }
 }
@@ -2687,7 +2687,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     STOP_INTERVAL(w, INTERVAL_WORKING);
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
 
-    if (((*w->l->frame_ff)->sync_master && w != (*w->l->frame_ff)->sync_master) || w->g->pending_futures > 1) {
+    if (((*w->l->frame_ff)->sync_master && w != (*w->l->frame_ff)->sync_master) || w->g->active_workers > 1) {
         // TODO: Technically this is safe as nothing else is pointing to it;
         //       however, there really should be a lock around it.
         (*w->l->frame_ff)->join_counter--; // Pushing a frame increments the join counter again, so preemptively undo it.
@@ -2695,9 +2695,13 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         __asm__ volatile ("" ::: "memory");
         w = __cilkrts_get_tls_worker();
     } else {
-        cilkg_decrement_pending_futures(w->g);
+        cilkg_decrement_active_workers(w->g);
     }
-    CILK_ASSERT(w->g->pending_futures == 0);
+
+    CILK_ASSERT(w->g->active_workers == 0);
+    if ((*w->l->frame_ff)->sync_master) {
+        unset_sync_master(__cilkrts_get_tls_worker_fast(), *(w->l->frame_ff));
+    }
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay
@@ -3073,6 +3077,7 @@ void __cilkrts_deinit_internal(global_state_t *g)
  */
 static void wake_runtime(global_state_t *g)
 {
+    g->active_workers = 1;
     __cilkrts_worker *root;
     if (g->P > 1) {
         // Send a message to the root node.  The message will propagate.
@@ -3229,14 +3234,9 @@ void __cilkrts_init_internal(int start)
         // Grab the lock and try to initialize/publish.
         global_os_mutex_lock();
 
-        if (cilkg_is_published()) {
-            // Some other thread must have snuck in and published.
-            g = cilkg_init_global_state();
-        }
-        else {
-            // Initialize and retrieve global state
-            g = cilkg_init_global_state();
+        g = cilkg_init_global_state();
 
+        if (!cilkg_is_published()) {
             // Set the scheduler pointer
             g->scheduler = worker_scheduler_function;
 

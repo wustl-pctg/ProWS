@@ -510,7 +510,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
             fiber = cilk_fiber_allocate(&w->l->fiber_pool);
         } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
         if (fiber) {
-            cilkg_increment_pending_futures(w->g);
+            cilkg_increment_active_workers(w->g);
             detach_for_steal(w, w, d, fiber);
             w->l->work_stolen = 1;
         if (w->l->next_frame_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {

@@ -216,7 +216,7 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 
     deque_to_resume->fiber = NULL;
 
-    cilkg_decrement_pending_futures(w->g);
+    cilkg_decrement_active_workers(w->g);
 
     CILK_ASSERT(deque_to_resume->call_stack == w->current_stack_frame);
     CILK_ASSERT(deque_to_resume->call_stack != NULL);

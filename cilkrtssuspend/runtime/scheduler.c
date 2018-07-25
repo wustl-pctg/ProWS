@@ -2687,6 +2687,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     STOP_INTERVAL(w, INTERVAL_WORKING);
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
 
+    w = __cilkrts_get_tls_worker_fast();
     if (((*w->l->frame_ff)->sync_master && w != (*w->l->frame_ff)->sync_master) || w->g->active_workers > 1) {
         // TODO: Technically this is safe as nothing else is pointing to it;
         //       however, there really should be a lock around it.
@@ -2698,6 +2699,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         cilkg_decrement_active_workers(w->g);
     }
 
+    //w = __cilkrts_get_tls_worker_fast();
     CILK_ASSERT(w->g->active_workers == 0);
     if ((*w->l->frame_ff)->sync_master) {
         unset_sync_master(__cilkrts_get_tls_worker_fast(), *(w->l->frame_ff));

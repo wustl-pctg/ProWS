@@ -12,7 +12,7 @@ else
   LLVM_NAME=$1
 fi
 
-: ${BINUTILS_PLUGIN_DIR:="/usr/include"}
+: ${BINUTILS_PLUGIN_DIR:="/usr/local/include"}
 
 LLVM_HOME=`pwd`/"$LLVM_NAME"/src
 LLVM_TOP=`pwd`/"$LLVM_NAME"

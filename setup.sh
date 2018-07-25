@@ -10,7 +10,7 @@ function msg() {
 
 msg "Begin PORRidge setup at $(date)"
 
-: ${BINUTILS_PLUGIN_DIR:="/usr/include"}
+: ${BINUTILS_PLUGIN_DIR:="/usr/local/include"}
 if [[ ($BINUTILS_PLUGIN_DIR != "") &&
           (-e $BINUTILS_PLUGIN_DIR/plugin-api.h) ]]; then
     export LTO=1
@@ -31,6 +31,7 @@ msg "Modified clang compiled."
 
 cd ./SuperMalloc/release
 make
+cd -
 
 # # Build the runtime (ability to suspend/resume deques)
 cd ./cilkrtssuspend

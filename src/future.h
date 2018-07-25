@@ -116,9 +116,8 @@ public:
             if (ticket >= 0) {
                 m_suspended_deques[ticket].deque = deque;
                 m_suspended_deques[ticket].next = NULL;
-                head.next = &m_suspended_deques[ticket];
-                //touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
-                //prev->next = &m_suspended_deques[ticket];
+                touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
+                prev->next = &m_suspended_deques[ticket];
 
                 // Memory barrier
                 //__sync_synchronize();

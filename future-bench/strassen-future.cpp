@@ -467,7 +467,31 @@ static void __attribute__((noinline)) final_add(cilk::future<REAL*> *C11_fut, ci
                       cilk::future<REAL*> *M2_fut, cilk::future<REAL*> *M5_fut, cilk::future<REAL*> *T1_fut, int n, int offset) {
 
   if(n == DAC_ARITH_BASECASE) {
-    REAL *C11 = C11_fut->get() + offset, *C12 = C12_fut->get() + offset, *C21 = C21_fut->get() + offset, *C22 = C22_fut->get() + offset, *M2 = M2_fut->get() + offset, *M5 = M5_fut->get() + offset, *T1 = T1_fut->get() + offset;
+   // REAL *C11 = C11_fut->get() + offset, *C12 = C12_fut->get() + offset, *C21 = C21_fut->get() + offset, *C22 = C22_fut->get() + offset, *M2 = M2_fut->get() + offset, *M5 = M5_fut->get() + offset, *T1 = T1_fut->get() + offset;
+    //while (!C11_fut->ready());
+    REAL *C11 = C11_fut->get();
+    //while (!C12_fut->ready());
+    REAL *C12 = C12_fut->get();
+    //while (!C21_fut->ready());
+    REAL *C21 = C21_fut->get();
+    //while (!C22_fut->ready());
+    REAL *C22 = C22_fut->get();
+    //while (!M5_fut->ready());
+    REAL *M5  = M5_fut->get();
+    //while (!M2_fut->ready());
+    REAL *M2  = M2_fut->get();
+    //while (!T1_fut->ready());
+    REAL *T1  = T1_fut->get();
+    __asm__ volatile ("" ::: "memory");
+    __sync_synchronize();
+
+    C11 += offset;
+    C12 += offset;
+    C21 += offset;
+    C22 += offset;
+    M5  += offset;
+    M2  += offset;
+    T1  += offset;
     for(int i=0; i<n; i++) { // this is only ok because we have square matrix
       for(int j=0; j<n; j+=8) {
         //if (j == 0 && i == 0) {
@@ -505,14 +529,22 @@ static void __attribute__((noinline)) final_add(cilk::future<REAL*> *C11_fut, ci
       }
     }
 
+    while (!C11_fut->ready());
+    while (!C12_fut->ready());
+    while (!C21_fut->ready());
+    while (!C22_fut->ready());
+    while (!M5_fut->ready());
+    while (!M2_fut->ready());
     return;
   }
 
-  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset);
+  int new_n = n>>1;
 
-  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(0,n>>1));
-  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(n>>1,0));
-  final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(n>>1,n>>1));
+  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, new_n, offset);
+
+  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(0,new_n));
+  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(new_n,0));
+  final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(new_n,new_n));
   cilk_sync;
 
   return;
@@ -585,11 +617,11 @@ void __attribute__((noinline)) strassen_z_helper(cilk::future<REAL*> *fut, REAL 
     void *__cilk_deque = fut->put(strassen_z(C, A, B, n));
 
     if (__builtin_expect(__cilk_deque != NULL, 0)) {
-    //    if (__builtin_expect(!sf.call_parent, 1)) {
-    //        __cilkrts_resume_suspended(__cilk_deque, 2);
-    //    } else {
+        //if (__builtin_expect(!sf.call_parent, 1)) {
+        //    __cilkrts_resume_suspended(__cilk_deque, 2);
+        //} else {
             __cilkrts_make_resumable(__cilk_deque);
-    //    }
+        //}
     }
 
     __cilkrts_pop_frame(&sf);
@@ -636,13 +668,29 @@ REAL* __attribute__((noinline)) strassen_z(REAL *C, REAL *A, REAL *B, int n) {
 
   setup_add(S1,S2,S3,S4,S5,S6,S7,S8,A11,A12,A21,A22,B11,B12,B21,B22, new_n);
   
-  cilk::future<REAL*> m2_fut;
-  cilk::future<REAL*> m5_fut;
-  cilk::future<REAL*> t1_fut;
-  cilk::future<REAL*> c22_fut;
-  cilk::future<REAL*> c11_fut;
-  cilk::future<REAL*> c12_fut;
-  cilk::future<REAL*> c21_fut;
+  cilk::future<REAL*> m2_fut = cilk::future<REAL*>();
+  cilk::future<REAL*> m5_fut = cilk::future<REAL*>();
+  cilk::future<REAL*> t1_fut = cilk::future<REAL*>();
+  cilk::future<REAL*> c22_fut = cilk::future<REAL*>();
+  cilk::future<REAL*> c11_fut = cilk::future<REAL*>();
+  cilk::future<REAL*> c12_fut = cilk::future<REAL*>();
+  cilk::future<REAL*> c21_fut = cilk::future<REAL*>();
+  cilk::future<REAL*> *volatile pm2_fut = &m2_fut;
+  cilk::future<REAL*> *volatile pm5_fut = &m5_fut;
+  cilk::future<REAL*> *volatile pt1_fut = &t1_fut;
+  cilk::future<REAL*> *volatile pc22_fut = &c22_fut;
+  cilk::future<REAL*> *volatile pc11_fut = &c11_fut;
+  cilk::future<REAL*> *volatile pc12_fut = &c12_fut;
+  cilk::future<REAL*> *volatile pc21_fut = &c21_fut;
+  /*
+  cilk::future<REAL*> *volatile pm2_fut = new cilk::future<REAL*>();
+  cilk::future<REAL*> *volatile pm5_fut = new cilk::future<REAL*>();
+  cilk::future<REAL*> *volatile pt1_fut = new cilk::future<REAL*>();
+  cilk::future<REAL*> *volatile pc22_fut = new cilk::future<REAL*>();
+  cilk::future<REAL*> *volatile pc11_fut = new cilk::future<REAL*>();
+  cilk::future<REAL*> *volatile pc12_fut = new cilk::future<REAL*>();
+  cilk::future<REAL*> *volatile pc21_fut = new cilk::future<REAL*>();
+  */
 
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
@@ -655,28 +703,28 @@ REAL* __attribute__((noinline)) strassen_z(REAL *C, REAL *A, REAL *B, int n) {
       strassen_z_helper(&m5_fut, M5, S1, S5, new_n);
   }
 
-    if (!CILK_SETJMP(sf.ctx)) {
-        strassen_z_helper(&t1_fut, T1, S2, S6, new_n);    // P6, store in T1 
-    }
+  if (!CILK_SETJMP(sf.ctx)) {
+      strassen_z_helper(&t1_fut, T1, S2, S6, new_n);    // P6, store in T1 
+  }
 
-    if (!CILK_SETJMP(sf.ctx)) {
-        strassen_z_helper(&c22_fut, C22, S3, S7, new_n);   // P7, store in C22 
-    }
+  if (!CILK_SETJMP(sf.ctx)) {
+      strassen_z_helper(&c22_fut, C22, S3, S7, new_n);   // P7, store in C22 
+  }
 
-    if (!CILK_SETJMP(sf.ctx)) {
-        strassen_z_helper(&c11_fut, C11, A12, B21, new_n); // P2, store in C11
-    }
+  if (!CILK_SETJMP(sf.ctx)) {
+      strassen_z_helper(&c11_fut, C11, A12, B21, new_n); // P2, store in C11
+  }
 
-    if (!CILK_SETJMP(sf.ctx)) {
-        strassen_z_helper(&c12_fut, C12, S4, B22, new_n);  // P3, store in C12
-    }
+  if (!CILK_SETJMP(sf.ctx)) {
+      strassen_z_helper(&c12_fut, C12, S4, B22, new_n);  // P3, store in C12
+  }
 
-    if (!CILK_SETJMP(sf.ctx)) {
-        strassen_z_helper(&c21_fut, C21, A22, S8, new_n);  // P4, store in C21
-    }
+  if (!CILK_SETJMP(sf.ctx)) {
+      strassen_z_helper(&c21_fut, C21, A22, S8, new_n);  // P4, store in C21
+  }
 
-  final_add(&c11_fut, &c12_fut, &c21_fut, &c22_fut, &m2_fut, &m5_fut, &t1_fut, new_n, 0);
-  
+  final_add(pc11_fut, pc12_fut, pc21_fut, pc22_fut, pm2_fut, pm5_fut, pt1_fut, new_n, 0);
+
   if (sf.flags & CILK_FRAME_UNSYNCHED) {
       if (!CILK_SETJMP(sf.ctx)) {
         __cilkrts_sync(&sf);

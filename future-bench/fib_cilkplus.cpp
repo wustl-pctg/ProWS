@@ -29,16 +29,14 @@ int fib(int n) {
 }
 
 
-int run(int n, uint64_t *running_time) {
+int __attribute__((noinline)) run(int n, uint64_t *running_time, int i) {
     int res;
     clockmark_t begin, end; 
 
-    for(int i = 0; i < TIMES_TO_RUN; i++) {
         begin = ktiming_getmark();
         res = fib(n);
         end = ktiming_getmark();
         running_time[i] = ktiming_diff_usec(&begin, &end);
-    }
 
     return res;
 }
@@ -54,8 +52,11 @@ int main(int argc, char * args[]) {
     
     n = atoi(args[1]);
 
-    int res = cilk_spawn run(n, running_time);
-    cilk_sync;
+    int res = 0;
+    for (int i = 0; i < TIMES_TO_RUN; i++) {
+        res = cilk_spawn run(n, running_time, i);
+        cilk_sync;
+    }
 
     printf("Result: %d\n", res);
 

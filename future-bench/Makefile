@@ -77,7 +77,7 @@ strass-fut: strassen-future.cpp
 	make run-strass-fut
 
 run-strass-fut:
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future -n 8192
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future -n 4096
 
 .PHONY = clean
 clean:

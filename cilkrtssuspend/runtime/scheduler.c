@@ -2640,6 +2640,7 @@ static void __cilkrts_unbind_thread()
 
 void do_suspend_return_from_initial(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *sf) {
     w->g->exit_frame = ff;
+    ff->sync_master = w->g->workers[w->g->total_workers-1];
 
     if (cilkg_decrement_active_workers(w->g) == 0) {
         __cilkrts_push_next_frame(ff->sync_master, ff);
@@ -2688,7 +2689,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     START_INTERVAL(w, INTERVAL_IN_RUNTIME);
 
     w = __cilkrts_get_tls_worker_fast();
-    if (((*w->l->frame_ff)->sync_master && w != (*w->l->frame_ff)->sync_master) || w->g->active_workers > 1) {
+    if (w != w->g->workers[w->g->total_workers-1] || w->g->active_workers > 1) {
         // TODO: Technically this is safe as nothing else is pointing to it;
         //       however, there really should be a lock around it.
         (*w->l->frame_ff)->join_counter--; // Pushing a frame increments the join counter again, so preemptively undo it.
@@ -2701,9 +2702,10 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
 
     //w = __cilkrts_get_tls_worker_fast();
     CILK_ASSERT(w->g->active_workers == 0);
-    if ((*w->l->frame_ff)->sync_master) {
-        unset_sync_master(__cilkrts_get_tls_worker_fast(), *(w->l->frame_ff));
-    }
+    //if ((*w->l->frame_ff)->sync_master) {
+        w->g->exit_frame = NULL;
+    //    unset_sync_master(__cilkrts_get_tls_worker_fast(), *(w->l->frame_ff));
+    //}
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay

@@ -236,7 +236,7 @@ void detach_for_steal(__cilkrts_worker *w,
 
     /* if (WORKER_USER == victim->l->type && */
     /*     NULL == victim->l->last_full_frame) { */
-    if (w->g->original_deque == d
+    /*if (w->g->original_deque == d
         && d->team->l->last_full_frame == NULL) {
       
       // Mark this looted frame as special: only the original user worker
@@ -245,7 +245,7 @@ void detach_for_steal(__cilkrts_worker *w,
       // This call is a shared access to
       // victim->l->last_full_frame.
       set_sync_master(d->team, loot_ff);
-    }
+    }*/
 
     /* LOOT is the next frame that the thief W is supposed to
        run, unless the thief is stealing from itself, in which

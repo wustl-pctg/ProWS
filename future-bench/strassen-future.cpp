@@ -1,72 +1,72 @@
+/*
+ * Copyright (c) 1996 Massachusetts Institute of Technology
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to use, copy, modify, and distribute the Software without
+ * restriction, provided the Software, including any modified copies made
+ * under this license, is not distributed for a fee, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE MASSACHUSETTS INSTITUTE OF TECHNOLOGY BE LIABLE
+ * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * 
+ * Except as contained in this notice, the name of the Massachusetts
+ * Institute of Technology shall not be used in advertising or otherwise
+ * to promote the sale, use or other dealings in this Software without
+ * prior written authorization from the Massachusetts Institute of
+ * Technology.
+ *  
+ */
+
+#ifndef SERIAL
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
+#else
+#define cilk_spawn 
+#define cilk_sync
+#define __cilkrts_accum_timing()
+#define __cilkrts_init()
+#define __cilkrts_reset_timing()
+#endif
+
+#define __cilkrts_accum_timing()
+#define __cilkrts_reset_timing()
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "../src/future.h"
+
+#ifndef TIMING_COUNT
+#define TIMING_COUNT 1
+#endif
+
 
 #include "getoptions.h"
 #include "ktiming.h"
-#include "internal/abi.h"
-#include "../src/future.h"
-#include "../cilkrtssuspend/runtime/cilk_fiber.h"
-
 #ifndef RAND_MAX
 #define RAND_MAX 32767
 #endif
 
-#ifndef TIMING_COUNT
-#define TIMING_COUNT 0
-#endif
-#define NO_PIN
-#define __cilkrts_reset_timing()
-#define __cilkrts_accum_timing()
-#ifdef NO_PIN
-#define __cilkrts_set_pinning_info(n)
-#define __cilkrts_disable_nonlocal_steal()
-#define __cilkrts_unset_pinning_info()
-#define __cilkrts_enable_nonlocal_steal()
-#define __cilkrts_pin_top_level_frame_at_socket(n)
-#endif
-
-extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* new_fiber);
-extern CILK_ABI(char*) __cilkrts_switch_fibers();
-
-extern "C" {
-extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_pop_frame(struct __cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
-
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber *self);
-void cilk_fiber_do_post_switch_actions(cilk_fiber *self);
-char* cilk_fiber_get_stack_base(cilk_fiber *self);
-}
+#define SizeAtWhichDivideAndConquerIsMoreEfficient 64
+#define SizeAtWhichNaiveAlgorithmIsMoreEfficient 16
+#define CacheBlockSizeInBytes 32
 
 /* The real numbers we are using --- either double or float */
 typedef double REAL;
+typedef unsigned long PTR;
 
 /* maximum tolerable relative error (for the checking routine) */
 #define EPSILON (1.0E-6)
-#define CACHE_LINE_SIZE 64
-
-static const unsigned int POWER = 4;
-static const unsigned int DAC_ARITH_BASECASE = (1 << POWER);  // 16x16
-static const unsigned int MATMUL_THRESH = (1 << (POWER + 4)); // 64x64
-
-/* n is the current matrix size of M, and 
- * orig_n is the original matrix that M is part of
- */
-#define Z_PARTITION(M, M1, M2, M3, M4, n) \
-  M1 = &M[block_convert(0,0)]; \
-  M2 = &M[block_convert(0,n>>1)]; \
-  M3 = &M[block_convert(n>>1, 0)]; \
-  M4 = &M[block_convert(n>>1, n>>1)];
-
-#define Z_OFFSET(M, M2, M3, M4, n) \
-  M2 = M + block_convert(0,n>>1);\
-  M3 = M + block_convert(n>>1, 0);\
-  M4 = M + block_convert(n>>1, n>>1);
 
 /* 
  * Matrices are stored in row-major order; A is a pointer to
@@ -75,81 +75,6 @@ static const unsigned int MATMUL_THRESH = (1 << (POWER + 4)); // 64x64
  * given A, an, i and j
  */
 #define ELEM(A, an, i, j) (A[(i) * (an) + (j)])
-
-#define UNROLL(M, m) \
-  REAL m##_0, m##_1, m##_2, m##_3, m##_4, m##_5, m##_6, m##_7; \
-  m##_0 = *M; m##_1 = *(M+1); m##_2 = *(M+2); m##_3 = *(M+3); \
-  m##_4 = *(M+4); m##_5 = *(M+5); m##_6 = *(M+6); m##_7 = *(M+7);
-
-#define UNROLL_ADD_1(C, t) \
-  (*(C))   += t##_0; \
-  (*(C+1)) += t##_1; \
-  (*(C+2)) += t##_2; \
-  (*(C+3)) += t##_3; \
-  (*(C+4)) += t##_4; \
-  (*(C+5)) += t##_5; \
-  (*(C+6)) += t##_6; \
-  (*(C+7)) += t##_7;
-
-#define UNROLL_ASSIGN(C, t) \
-  (*(C))   = t##_0; \
-  (*(C+1)) = t##_1; \
-  (*(C+2)) = t##_2; \
-  (*(C+3)) = t##_3; \
-  (*(C+4)) = t##_4; \
-  (*(C+5)) = t##_5; \
-  (*(C+6)) = t##_6; \
-  (*(C+7)) = t##_7;
-
-#define UNROLL_ADD_3(C, u, v, w) \
-  (*(C))   += u##_0 + v##_0 + w##_0; \
-  (*(C+1)) += u##_1 + v##_1 + w##_1; \
-  (*(C+2)) += u##_2 + v##_2 + w##_2; \
-  (*(C+3)) += u##_3 + v##_3 + w##_3; \
-  (*(C+4)) += u##_4 + v##_4 + w##_4; \
-  (*(C+5)) += u##_5 + v##_5 + w##_5; \
-  (*(C+6)) += u##_6 + v##_6 + w##_6; \
-  (*(C+7)) += u##_7 + v##_7 + w##_7;
-
-#define UNROLL_VAL_ADD_2(c, a, b) \
-  c##_0 += a##_0 + b##_0; \
-  c##_1 += a##_1 + b##_1; \
-  c##_2 += a##_2 + b##_2; \
-  c##_3 += a##_3 + b##_3; \
-  c##_4 += a##_4 + b##_4; \
-  c##_5 += a##_5 + b##_5; \
-  c##_6 += a##_6 + b##_6; \
-  c##_7 += a##_7 + b##_7; \
-
-#define UNROLL_VAL_SUB_SELF(C, t) \
-  (*(C))   = t##_0 - (*(C)); \
-  (*(C+1)) = t##_1 - (*(C+1)); \
-  (*(C+2)) = t##_2 - (*(C+2)); \
-  (*(C+3)) = t##_3 - (*(C+3)); \
-  (*(C+4)) = t##_4 - (*(C+4)); \
-  (*(C+5)) = t##_5 - (*(C+5)); \
-  (*(C+6)) = t##_6 - (*(C+6)); \
-  (*(C+7)) = t##_7 - (*(C+7));
-
-#define UNROLL_ADD_2_ASSIGN(C, a, b) \
-  (*(C))   = a##_0 + b##_0; \
-  (*(C+1)) = a##_1 + b##_1; \
-  (*(C+2)) = a##_2 + b##_2; \
-  (*(C+3)) = a##_3 + b##_3; \
-  (*(C+4)) = a##_4 + b##_4; \
-  (*(C+5)) = a##_5 + b##_5; \
-  (*(C+6)) = a##_6 + b##_6; \
-  (*(C+7)) = a##_7 + b##_7;
-
-#define UNROLL_SUB_2_ASSIGN(C, a, b) \
-  (*(C))   = a##_0 - b##_0; \
-  (*(C+1)) = a##_1 - b##_1; \
-  (*(C+2)) = a##_2 - b##_2; \
-  (*(C+3)) = a##_3 - b##_3; \
-  (*(C+4)) = a##_4 - b##_4; \
-  (*(C+5)) = a##_5 - b##_5; \
-  (*(C+6)) = a##_6 - b##_6; \
-  (*(C+7)) = a##_7 - b##_7;
 
 unsigned long rand_nxt = 0;
 
@@ -160,702 +85,848 @@ int cilk_rand(void) {
   return result;
 }
 
-static const unsigned int Q[] = {0x55555555, 0x33333333, 0x0F0F0F0F, 0x00FF00FF};
-static const unsigned int S[] = {1, 2, 4, 8};
+/* 
+ * ANGE: 
+ * recursively multiply an m x n matrix A with size n vector V, and store 
+ * result in vector size m P.  The value rw is the row width of A, and 
+ * add the result into P if variable add != 0
+ */
+void mat_vec_mul(int m, int n, int rw, REAL *A, REAL *V, REAL *P, int add) {
 
-// provides a look up for the Morton Number of the z-order 
-// curve given the x and y coordinate
-// every instance of an (x,y) lookup must use this function
-unsigned int z_convert(int row, int col) {
-  unsigned int z; // z gets the resulting 32-bit Morton Number.  
-  // x and y must initially be less than 65536.
-  // The top and the left boundary 
+  if((m + n) <= 64) { // base case 
+    int i, j;
 
-  col = (col | (col << S[3])) & Q[3];
-  col = (col | (col << S[2])) & Q[2];
-  col = (col | (col << S[1])) & Q[1];
-  col = (col | (col << S[0])) & Q[0];
+    if(add) {
+      for(i = 0; i < m; i++) {
+        REAL c = 0;
+        for(j = 0; j < n; j++) {
+          c += ELEM(A, rw, i, j) * V[j];
+        }
+        P[i] += c;
+      }
+    } else {
+      for(i = 0; i < m; i++) {
+        REAL c = 0;
+        for(j = 0; j < n; j++) {
+          c += ELEM(A, rw, i, j) * V[j];
+        }
+        P[i] = c;
+      }
+    }
 
-  row = (row | (row << S[3])) & Q[3];
-  row = (row | (row << S[2])) & Q[2];
-  row = (row | (row << S[1])) & Q[1];
-  row = (row | (row << S[0])) & Q[0];
+  } else if( m >= n ) { // cut m dimension 
+    int m1 = m >> 1;
+    mat_vec_mul(m1, n, rw, A, V, P, add);
+    mat_vec_mul(m - m1, n, rw, &ELEM(A, rw, m1, 0), V, P + m1, add);
 
-  z = col | (row << 1);
-
-  return z;
+  } else { // cut n dimension 
+    int n1 = n >> 1;
+    mat_vec_mul(m, n1, rw, A, V, P, add);
+    // sync here if parallelized 
+    mat_vec_mul(m, n - n1, rw, &ELEM(A, rw, 0, n1), V + n1, P, 1);
+  }
 }
 
-// converts (x,y) position in the array to the mixed z-order row major layout
-int block_convert(int row, int col) {
-  int block_index = z_convert(row >> POWER, col >> POWER);
-  return (block_index << (POWER << 1)) 
-    + ((row - ((row >> POWER) << POWER)) << POWER) 
-    + (col - ((col >> POWER) << POWER));
+/*
+ * Naive sequential algorithm, for comparison purposes
+ */
+void matrixmul(int n, REAL *A, int an, REAL *B, int bn, REAL *C, int cn) {
+
+  int i, j, k;
+  REAL s;
+
+  for (i = 0; i < n; ++i)
+    for (j = 0; j < n; ++j) {
+      s = 0.0;
+      for (k = 0; k < n; ++k)
+        s += ELEM(A, an, i, k) * ELEM(B, bn, k, j);
+
+      ELEM(C, cn, i, j) = s;
+    }
+}
+
+
+
+/*****************************************************************************
+**
+** FastNaiveMatrixMultiply
+**
+** For small to medium sized matrices A, B, and C of size
+** MatrixSize * MatrixSize this function performs the operation
+** C = A x B efficiently.
+**
+** Note MatrixSize must be divisible by 8.
+**
+** INPUT:
+**    C = (*C WRITE) Address of top left element of matrix C.
+**    A = (*A IS READ ONLY) Address of top left element of matrix A.
+**    B = (*B IS READ ONLY) Address of top left element of matrix B.
+**    MatrixSize = Size of matrices (for n*n matrix, MatrixSize = n)
+**    RowWidthA = Number of elements in memory between A[x,y] and A[x,y+1]
+**    RowWidthB = Number of elements in memory between B[x,y] and B[x,y+1]
+**    RowWidthC = Number of elements in memory between C[x,y] and C[x,y+1]
+**
+** OUTPUT:
+**    C = (*C WRITE) Matrix C contains A x B. (Initial value of *C undefined.)
+**
+*****************************************************************************/
+void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
+                 unsigned MatrixSize, unsigned RowWidthC,
+                 unsigned RowWidthA, unsigned RowWidthB) { 
+
+  /* Assumes size of real is 8 bytes */
+  PTR RowWidthBInBytes = RowWidthB  << 3;
+  PTR RowWidthAInBytes = RowWidthA << 3;
+  PTR MatrixWidthInBytes = MatrixSize << 3;
+  PTR RowIncrementC = ( RowWidthC - MatrixSize) << 3;
+  unsigned Horizontal, Vertical;
+#ifdef DEBUG_ON
+  REAL *OLDC = C;
+  REAL *TEMPMATRIX;
+#endif
+
+  REAL *ARowStart = A;
+  for (Vertical = 0; Vertical < MatrixSize; Vertical++) {
+    for (Horizontal = 0; Horizontal < MatrixSize; Horizontal += 8) {
+      REAL *BColumnStart = B + Horizontal;
+      REAL FirstARowValue = *ARowStart++;
+
+      REAL Sum0 = FirstARowValue * (*BColumnStart);
+      REAL Sum1 = FirstARowValue * (*(BColumnStart+1));
+      REAL Sum2 = FirstARowValue * (*(BColumnStart+2));
+      REAL Sum3 = FirstARowValue * (*(BColumnStart+3));
+      REAL Sum4 = FirstARowValue * (*(BColumnStart+4));
+      REAL Sum5 = FirstARowValue * (*(BColumnStart+5));
+      REAL Sum6 = FirstARowValue * (*(BColumnStart+6));
+      REAL Sum7 = FirstARowValue * (*(BColumnStart+7)); 
+
+      unsigned Products;
+      for (Products = 1; Products < MatrixSize; Products++) {
+        REAL ARowValue = *ARowStart++;
+        BColumnStart = (REAL*) (((PTR) BColumnStart) + RowWidthBInBytes);
+
+        Sum0 += ARowValue * (*BColumnStart);
+        Sum1 += ARowValue * (*(BColumnStart+1));
+        Sum2 += ARowValue * (*(BColumnStart+2));
+        Sum3 += ARowValue * (*(BColumnStart+3));
+        Sum4 += ARowValue * (*(BColumnStart+4));
+        Sum5 += ARowValue * (*(BColumnStart+5));
+        Sum6 += ARowValue * (*(BColumnStart+6));
+        Sum7 += ARowValue * (*(BColumnStart+7));    
+      }
+      ARowStart = (REAL*) ( ((PTR) ARowStart) - MatrixWidthInBytes);
+
+      *(C) = Sum0;
+      *(C+1) = Sum1;
+      *(C+2) = Sum2;
+      *(C+3) = Sum3;
+      *(C+4) = Sum4;
+      *(C+5) = Sum5;
+      *(C+6) = Sum6;
+      *(C+7) = Sum7;
+      C+=8;
+    }
+
+    ARowStart = (REAL*) ( ((PTR) ARowStart) + RowWidthAInBytes );
+    C = (REAL*) ( ((PTR) C) + RowIncrementC );
+  }
+
+}
+
+
+/*****************************************************************************
+ **
+ ** FastAdditiveNaiveMatrixMultiply
+ **
+ ** For small to medium sized matrices A, B, and C of size
+ ** MatrixSize * MatrixSize this function performs the operation
+ ** C += A x B efficiently.
+ **
+ ** Note MatrixSize must be divisible by 8.
+ **
+ ** INPUT:
+ **    C = (*C READ/WRITE) Address of top left element of matrix C.
+ **    A = (*A IS READ ONLY) Address of top left element of matrix A.
+ **    B = (*B IS READ ONLY) Address of top left element of matrix B.
+ **    MatrixSize = Size of matrices (for n*n matrix, MatrixSize = n)
+ **    RowWidthA = Number of elements in memory between A[x,y] and A[x,y+1]
+ **    RowWidthB = Number of elements in memory between B[x,y] and B[x,y+1]
+ **    RowWidthC = Number of elements in memory between C[x,y] and C[x,y+1]
+ **
+ ** OUTPUT:
+ **    C = (*C READ/WRITE) Matrix C contains C + A x B.
+ **
+ *****************************************************************************/
+void FastAdditiveNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
+    unsigned MatrixSize, unsigned RowWidthC,
+    unsigned RowWidthA, unsigned RowWidthB) { 
+
+  /* Assumes size of real is 8 bytes */
+  PTR RowWidthBInBytes = RowWidthB  << 3;
+  PTR RowWidthAInBytes = RowWidthA << 3;
+  PTR MatrixWidthInBytes = MatrixSize << 3;
+  PTR RowIncrementC = ( RowWidthC - MatrixSize) << 3;
+  unsigned Horizontal, Vertical;
+
+  REAL *ARowStart = A;
+  for (Vertical = 0; Vertical < MatrixSize; Vertical++) {
+    for (Horizontal = 0; Horizontal < MatrixSize; Horizontal += 8) {
+      REAL *BColumnStart = B + Horizontal;
+
+      REAL Sum0 = *C;
+      REAL Sum1 = *(C+1);
+      REAL Sum2 = *(C+2);
+      REAL Sum3 = *(C+3);
+      REAL Sum4 = *(C+4);
+      REAL Sum5 = *(C+5);
+      REAL Sum6 = *(C+6);
+      REAL Sum7 = *(C+7);   
+
+      unsigned Products;
+      for (Products = 0; Products < MatrixSize; Products++) {
+        REAL ARowValue = *ARowStart++;
+
+        Sum0 += ARowValue * (*BColumnStart);
+        Sum1 += ARowValue * (*(BColumnStart+1));
+        Sum2 += ARowValue * (*(BColumnStart+2));
+        Sum3 += ARowValue * (*(BColumnStart+3));
+        Sum4 += ARowValue * (*(BColumnStart+4));
+        Sum5 += ARowValue * (*(BColumnStart+5));
+        Sum6 += ARowValue * (*(BColumnStart+6));
+        Sum7 += ARowValue * (*(BColumnStart+7));
+
+        BColumnStart = (REAL*) (((PTR) BColumnStart) + RowWidthBInBytes);
+
+      }
+      ARowStart = (REAL*) ( ((PTR) ARowStart) - MatrixWidthInBytes);
+
+      *(C) = Sum0;
+      *(C+1) = Sum1;
+      *(C+2) = Sum2;
+      *(C+3) = Sum3;
+      *(C+4) = Sum4;
+      *(C+5) = Sum5;
+      *(C+6) = Sum6;
+      *(C+7) = Sum7;
+      C+=8;
+    }
+
+    ARowStart = (REAL*) ( ((PTR) ARowStart) + RowWidthAInBytes );
+    C = (REAL*) ( ((PTR) C) + RowIncrementC );
+  }
+}
+
+
+/*****************************************************************************
+ **
+ ** MultiplyByDivideAndConquer
+ **
+ ** For medium to medium-large (would you like fries with that) sized
+ ** matrices A, B, and C of size MatrixSize * MatrixSize this function
+ ** efficiently performs the operation
+ **    C  = A x B (if AdditiveMode == 0)
+ **    C += A x B (if AdditiveMode != 0)
+ **
+ ** Note MatrixSize must be divisible by 16.
+ **
+ ** INPUT:
+ **    C = (*C READ/WRITE) Address of top left element of matrix C.
+ **    A = (*A IS READ ONLY) Address of top left element of matrix A.
+ **    B = (*B IS READ ONLY) Address of top left element of matrix B.
+ **    MatrixSize = Size of matrices (for n*n matrix, MatrixSize = n)
+ **    RowWidthA = Number of elements in memory between A[x,y] and A[x,y+1]
+ **    RowWidthB = Number of elements in memory between B[x,y] and B[x,y+1]
+ **    RowWidthC = Number of elements in memory between C[x,y] and C[x,y+1]
+ **    AdditiveMode = 0 if we want C = A x B, otherwise we'll do C += A x B
+ **
+ ** OUTPUT:
+ **    C (+)= A x B. (+ if AdditiveMode != 0)
+ **
+ *****************************************************************************/
+void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
+    unsigned MatrixSize, unsigned RowWidthC,
+    unsigned RowWidthA, unsigned RowWidthB,
+    int AdditiveMode) {
+
+#define A00 A
+#define B00 B
+#define C00 C
+
+  REAL  *A01, *A10, *A11, *B01, *B10, *B11, *C01, *C10, *C11;
+  unsigned QuadrantSize = MatrixSize >> 1;
+
+  /* partition the matrix */
+  A01 = A00 + QuadrantSize;
+  A10 = A00 + RowWidthA * QuadrantSize;
+  A11 = A10 + QuadrantSize;
+
+  B01 = B00 + QuadrantSize;
+  B10 = B00 + RowWidthB * QuadrantSize;
+  B11 = B10 + QuadrantSize;
+
+  C01 = C00 + QuadrantSize;
+  C10 = C00 + RowWidthC * QuadrantSize;
+  C11 = C10 + QuadrantSize;
+
+  if (QuadrantSize > SizeAtWhichNaiveAlgorithmIsMoreEfficient) {
+
+    MultiplyByDivideAndConquer(C00, A00, B00, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
+
+    MultiplyByDivideAndConquer(C01, A00, B01, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
+
+    MultiplyByDivideAndConquer(C11, A10, B01, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
+
+    MultiplyByDivideAndConquer(C10, A10, B00, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
+
+    MultiplyByDivideAndConquer(C00, A01, B10, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, 1);
+
+    MultiplyByDivideAndConquer(C01, A01, B11, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, 1);
+
+    MultiplyByDivideAndConquer(C11, A11, B11, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, 1);
+
+    MultiplyByDivideAndConquer(C10, A11, B10, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB, 1);
+
+  } else {
+
+    if (AdditiveMode) {
+      FastAdditiveNaiveMatrixMultiply(C00, A00, B00, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+
+      FastAdditiveNaiveMatrixMultiply(C01, A00, B01, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+
+      FastAdditiveNaiveMatrixMultiply(C11, A10, B01, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+
+      FastAdditiveNaiveMatrixMultiply(C10, A10, B00, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+
+    } else {
+
+      FastNaiveMatrixMultiply(C00, A00, B00, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+
+      FastNaiveMatrixMultiply(C01, A00, B01, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+
+      FastNaiveMatrixMultiply(C11, A10, B01, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+
+      FastNaiveMatrixMultiply(C10, A10, B00, QuadrantSize,
+          RowWidthC, RowWidthA, RowWidthB);
+    }
+
+    FastAdditiveNaiveMatrixMultiply(C00, A01, B10, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB);
+
+    FastAdditiveNaiveMatrixMultiply(C01, A01, B11, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB);
+
+    FastAdditiveNaiveMatrixMultiply(C11, A11, B11, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB);
+
+    FastAdditiveNaiveMatrixMultiply(C10, A11, B10, QuadrantSize,
+        RowWidthC, RowWidthA, RowWidthB);
+  }
+
+  return;
+}
+
+
+/*****************************************************************************
+ **
+ ** OptimizedStrassenMultiply
+ **
+ ** For large matrices A, B, and C of size MatrixSize * MatrixSize this
+ ** function performs the operation C = A x B efficiently.
+ **
+ ** INPUT:
+ **    C = (*C WRITE) Address of top left element of matrix C.
+ **    A = (*A IS READ ONLY) Address of top left element of matrix A.
+ **    B = (*B IS READ ONLY) Address of top left element of matrix B.
+ **    MatrixSize = Size of matrices (for n*n matrix, MatrixSize = n)
+ **    RowWidthA = Number of elements in memory between A[x,y] and A[x,y+1]
+ **    RowWidthB = Number of elements in memory between B[x,y] and B[x,y+1]
+ **    RowWidthC = Number of elements in memory between C[x,y] and C[x,y+1]
+ **
+ ** OUTPUT:
+ **    C = (*C WRITE) Matrix C contains A x B. (Initial value of *C undefined.)
+ **
+ *****************************************************************************/
+
+void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
+    unsigned MatrixSize, unsigned RowWidthC,
+    unsigned RowWidthA, unsigned RowWidthB);
+
+void OptimizedStrassenMultiply_FutDep(cilk::future<void> *out, cilk::future<void> *f1, cilk::future<void> *f2, REAL *C, REAL *A, REAL *B,
+    unsigned MatrixSize, unsigned RowWidthC,
+    unsigned RowWidthA, unsigned RowWidthB) {
+    if (f1) f1->get(); 
+    if (f2) f2->get();
+    OptimizedStrassenMultiply(C, A, B, MatrixSize, RowWidthC, RowWidthA, RowWidthB); 
+    __asm__ volatile ("" ::: "memory");
+    out->put();
+}
+#define strassen(n,A,an,B,bn,C,cn) OptimizedStrassenMultiply(C,A,B,n,cn,bn,an)
+void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
+    unsigned MatrixSize, unsigned RowWidthC,
+    unsigned RowWidthA, unsigned RowWidthB) {
+
+  unsigned QuadrantSize = MatrixSize >> 1; /* MatixSize / 2 */
+  unsigned QuadrantSizeInBytes = 
+    sizeof(REAL) * QuadrantSize * QuadrantSize;
+
+  /************************************************************************
+   ** For each matrix A, B, and C, we'll want pointers to each quandrant
+   ** in the matrix. These quandrants will be addressed as follows:
+   **  --        --
+   **  | A11  A12 |
+   **  |          |
+   **  | A21  A22 |
+   **  --        --
+   ************************************************************************/
+  REAL /* *A11, *B11, *C11, */ *A12, *B12, *C12,
+       *A21, *B21, *C21, *A22, *B22, *C22;
+
+  REAL *S1,*S2,*S3,*S4,*S5,*S6,*S7,*S8,*M2,*M5,*T1sMULT;
+#define T2sMULT C22
+#define NumberOfVariables 11
+
+  char *Heap;
+  void *StartHeap;
+
+  if (MatrixSize <= SizeAtWhichDivideAndConquerIsMoreEfficient) {
+    MultiplyByDivideAndConquer(C, A, B,
+        MatrixSize, RowWidthC, RowWidthA, RowWidthB, 0);
+
+    return;
+  }
+
+  cilk::future<void> readyS1;
+  cilk::future<void> readyS2;
+  cilk::future<void> readyS4;
+  cilk::future<void> readyS5;
+  cilk::future<void> readyS6;
+  cilk::future<void> readyS8;
+  cilk::future<void> readyS3;
+  cilk::future<void> readyS7;
+  cilk::future<void> readyM2;
+  cilk::future<void> readyM5;
+  cilk::future<void> readyT1sMult;
+  cilk::future<void> readyC22;
+  cilk::future<void> readyC;
+  cilk::future<void> readyC12;
+  cilk::future<void> readyC21;
+
+  // Add 12 to account for A, B, and C
+
+  /* Initialize quandrant matrices */
+  A12 = A + QuadrantSize;
+  B12 = B + QuadrantSize;
+  C12 = C + QuadrantSize;
+  A21 = A + (RowWidthA * QuadrantSize);
+  B21 = B + (RowWidthB * QuadrantSize);
+  C21 = C + (RowWidthC * QuadrantSize);
+  A22 = A21 + QuadrantSize;
+  B22 = B21 + QuadrantSize;
+  C22 = C21 + QuadrantSize;
+
+  /* Allocate Heap Space Here */
+  StartHeap = malloc(QuadrantSizeInBytes * NumberOfVariables + 32);
+  Heap = (char*)StartHeap;
+  /* ensure that heap is on cache boundary */
+  if ( ((PTR) Heap) & 31 )
+    Heap = (char*) ( ((PTR) Heap) + 32 - ( ((PTR) Heap) & 31) );
+
+  /* Distribute the heap space over the variables */
+  S1 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  S2 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  S3 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  S4 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  S5 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  S6 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  S7 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  S8 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  M2 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  M5 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+  T1sMULT = (REAL*) Heap; Heap += QuadrantSizeInBytes;
+
+  int numS1RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
+    }
+    if (__atomic_add_fetch(&numS1RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS1.put();
+  }
+
+  int numS2RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    readyS1.get();
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S2[Row * QuadrantSize + Column] = S1[Row * QuadrantSize + Column] - A[RowWidthA * Row + Column];
+    }
+    if (__atomic_add_fetch(&numS2RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS2.put();
+  }
+
+  int numS4RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    readyS2.get();
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S4[Row * QuadrantSize + Column] = A12[Row * RowWidthA + Column] - S2[QuadrantSize * Row + Column];
+    }
+    if (__atomic_add_fetch(&numS4RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS4.put();
+  }
+
+  int numS5RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
+    }
+    if (__atomic_add_fetch(&numS5RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS5.put();
+  }
+
+  int numS6RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    readyS5.get();
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S6[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - S5[Row * QuadrantSize + Column];
+    }
+    if (__atomic_add_fetch(&numS6RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS6.put();
+  }
+
+  int numS8RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    readyS6.get();
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S8[Row * QuadrantSize + Column] = S6[Row * QuadrantSize + Column] - B21[Row * RowWidthB + Column];
+    }
+    if (__atomic_add_fetch(&numS8RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS8.put();
+  }
+
+  int numS3RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
+    }
+    if (__atomic_add_fetch(&numS3RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS3.put();
+  }
+
+  int numS7RowsReady = 1;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
+    }
+    if (__atomic_add_fetch(&numS7RowsReady, 1, __ATOMIC_SEQ_CST) == QuadrantSize) readyS7.put();
+  }
+
+  cilk_spawn OptimizedStrassenMultiply_FutDep(&readyM2, NULL, NULL, M2, A, B, QuadrantSize,
+      QuadrantSize, RowWidthA, RowWidthB);
+
+  /* M5 = S1 * S5 */
+  cilk_spawn OptimizedStrassenMultiply_FutDep(&readyM5, &readyS1, &readyS5, M5, S1, S5, QuadrantSize,
+      QuadrantSize, QuadrantSize, 
+      QuadrantSize);
+
+  /* Step 1 of T1 = S2 x S6 + M2 */
+  cilk_spawn OptimizedStrassenMultiply_FutDep(&readyT1sMult, &readyS2, &readyS6, T1sMULT, S2, S6,  QuadrantSize,
+      QuadrantSize, QuadrantSize, 
+      QuadrantSize);
+
+  /* Step 1 of T2 = T1 + S3 x S7 */
+  cilk_spawn OptimizedStrassenMultiply_FutDep(&readyC22, &readyS3, &readyS7, C22, S3, S7, QuadrantSize,
+      RowWidthC /*FIXME*/, QuadrantSize, 
+      QuadrantSize);
+
+  //printf("16 %d: %p\n", QuadrantSize, completions);
+  /* Step 1 of C11 = M2 + A12 * B21 */
+  cilk_spawn OptimizedStrassenMultiply_FutDep(&readyC, NULL, NULL, C, A12, B21, QuadrantSize,
+      RowWidthC, RowWidthA, RowWidthB);
+
+  /* Step 1 of C12 = S4 x B22 + T1 + M5 */
+  cilk_spawn OptimizedStrassenMultiply_FutDep(&readyC12, &readyS4, NULL, C12, S4, B22, QuadrantSize,
+      RowWidthC, QuadrantSize, RowWidthB);
+
+  /* Step 1 of C21 = T2 - A22 * S8 */
+  OptimizedStrassenMultiply_FutDep(&readyC21, &readyS8, NULL, C21, A22, S8, QuadrantSize,
+      RowWidthC, RowWidthA, QuadrantSize);
+
+  /**********************************************
+   ** Synchronization Point
+   **********************************************/
+  cilk_sync;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
+    }
+  }
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+
+  cilk_sync;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C22[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+
+  cilk_sync;
+
+  free(StartHeap);
+  return;
+}
+
+/*
+ * Set an size n vector V to random values. 
+ */
+void init_vec(int n, REAL *V) {
+  int i;
+
+  for(i=0; i < n; i++) {
+    V[i] = ((double) cilk_rand()) / (double) RAND_MAX; 
+  }
+}
+
+/*
+ * Compare two matrices.  Return -1 if they differ more EPSILON.
+ */
+int compare_vec(int n, REAL *V1, REAL *V2) {
+  int i;
+  REAL c, sum = 0.0;
+
+  for(i = 0; i < n; ++i) {
+    c = V1[i] - V2[i];
+    if( c < 0.0 ) {
+      c = -c;
+    }
+    sum += c;
+    // ANGE: this is used in compare_matrix
+    // c = c / V1[i];
+    if( c > EPSILON ) {
+      return -1;
+    }
+  }
+
+  printf("Sum of errors: %g\n", sum);
+  return 0;
+}
+
+/*
+ * Allocate a vector of size n 
+ */
+REAL *alloc_vec(int n) {
+
+  return (REAL *) malloc(n * sizeof(REAL));
+}
+
+/*
+ * free a vector 
+ */
+void free_vec(REAL *V) {
+
+  free(V);
 }
 
 /*
  * Set an n by n matrix A to random values.  The distance between
  * rows is an
  */
-static void init_matrix(int n, REAL *A, int an) {
+void init_matrix(int n, REAL *A, int an) {
 
-  for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < n; ++j) { 
-      A[block_convert(i,j)] = ((double) cilk_rand()) / (double) RAND_MAX; 
-    }
-  }
-}
+  int i, j;
 
-#if 0
-/*
- * T = A + B
- * n: the size of current T, A, B
- * All matrices assumed to be blocked-z row-major layout
- */
-static void add_matrix(REAL *T, REAL *A, REAL *B, int n) {
-
-  if(n == DAC_ARITH_BASECASE) {
-    for (int i = 0; i < n; ++i) {
-      for (int j = 0; j < n; ++j) {
-        T[i*n + j] = A[i*n + j] + B[i*n + j];
-      }
-    }
-    return;
-  }
-
-  REAL *A11, *A12, *A21, *A22;
-  REAL *B11, *B12, *B21, *B22;
-  REAL *T11, *T12, *T21, *T22;
-  Z_PARTITION(A, A11, A12, A21, A22, n);
-  Z_PARTITION(B, B11, B12, B21, B22, n);
-  Z_PARTITION(T, T11, T12, T21, T22, n);
-
-  cilk_spawn add_matrix(T11, A11, B11, n >> 1);
-  cilk_spawn add_matrix(T12, A12, B12, n >> 1);
-  cilk_spawn add_matrix(T21, A21, B21, n >> 1);
-             add_matrix(T22, A22, B22, n >> 1);
-  cilk_sync;
-
-  return;
-}
-
-/*
- * T = A - B
- * n: the size of T, A, B
- * tn: the original matrix size that T is part of
- * an: the original matrix size that A is part of
- * bn: the original matrix size that B is part of
- */
-static void sub_matrix(REAL *T, REAL *A, REAL *B, int n) {
-
-  if(n == DAC_ARITH_BASECASE) {
-    for (int i = 0; i < n; ++i) {
-      for (int j = 0; j < n; ++j) {
-        T[i*n + j] = A[i*n + j] - B[i*n + j];
-      }
-    }
-    return;
-  }
-
-  REAL *A11, *A12, *A21, *A22;
-  REAL *B11, *B12, *B21, *B22;
-  REAL *T11, *T12, *T21, *T22;
-  Z_PARTITION(A, A11, A12, A21, A22, n);
-  Z_PARTITION(B, B11, B12, B21, B22, n);
-  Z_PARTITION(T, T11, T12, T21, T22, n);
-
-  cilk_spawn sub_matrix(T11, A11, B11, n >> 1);
-  cilk_spawn sub_matrix(T12, A12, B12, n >> 1);
-  cilk_spawn sub_matrix(T21, A21, B21, n >> 1);
-             sub_matrix(T22, A22, B22, n >> 1);
-  cilk_sync;
-  
-  return;
-}
-#endif
-
-
-/*
- * Naive sequential algorithm, for comparison purposes
- */
-void matrixmul(REAL *C, REAL *A, REAL *B, int n) {
-
-  for(int i = 0; i < n; ++i) {
-    for(int j = 0; j < n; ++j) {
-      REAL s = (REAL)0;
-      for(int k = 0; k < n; ++k) {
-        s += A[block_convert(i,k)] * B[block_convert(k,j)];
-      }
-      C[block_convert(i,j)] = s;
-    }
-  }
-}
-
-/**
- * Assumption: by the time we get here the matrices are within 
- * the row-major order with row width exactly n
- * C: output, size nxn
- * A, B: input, size nxn
- * Same as mm_base except that it sums the original value of C into it
- **/
-static void mm_additive_base(REAL *C, REAL *A, REAL *B, int n) {
-
-  REAL *ptrToA = A;
-  REAL *ptrToB = B;
-
-  for(int row = 0; row < n; row++) { // going down the row 
-    for(int col = 0; col < n; col+=8) { // doing 8 columns at a time
-      ptrToB = B;  // put ptrToB back to the beginning of B 
-      REAL valA = *ptrToA;
-      ptrToA++; // advance A to the next element in the row block
-      REAL c0 = *(C)   + valA * ptrToB[col];
-      REAL c1 = *(C+1) + valA * ptrToB[col+1];
-      REAL c2 = *(C+2) + valA * ptrToB[col+2];
-      REAL c3 = *(C+3) + valA * ptrToB[col+3];
-      REAL c4 = *(C+4) + valA * ptrToB[col+4];
-      REAL c5 = *(C+5) + valA * ptrToB[col+5];
-      REAL c6 = *(C+6) + valA * ptrToB[col+6];
-      REAL c7 = *(C+7) + valA * ptrToB[col+7];
-
-      // accumulate into c_i the product that needs to go into current row
-      // block of C 
-      for(int j = 1; j < n; j++) {  
-        // each iter does a block of columns in the current row
-        ptrToB += n; // advance B to the next row
-        valA = *ptrToA;
-        ptrToA++; // advance A to the next element 
-        c0 += valA * ptrToB[col];
-        c1 += valA * ptrToB[col+1];
-        c2 += valA * ptrToB[col+2];
-        c3 += valA * ptrToB[col+3];
-        c4 += valA * ptrToB[col+4];
-        c5 += valA * ptrToB[col+5];
-        c6 += valA * ptrToB[col+6];
-        c7 += valA * ptrToB[col+7];
-      }
-      ptrToA -= n; // move A back to beginning of the row
-      *(C) = c0;
-      *(C+1) = c1;
-      *(C+2) = c2;
-      *(C+3) = c3;
-      *(C+4) = c4;
-      *(C+5) = c5;
-      *(C+6) = c6;
-      *(C+7) = c7;
-      // assert(C == &oldC[row*n + col]);
-      C += 8;
-    }
-    // assert(C == &oldC[row*n + n]);
-    ptrToA += n; // advance A to the next row
-  }
-  return;
-}
-
-/**
- * Assumption: by the time we get here the matrices are within 
- * the row-major order with row width exactly n, i.e., all nxn
- * elements are laid out in continuguous memory without breaks.
- * C: output, size nxn
- * A, B: input, size nxn
- *
- * This base is optimized to do a block of column 
- * (8 contiguous elements) at a time.
- * It walks through each C[i,j] in row major order, but compute 
- * C[i,j]--C[i+7,j] (inclusive) at once in each iteration of 2nd loop.
- * The way it does is as follows:
- * Each C[i,j] needs to sum together the product between every elements 
- * in row i of A and col j of B.  Each inner most loop is effectively doing
- * the product necessary involving a single element in A and traverses
- * the entire row. 
- * Each iteration in the 2nd loop traverses a given row of A over and over,
- * doing multiplication necessary involving the next row of column block.
- * does the nece
- **/
-static void mm_base(REAL *C, REAL *A, REAL *B, int n) {
-
-  REAL *ptrToA = A;
-  REAL *ptrToB = B;
-
-  for(int row = 0; row < n; row++) { // going down the row 
-    for(int col = 0; col < n; col+=8) { // doing 8 columns at a time
-      REAL valA = *ptrToA;
-      ptrToA++; // advance A to the next element in the row block
-      REAL c0 = valA * ptrToB[col];
-      REAL c1 = valA * ptrToB[col+1];
-      REAL c2 = valA * ptrToB[col+2];
-      REAL c3 = valA * ptrToB[col+3];
-      REAL c4 = valA * ptrToB[col+4];
-      REAL c5 = valA * ptrToB[col+5];
-      REAL c6 = valA * ptrToB[col+6];
-      REAL c7 = valA * ptrToB[col+7];
-
-      // accumulate into c_i the product that needs to go into current row
-      // block of C 
-      for(int j = 1; j < n; j++) {  
-        // each iter does a block of columns in the current row
-        ptrToB += n; // advance B to the next row
-        valA = *ptrToA;
-        ptrToA++; // advance A to the next element 
-        c0 += valA * ptrToB[col];
-        c1 += valA * ptrToB[col+1];
-        c2 += valA * ptrToB[col+2];
-        c3 += valA * ptrToB[col+3];
-        c4 += valA * ptrToB[col+4];
-        c5 += valA * ptrToB[col+5];
-        c6 += valA * ptrToB[col+6];
-        c7 += valA * ptrToB[col+7];
-      }
-      // at this point ptrToB points to the bottom row
-      // and ptrToA points to the end of a row
-      // assert(ptrToA == &A[row*n + n]);
-      // assert(ptrToB == &B[n*(n-1)]);
-      ptrToB = B;  // put ptrToB back to the beginning of B 
-      ptrToA -= n; // move A back to beginning of the row
-      *(C) = c0;
-      *(C+1) = c1;
-      *(C+2) = c2;
-      *(C+3) = c3;
-      *(C+4) = c4;
-      *(C+5) = c5;
-      *(C+6) = c6;
-      *(C+7) = c7;
-      // assert(C == &oldC[row*n + col]);
-      C += 8;
-    }
-    // assert(C == &oldC[row*n + n]);
-    ptrToA += n; // advance A to the next row
-  }
-  return;
-}
-
-// recursive parallel solution to matrix multiplication
-void mm_dac_z(REAL *C, REAL *A, REAL *B, int n, bool add) {
-
-  if(n == DAC_ARITH_BASECASE) {
-    if(add) mm_additive_base(C, A, B, n);
-    else    mm_base(C, A, B, n);
-    return;
-  }
-
-  // partition each matrix into 4 sub matrices
-  // each sub-matrix points to the start of the z pattern
-  REAL *A11, *A12, *A21, *A22;
-  REAL *B11, *B12, *B21, *B22;
-  REAL *C11, *C12, *C21, *C22;
-  Z_PARTITION(A, A11, A12, A21, A22, n);
-  Z_PARTITION(B, B11, B12, B21, B22, n);
-  Z_PARTITION(C, C11, C12, C21, C22, n);
-
-  // recursively call the sub-matrices for evaluation in parallel
-  cilk_spawn mm_dac_z(C11, A11, B11, n >> 1, add);
-  cilk_spawn mm_dac_z(C12, A11, B12, n >> 1, add);
-  cilk_spawn mm_dac_z(C21, A21, B11, n >> 1, add);
-  cilk_spawn mm_dac_z(C22, A21, B12, n >> 1, add);
-  cilk_sync;
-
-  cilk_spawn mm_dac_z(C11, A12, B21, n >> 1, true);
-  cilk_spawn mm_dac_z(C12, A12, B22, n >> 1, true);
-  cilk_spawn mm_dac_z(C21, A22, B21, n >> 1, true);
-  cilk_spawn mm_dac_z(C22, A22, B22, n >> 1, true);
-  cilk_sync;
-
-  return;
-}
-
-static void __attribute__((noinline)) final_add(cilk::future<REAL*> *C11_fut, cilk::future<REAL*> *C12_fut, cilk::future<REAL*> *C21_fut, cilk::future<REAL*> *C22_fut, 
-                      cilk::future<REAL*> *M2_fut, cilk::future<REAL*> *M5_fut, cilk::future<REAL*> *T1_fut, int n, int offset) {
-
-  if(n == DAC_ARITH_BASECASE) {
-   // REAL *C11 = C11_fut->get() + offset, *C12 = C12_fut->get() + offset, *C21 = C21_fut->get() + offset, *C22 = C22_fut->get() + offset, *M2 = M2_fut->get() + offset, *M5 = M5_fut->get() + offset, *T1 = T1_fut->get() + offset;
-    //while (!C11_fut->ready());
-    REAL *C11 = C11_fut->get();
-    //while (!C12_fut->ready());
-    REAL *C12 = C12_fut->get();
-    //while (!C21_fut->ready());
-    REAL *C21 = C21_fut->get();
-    //while (!C22_fut->ready());
-    REAL *C22 = C22_fut->get();
-    //while (!M5_fut->ready());
-    REAL *M5  = M5_fut->get();
-    //while (!M2_fut->ready());
-    REAL *M2  = M2_fut->get();
-    //while (!T1_fut->ready());
-    REAL *T1  = T1_fut->get();
-    __asm__ volatile ("" ::: "memory");
-    __sync_synchronize();
-
-    C11 += offset;
-    C12 += offset;
-    C21 += offset;
-    C22 += offset;
-    M5  += offset;
-    M2  += offset;
-    T1  += offset;
-    for(int i=0; i<n; i++) { // this is only ok because we have square matrix
-      for(int j=0; j<n; j+=8) {
-        //if (j == 0 && i == 0) {
-        //    M5 = M5_fut->get() + offset;
-        //}
-        UNROLL(M5, m5);
-        //if (j == 0 && i == 0) {
-        //    M2 = M2_fut->get() + offset;
-        //}
-        UNROLL(M2, m2);
-        //if (j == 0 && i == 0) {
-        //    T1 = T1_fut->get() + offset;
-        //}
-        UNROLL(T1, t1);
-        //if (j == 0 && i == 0) {
-        //    C11 = C11_fut->get() + offset;
-        //}
-        UNROLL_ADD_1(C11, m2);
-        //if (j == 0 && i == 0) {
-        //    C12 = C12_fut->get() + offset;
-        //}
-        UNROLL_ADD_3(C12, m5, t1, m2); 
-        //if (j == 0 && i == 0) {
-        //    C22 = C22_fut->get() + offset;
-        //}
-        UNROLL(C22, c22);
-        UNROLL_VAL_ADD_2(c22, m2, t1);
-        //if (j == 0 && i == 0) {
-        //    C21 = C21_fut->get() + offset;
-        //}
-        UNROLL_VAL_SUB_SELF(C21, c22);
-        UNROLL_ADD_2_ASSIGN(C22, c22, m5);
-        M5 += 8; M2 += 8; T1 += 8;
-        C11 += 8; C12 += 8; C21 += 8; C22 += 8;
-      }
-    }
-
-    while (!C11_fut->ready());
-    while (!C12_fut->ready());
-    while (!C21_fut->ready());
-    while (!C22_fut->ready());
-    while (!M5_fut->ready());
-    while (!M2_fut->ready());
-    return;
-  }
-
-  int new_n = n>>1;
-
-  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, new_n, offset);
-
-  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(0,new_n));
-  cilk_spawn final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(new_n,0));
-  final_add(C11_fut, C12_fut, C21_fut, C22_fut, M2_fut, M5_fut, T1_fut, n >> 1, offset + block_convert(new_n,new_n));
-  cilk_sync;
-
-  return;
-}
-
-#define Z_PARTITION_AND_DECL(S, n) \
-  REAL *S##_0, *S##_1, *S##_2, *S##_3; \
-  S##_0 = &S[block_convert(0,0)]; \
-  S##_1 = &S[block_convert(0,n>>1)]; \
-  S##_2 = &S[block_convert(n>>1, 0)]; \
-  S##_3 = &S[block_convert(n>>1, n>>1)];
-
-static void setup_add(REAL *S1, REAL *S2, REAL *S3, REAL *S4,
-                      REAL *S5, REAL *S6, REAL *S7, REAL *S8,
-                      REAL *A11, REAL *A12, REAL *A21, REAL *A22, 
-                      REAL *B11, REAL *B12, REAL *B21, REAL *B22, int n) {
-  
-  if(n == DAC_ARITH_BASECASE) {
-    for(int i=0; i<n; i++) { // this is only ok because we have square matrix
-      for(int j=0; j<n; j+=8) {
-        UNROLL(A11, a11); UNROLL(A12, a12); UNROLL(A21, a21); UNROLL(A22, a22);
-        UNROLL(B11, b11); UNROLL(B12, b12); UNROLL(B21, b21); UNROLL(B22, b22);
-        UNROLL_ADD_2_ASSIGN(S1, a21, a22);
-        UNROLL(S1, s1);
-        UNROLL_SUB_2_ASSIGN(S2, s1, a11);
-        UNROLL(S2, s2);
-        UNROLL_SUB_2_ASSIGN(S4, a12, s2);
-        UNROLL_SUB_2_ASSIGN(S3, a11, a21);
-        UNROLL_SUB_2_ASSIGN(S5, b12, b11);
-        UNROLL(S5, s5);
-        UNROLL_SUB_2_ASSIGN(S6, b22, s5);
-        UNROLL_SUB_2_ASSIGN(S7, b22, b12);
-        UNROLL(S6, s6);
-        UNROLL_SUB_2_ASSIGN(S8, s6, b21);
-        A11 += 8; A12 += 8; A21 += 8; A22 += 8; 
-        B11 += 8; B12 += 8; B21 += 8; B22 += 8;
-        S1 += 8; S2 += 8; S3 += 8; S4 += 8;
-        S5 += 8; S6 += 8; S7 += 8; S8 += 8;
-      }
-    }
-    return;
-  }
-  
-  Z_PARTITION_AND_DECL(S1, n); Z_PARTITION_AND_DECL(S2, n); 
-  Z_PARTITION_AND_DECL(S3, n); Z_PARTITION_AND_DECL(S4, n);
-  Z_PARTITION_AND_DECL(S5, n); Z_PARTITION_AND_DECL(S6, n);
-  Z_PARTITION_AND_DECL(S7, n); Z_PARTITION_AND_DECL(S8, n);
-  Z_PARTITION_AND_DECL(A11, n); Z_PARTITION_AND_DECL(A12, n);
-  Z_PARTITION_AND_DECL(A21, n); Z_PARTITION_AND_DECL(A22, n); 
-  Z_PARTITION_AND_DECL(B11, n); Z_PARTITION_AND_DECL(B12, n); 
-  Z_PARTITION_AND_DECL(B21, n); Z_PARTITION_AND_DECL(B22, n);
-
-  cilk_spawn setup_add(S1_0,S2_0,S3_0,S4_0,S5_0,S6_0,S7_0,S8_0,
-                       A11_0,A12_0,A21_0,A22_0,B11_0,B12_0,B21_0,B22_0,n>>1);
-  cilk_spawn setup_add(S1_1,S2_1,S3_1,S4_1,S5_1,S6_1,S7_1,S8_1,
-                       A11_1,A12_1,A21_1,A22_1,B11_1,B12_1,B21_1,B22_1,n>>1);
-  cilk_spawn setup_add(S1_2,S2_2,S3_2,S4_2,S5_2,S6_2,S7_2,S8_2,
-                       A11_2,A12_2,A21_2,A22_2,B11_2,B12_2,B21_2,B22_2,n>>1);
-             setup_add(S1_3,S2_3,S3_3,S4_3,S5_3,S6_3,S7_3,S8_3,
-                       A11_3,A12_3,A21_3,A22_3,B11_3,B12_3,B21_3,B22_3,n>>1);
-  cilk_sync;
-}
-
-REAL* strassen_z(REAL *C, REAL *A, REAL *B, int n);
-void __attribute__((noinline)) strassen_z_helper(cilk::future<REAL*> *fut, REAL *C, REAL *A, REAL *B, int n) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
-
-    void *__cilk_deque = fut->put(strassen_z(C, A, B, n));
-
-    if (__builtin_expect(__cilk_deque != NULL, 0)) {
-        //if (__builtin_expect(!sf.call_parent, 1)) {
-        //    __cilkrts_resume_suspended(__cilk_deque, 2);
-        //} else {
-            __cilkrts_make_resumable(__cilk_deque);
-        //}
-    }
-
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_frame(&sf);
-}
-
-#define NUM_TEMP_M 11   // 11 temp matrices needed
-/**
- * Perform C = A x B using strassen (except the base case)
- * n: size of current C, A, and B
- * It's assume that all C, A, B are using blocked z row-major layout
- **/
-REAL* __attribute__((noinline)) strassen_z(REAL *C, REAL *A, REAL *B, int n) {
-
-  if(n <= MATMUL_THRESH) {
-    mm_dac_z(C, A, B, n, false);
-    return C;
-  }
-
-  int new_n = (n >> 1);
-  int subm_size = new_n * new_n; // in number of elements
-  subm_size += (CACHE_LINE_SIZE / sizeof(REAL)); // avoid false sharing 
-
-  REAL *tmp = (REAL *) malloc(subm_size * sizeof(REAL) * NUM_TEMP_M); 
-  REAL *old_tmp = tmp;
-  REAL *S1 = tmp; tmp += subm_size;
-  REAL *S2 = tmp; tmp += subm_size;
-  REAL *S3 = tmp; tmp += subm_size;
-  REAL *S4 = tmp; tmp += subm_size;
-  REAL *S5 = tmp; tmp += subm_size;
-  REAL *S6 = tmp; tmp += subm_size;
-  REAL *S7 = tmp; tmp += subm_size;
-  REAL *S8 = tmp; tmp += subm_size;
-  REAL *M2 = tmp; tmp += subm_size;
-  REAL *M5 = tmp; tmp += subm_size;
-  REAL *T1 = tmp;
-  
-  REAL *A11, *A12, *A21, *A22;
-  REAL *B11, *B12, *B21, *B22;
-  REAL *C11, *C12, *C21, *C22;
-  Z_PARTITION(A, A11, A12, A21, A22, n);
-  Z_PARTITION(B, B11, B12, B21, B22, n);
-  Z_PARTITION(C, C11, C12, C21, C22, n);
-
-  setup_add(S1,S2,S3,S4,S5,S6,S7,S8,A11,A12,A21,A22,B11,B12,B21,B22, new_n);
-  
-  cilk::future<REAL*> m2_fut = cilk::future<REAL*>();
-  cilk::future<REAL*> m5_fut = cilk::future<REAL*>();
-  cilk::future<REAL*> t1_fut = cilk::future<REAL*>();
-  cilk::future<REAL*> c22_fut = cilk::future<REAL*>();
-  cilk::future<REAL*> c11_fut = cilk::future<REAL*>();
-  cilk::future<REAL*> c12_fut = cilk::future<REAL*>();
-  cilk::future<REAL*> c21_fut = cilk::future<REAL*>();
-  cilk::future<REAL*> *volatile pm2_fut = &m2_fut;
-  cilk::future<REAL*> *volatile pm5_fut = &m5_fut;
-  cilk::future<REAL*> *volatile pt1_fut = &t1_fut;
-  cilk::future<REAL*> *volatile pc22_fut = &c22_fut;
-  cilk::future<REAL*> *volatile pc11_fut = &c11_fut;
-  cilk::future<REAL*> *volatile pc12_fut = &c12_fut;
-  cilk::future<REAL*> *volatile pc21_fut = &c21_fut;
-  /*
-  cilk::future<REAL*> *volatile pm2_fut = new cilk::future<REAL*>();
-  cilk::future<REAL*> *volatile pm5_fut = new cilk::future<REAL*>();
-  cilk::future<REAL*> *volatile pt1_fut = new cilk::future<REAL*>();
-  cilk::future<REAL*> *volatile pc22_fut = new cilk::future<REAL*>();
-  cilk::future<REAL*> *volatile pc11_fut = new cilk::future<REAL*>();
-  cilk::future<REAL*> *volatile pc12_fut = new cilk::future<REAL*>();
-  cilk::future<REAL*> *volatile pc21_fut = new cilk::future<REAL*>();
-  */
-
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_1(&sf);
-
-  if (!CILK_SETJMP(sf.ctx)) {
-      strassen_z_helper(&m2_fut, M2, A11, B11, new_n);
-  }
-
-  if (!CILK_SETJMP(sf.ctx)) {
-      strassen_z_helper(&m5_fut, M5, S1, S5, new_n);
-  }
-
-  if (!CILK_SETJMP(sf.ctx)) {
-      strassen_z_helper(&t1_fut, T1, S2, S6, new_n);    // P6, store in T1 
-  }
-
-  if (!CILK_SETJMP(sf.ctx)) {
-      strassen_z_helper(&c22_fut, C22, S3, S7, new_n);   // P7, store in C22 
-  }
-
-  if (!CILK_SETJMP(sf.ctx)) {
-      strassen_z_helper(&c11_fut, C11, A12, B21, new_n); // P2, store in C11
-  }
-
-  if (!CILK_SETJMP(sf.ctx)) {
-      strassen_z_helper(&c12_fut, C12, S4, B22, new_n);  // P3, store in C12
-  }
-
-  if (!CILK_SETJMP(sf.ctx)) {
-      strassen_z_helper(&c21_fut, C21, A22, S8, new_n);  // P4, store in C21
-  }
-
-  final_add(pc11_fut, pc12_fut, pc21_fut, pc22_fut, pm2_fut, pm5_fut, pt1_fut, new_n, 0);
-
-  if (sf.flags & CILK_FRAME_UNSYNCHED) {
-      if (!CILK_SETJMP(sf.ctx)) {
-        __cilkrts_sync(&sf);
-      }
-  }
-
-  free(old_tmp);
-
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_frame(&sf);
-  return C;
+  for (i = 0; i < n; ++i)
+    for (j = 0; j < n; ++j) 
+      ELEM(A, an, i, j) = ((double) cilk_rand()) / (double) RAND_MAX; 
 }
 
 /*
  * Compare two matrices.  Print an error message if they differ by
  * more than EPSILON.
- * return 0 if no error, and return non-zero if error.
  */
-static int compare_matrix(REAL *A, REAL *B, int n) {
+int compare_matrix(int n, REAL *A, int an, REAL *B, int bn) {
 
-  if(n == DAC_ARITH_BASECASE) {
-    for (int i = 0; i < n; ++i) {
-      for (int j = 0; j < n; ++j) {
-        // compute the relative error c 
-        REAL c = A[n*i + j] - B[n*i + j];
-        if (c < 0.0) c = -c;
+  int i, j;
+  REAL c;
 
-        c = c / A[n*i + j];
-        if (c > EPSILON) { 
-          return -1; 
-        }
+  for (i = 0; i < n; ++i) {
+    for (j = 0; j < n; ++j) {
+      /* compute the relative error c */
+      c = ELEM(A, an, i, j) - ELEM(B, bn, i, j);
+      if (c < 0.0) 
+        c = -c;
+
+      c = c / ELEM(A, an, i, j);
+      if (c > EPSILON) {
+        return -1;
       }
     }
-    return 0;
   }
 
-  REAL *A11, *A12, *A21, *A22;
-  REAL *B11, *B12, *B21, *B22;
-  Z_PARTITION(A, A11, A12, A21, A22, n);
-  Z_PARTITION(B, B11, B12, B21, B22, n);
-
-  int r1 = compare_matrix(A11, B11, n >> 1);
-  int r2 = compare_matrix(A12, B12, n >> 1);
-  int r3 = compare_matrix(A21, B21, n >> 1);
-  int r4 = compare_matrix(A22, B22, n >> 1);
-  
-  return (r1+r2+r3+r4);
+  return 0;
 }
 
+
+
+/*
+ * Allocate a matrix of side n (therefore n^2 elements)
+ */
+REAL *alloc_matrix(int n) {
+  return (REAL *) malloc(n * n * sizeof(REAL));
+}
+
+/*
+ * free a matrix (Never used because Matteo expects
+ *                the OS to clean up his garbage. Tsk. Tsk.)
+ */
+void free_matrix(REAL *A) {
+  free(A);
+}
+
+
+/*
+ * simple test program
+ */
 int usage(void) {
   fprintf(stderr, 
-      "\nUsage: strassen_z [-n #] [-c]\n\n"
+      "\nUsage: strassen [<cilk-options>] [-n #] [-c] [-rc]\n\n"
       "Multiplies two randomly generated n x n matrices. To check for\n"
-      "correctness use -c\n");
+      "correctness use -c using iterative matrix multiply or use -rc \n"
+      "using randomized algorithm due to Freivalds.\n\n");
+
   return 1;
 }
 
-const char *specifiers[] = {"-n", "-c", "-h", 0};
-int opt_types[] = {INTARG, BOOLARG, BOOLARG, 0};
+const char *specifiers[] = {"-n", "-c", "-rc", "-benchmark", "-h", 0};
+int opt_types[] = {INTARG, BOOLARG, BOOLARG, BENCHMARK, BOOLARG, 0};
 
 int main(int argc, char *argv[]) {
 
   REAL *A, *B, *C;
-  int verify, help, n;
+  int verify, rand_check, benchmark, help, n;
 
   /* standard benchmark options*/
-  n = 2048;  
+  n = 512;  
   verify = 0;  
+  rand_check = 0;
 
-  get_options(argc, argv, specifiers, opt_types, &n, &verify, &help);
-  if (help || argc == 1) return usage();
+  get_options(argc, argv, specifiers, opt_types, 
+              &n, &verify, &rand_check, &benchmark, &help);
+
+  if (help) return usage();
+
+  if (benchmark) {
+    switch (benchmark) {
+      case 1:      /* short benchmark options -- a little work*/
+        n = 512;
+        break;
+      case 2:      /* standard benchmark options*/
+        n = 2048;
+        break;
+      case 3:      /* long benchmark options -- a lot of work*/
+        n = 4096;
+        break;
+    }
+  }
 
   if((n & (n - 1)) != 0 || (n % 16) != 0) {
-    fprintf(stderr, "%d: matrix size must be a power of 2"
-            " and a multiple of %d\n", n, 16);
+    printf("%d: matrix size must be a power of 2"
+           " and a multiple of %d\n", n, 16);
     return 1;
   }
-  if(POWER < 3) {
-    fprintf(stderr, "Must have at least base case of 8x8.\n");
-    return 1;
-  }
+  __cilkrts_init();
 
-  A = (REAL *) malloc(n * n * sizeof(REAL));
-  B = (REAL *) malloc(n * n * sizeof(REAL));
-  C = (REAL *) malloc(n * n * sizeof(REAL));
+  A = alloc_matrix(n);
+  B = alloc_matrix(n);
+  C = alloc_matrix(n);
 
   init_matrix(n, A, n);
-  init_matrix(n, B, n);
-
-  clockmark_t begin, end;
-
-  __cilkrts_init();
-  __cilkrts_reset_timing();
+  init_matrix(n, B, n); 
 
 #if TIMING_COUNT
-  uint64_t elapsed_times[TIMING_COUNT];
+  clockmark_t begin, end;
+  uint64_t elapsed[TIMING_COUNT];
 
+  __cilkrts_reset_timing();
   for(int i=0; i < TIMING_COUNT; i++) {
     begin = ktiming_getmark();
-    strassen_z(C, A, B, n);
+    strassen(n, A, n, B, n, C, n);
     end = ktiming_getmark();
-    elapsed_times[i] = ktiming_diff_usec(&begin, &end);
+    elapsed[i] = ktiming_diff_usec(&begin, &end);
   }
-  print_runtime(elapsed_times, TIMING_COUNT);
+  //cilk_for (int i = 0; i < 10000; i++)
+  //cilk_for (int i = 0; i < 10000; i++) {
+  //  printf("%d\n", i);
+  //}
+  print_runtime(elapsed, TIMING_COUNT);
 #else
-  begin = ktiming_getmark();
-  strassen_z(C, A, B, n);
-  end = ktiming_getmark();
-  double elapsed = ktiming_diff_sec(&begin, &end);
-  printf("Elapsed time in second: %f\n", elapsed);
-#endif
+  init_matrix(n, A, n);
+  init_matrix(n, B, n);
+  strassen(n, A, n, B, n, C, n);
+#endif 
   __cilkrts_accum_timing();
+  
+  if(rand_check) {
+    REAL *R, *V1, *V2;
+    R = alloc_vec(n);
+    V1 = alloc_vec(n);
+    V2 = alloc_vec(n);
 
-  if (verify) {
+    mat_vec_mul(n, n, n, B, R, V1, 0);
+    mat_vec_mul(n, n, n, A, V1, V2, 0);
+    mat_vec_mul(n, n, n, C, R, V1, 0);
+    rand_check = compare_vec(n, V1, V2);
+
+    free_vec(R);
+    free_vec(V1);
+    free_vec(V2);
+
+  } else if (verify) {
     printf("Checking results ... \n");
-    REAL *C2 = (REAL *) malloc(n * n * sizeof(REAL));
-    matrixmul(C2, A, B, n);
-    verify = compare_matrix(C, C2, n);
-    free(C2);
-  }
+    REAL *C2 = alloc_matrix(n);
+    matrixmul(n, A, n, B, n, C2, n);
+    verify = compare_matrix(n, C, n, C2, n);
+    free_matrix(C2);
+  } 
 
-  if(verify) {
+  if(rand_check || verify) {
     printf("WRONG RESULT!\n");
+
   } else {
     printf("\nCilk Example: strassen\n");
     printf("Options: n = %d\n\n", n);
   }
 
-  free(A);
-  free(B);
-  free(C);
+  free_matrix(A);
+  free_matrix(B);
+  free_matrix(C);
 
   return 0;
 }

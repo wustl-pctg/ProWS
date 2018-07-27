@@ -169,7 +169,7 @@ void matrixmul(int n, REAL *A, int an, REAL *B, int bn, REAL *C, int cn) {
 **    C = (*C WRITE) Matrix C contains A x B. (Initial value of *C undefined.)
 **
 *****************************************************************************/
-void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
+void FastNaiveMatrixMultiply(REAL *C, const REAL *A, const REAL *B,
                  unsigned MatrixSize, unsigned RowWidthC,
                  unsigned RowWidthA, unsigned RowWidthB) { 
 
@@ -184,10 +184,10 @@ void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
   REAL *TEMPMATRIX;
 #endif
 
-  REAL *ARowStart = A;
+  const REAL *ARowStart = A;
   for (Vertical = 0; Vertical < MatrixSize; Vertical++) {
     for (Horizontal = 0; Horizontal < MatrixSize; Horizontal += 8) {
-      REAL *BColumnStart = B + Horizontal;
+      const REAL *BColumnStart = B + Horizontal;
       REAL FirstARowValue = *ARowStart++;
 
       REAL Sum0 = FirstARowValue * (*BColumnStart);
@@ -256,7 +256,7 @@ void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
  **    C = (*C READ/WRITE) Matrix C contains C + A x B.
  **
  *****************************************************************************/
-void FastAdditiveNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
+void FastAdditiveNaiveMatrixMultiply(REAL *C, const REAL *A, const REAL *B,
     unsigned MatrixSize, unsigned RowWidthC,
     unsigned RowWidthA, unsigned RowWidthB) { 
 
@@ -267,10 +267,10 @@ void FastAdditiveNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
   PTR RowIncrementC = ( RowWidthC - MatrixSize) << 3;
   unsigned Horizontal, Vertical;
 
-  REAL *ARowStart = A;
+  const REAL *ARowStart = A;
   for (Vertical = 0; Vertical < MatrixSize; Vertical++) {
     for (Horizontal = 0; Horizontal < MatrixSize; Horizontal += 8) {
-      REAL *BColumnStart = B + Horizontal;
+      const REAL *BColumnStart = B + Horizontal;
 
       REAL Sum0 = *C;
       REAL Sum1 = *(C+1);
@@ -342,7 +342,7 @@ void FastAdditiveNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
  **    C (+)= A x B. (+ if AdditiveMode != 0)
  **
  *****************************************************************************/
-void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
+void MultiplyByDivideAndConquer(REAL *C, const REAL *A, const REAL *B,
     unsigned MatrixSize, unsigned RowWidthC,
     unsigned RowWidthA, unsigned RowWidthB,
     int AdditiveMode) {
@@ -351,7 +351,8 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
 #define B00 B
 #define C00 C
 
-  REAL  *A01, *A10, *A11, *B01, *B10, *B11, *C01, *C10, *C11;
+  const REAL  *A01, *A10, *A11, *B01, *B10, *B11;
+  REAL *C01, *C10, *C11;
   unsigned QuadrantSize = MatrixSize >> 1;
 
   /* partition the matrix */
@@ -462,13 +463,13 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
  *****************************************************************************/
 
 #define strassen(n,A,an,B,bn,C,cn) OptimizedStrassenMultiply(C,A,B,n,cn,bn,an)
-void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
+void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
     unsigned MatrixSize, unsigned RowWidthC,
     unsigned RowWidthA, unsigned RowWidthB) {
 
   unsigned QuadrantSize = MatrixSize >> 1; /* MatixSize / 2 */
   unsigned QuadrantSizeInBytes = 
-    sizeof(REAL) * QuadrantSize * QuadrantSize + 32;
+    sizeof(REAL) * QuadrantSize * QuadrantSize;
 
   /************************************************************************
    ** For each matrix A, B, and C, we'll want pointers to each quandrant
@@ -479,8 +480,9 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
    **  | A21  A22 |
    **  --        --
    ************************************************************************/
-  REAL /* *A11, *B11, *C11, */ *A12, *B12, *C12,
-       *A21, *B21, *C21, *A22, *B22, *C22;
+  const REAL /* *A11, *B11, *C11, */ *A12, *B12,
+       *A21, *B21, *A22, *B22;
+  REAL *C12, *C21, *C22;
 
   REAL *S1,*S2,*S3,*S4,*S5,*S6,*S7,*S8,*M2,*M5,*T1sMULT;
 #define T2sMULT C22

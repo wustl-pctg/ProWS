@@ -61,6 +61,19 @@ private:
   };
   touch_node_t *volatile tail;
   volatile int m_num_suspended_deques;
+
+  void __attribute__((always_inline)) suspend_deque() {
+    void *deque = __cilkrts_get_deque();
+    int ticket = __atomic_fetch_add(&m_num_suspended_deques, 1, __ATOMIC_SEQ_CST);
+    if (ticket >= 0) {
+        m_suspended_deques[ticket].deque = deque;
+        m_suspended_deques[ticket].next = NULL;
+        touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
+        prev->next = &m_suspended_deques[ticket];
+
+        __cilkrts_suspend_deque();
+    }
+  }
   
 public:
 
@@ -77,16 +90,15 @@ public:
   }
 
   void* __attribute__((always_inline)) put(T result) {
-    //assert(m_status != status::DONE);
-    //assert(m_num_suspended_deques >= 0);
     m_result = result;
     __asm__ volatile ("" ::: "memory");
 
+    assert(m_num_suspended_deques >= 0);
     int num_deques = __atomic_fetch_add(&m_num_suspended_deques, INT32_MIN, __ATOMIC_SEQ_CST);
 
     void *ret = NULL;
 
-    if (num_deques) {
+    if (num_deques > 0) {
         touch_node_t *node = &head;
         while (!node->next);
         node = node->next;
@@ -110,26 +122,91 @@ public:
   } 
 
   T __attribute__((always_inline)) get() {
-        if (!this->ready()) {
-            void *deque = __cilkrts_get_deque();
-            int ticket = __atomic_fetch_add(&m_num_suspended_deques, 1, __ATOMIC_SEQ_CST);
-            if (ticket >= 0) {
-                m_suspended_deques[ticket].deque = deque;
-                m_suspended_deques[ticket].next = NULL;
-                touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
-                prev->next = &m_suspended_deques[ticket];
+    if (!this->ready()) {
+      suspend_deque();
+    }
 
-                // Memory barrier
-                //__sync_synchronize();
-                __cilkrts_suspend_deque();
-            }
-        }
-
-    //assert(m_status==status::DONE);
-    assert(m_num_suspended_deques < 0);
+    assert(ready());
     return m_result;
   }
 }; // class future
+
+// future<void> specialization
+// TODO: Try to get rid of all the code duplication
+template<>
+class future<void> {
+private:
+  touch_node_t m_suspended_deques[MAX_TOUCHES];
+  touch_node_t head = {
+    .next = NULL
+  };
+  touch_node_t *volatile tail;
+  volatile int m_num_suspended_deques;
+
+  void __attribute__((always_inline)) suspend_deque() {
+    void *deque = __cilkrts_get_deque();
+    int ticket = __atomic_fetch_add(&m_num_suspended_deques, 1, __ATOMIC_SEQ_CST);
+    if (ticket >= 0) {
+        assert(deque);
+        m_suspended_deques[ticket].deque = deque;
+        m_suspended_deques[ticket].next = NULL;
+        touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
+        prev->next = &m_suspended_deques[ticket];
+        __asm__ volatile ("" ::: "memory");
+        __cilkrts_suspend_deque();
+    }
+  }
+  
+public:
+
+ future() {
+    m_num_suspended_deques = 0;
+    tail = &head;
+  };
+
+  ~future() {
+  }
+
+  inline void reset() {
+    m_num_suspended_deques = 0;
+  }
+
+  void* __attribute__((always_inline)) put(void) {
+    int num_deques = __atomic_fetch_add(&m_num_suspended_deques, INT32_MIN, __ATOMIC_SEQ_CST);
+
+    void *ret = NULL;
+
+    if (num_deques) {
+        volatile touch_node_t *volatile node = &head;
+        while (!node->next);
+        node = node->next;
+        num_deques--;
+        ret = node->deque;
+        while (num_deques) {
+            while (!node->next);
+            node = node->next;
+            num_deques--;
+            __cilkrts_make_resumable(node->deque);
+        }
+    }
+
+    return ret;
+  };
+
+  bool __attribute__((always_inline)) ready() {
+    // If the put has replaced the value with INT32_MIN,
+    // then the value is ready.
+    return (m_num_suspended_deques < 0);
+  } 
+
+  void __attribute__((always_inline)) get() {
+    if (!this->ready()) {
+      suspend_deque();
+    }
+
+    assert(ready());
+  }
+}; // class future<void>
 
 } // namespace cilk
 

@@ -469,7 +469,6 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
   unsigned QuadrantSize = MatrixSize >> 1; /* MatixSize / 2 */
   unsigned QuadrantSizeInBytes = 
     sizeof(REAL) * QuadrantSize * QuadrantSize + 32;
-  unsigned Column, Row;
 
   /************************************************************************
    ** For each matrix A, B, and C, we'll want pointers to each quandrant
@@ -487,15 +486,6 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
 #define T2sMULT C22
 #define NumberOfVariables 11
 
-  PTR TempMatrixOffset = 0;
-  PTR MatrixOffsetA = 0;
-  PTR MatrixOffsetB = 0;
-
-  /* Distance between the end of a matrix row and the start of the next row */
-  PTR RowIncrementA = ( RowWidthA - QuadrantSize ) << 3;
-  PTR RowIncrementB = ( RowWidthB - QuadrantSize ) << 3;
-  PTR RowIncrementC = ( RowWidthC - QuadrantSize ) << 3;
-
   char *Heap;
   void *StartHeap;
 
@@ -507,13 +497,9 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
   }
 
   /* Initialize quandrant matrices */
-#define A11 A
-#define B11 B
-#define C11 C
-
-  A12 = A11 + QuadrantSize;
-  B12 = B11 + QuadrantSize;
-  C12 = C11 + QuadrantSize;
+  A12 = A + QuadrantSize;
+  B12 = B + QuadrantSize;
+  C12 = C + QuadrantSize;
   A21 = A + (RowWidthA * QuadrantSize);
   B21 = B + (RowWidthB * QuadrantSize);
   C21 = C + (RowWidthC * QuadrantSize);
@@ -522,8 +508,8 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
   C22 = C21 + QuadrantSize;
 
   /* Allocate Heap Space Here */
-  char *_tmp = (char *) malloc(QuadrantSizeInBytes * NumberOfVariables);
-  StartHeap = Heap = _tmp;
+  StartHeap = malloc(QuadrantSizeInBytes * NumberOfVariables + 32);
+  Heap = (char*)StartHeap;
   /* ensure that heap is on cache boundary */
   if ( ((PTR) Heap) & 31 )
     Heap = (char*) ( ((PTR) Heap) + 32 - ( ((PTR) Heap) & 31) );
@@ -541,107 +527,50 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
   M5 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
   T1sMULT = (REAL*) Heap; Heap += QuadrantSizeInBytes;
 
-  /***************************************************************************
-   ** Step through all columns row by row (vertically)
-   ** (jumps in memory by RowWidth => bad locality)
-   ** (but we want the best locality on the innermost loop)
-   **************************************************************************/
-  //for (Row = 0; Row < QuadrantSize; Row++) {
-
-    /*********************************************************************
-     ** Step through each row horizontally (addressing elements in 
-     ** each column) (jumps linearly througn memory => good locality)
-     *********************************************************************/
-    //for (Column = 0; Column < QuadrantSize; Column++) {
-
-      /***********************************************************
-       ** Within this loop, the following holds for MatrixOffset:
-       ** MatrixOffset = (Row * RowWidth) + Column
-       ** (note: that the unit of the offset is number of reals)
-       ***********************************************************/
-      /* Element of Global Matrix, such as A, B, C */
-//#define E(Matrix)   (* (REAL*) ( ((PTR) Matrix) + TempMatrixOffset ) )
-//#define EA(Matrix)  (* (REAL*) ( ((PTR) Matrix) + MatrixOffsetA ) )
-//#define EB(Matrix)  (* (REAL*) ( ((PTR) Matrix) + MatrixOffsetB ) )
-
-      /* FIXME - may pay to expand these out - got higher speed-ups below */
-      /* S4 = A12 - ( S2 = ( S1 = A21 + A22 ) - A11 ) */
-//      E(S4) = EA(A12) - ( E(S2) = ( E(S1) = EA(A21) + EA(A22) ) - EA(A11) );
-
-      /* S8 = (S6 = B22 - ( S5 = B12 - B11 ) ) - B21 */
-//      E(S8) = ( E(S6) = EB(B22) - ( E(S5) = EB(B12) - EB(B11) ) ) - EB(B21);
-
-      /* S3 = A11 - A21 */
-//      E(S3) = EA(A11) - EA(A21);
-
-      /* S7 = B22 - B12 */
-//      E(S7) = EB(B22) - EB(B12);
-
-//      TempMatrixOffset += sizeof(REAL);
-//      MatrixOffsetA += sizeof(REAL);
-//      MatrixOffsetB += sizeof(REAL);
-//    } /* end row loop*/
-
-//    MatrixOffsetA += RowIncrementA;
-//    MatrixOffsetB += RowIncrementB;
-//  } /* end column loop */
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
 
-//#pragma omp taskwait
   cilk_sync;
 
-//#pragma omp task private(Row, Column)
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S2[Row * QuadrantSize + Column] = S1[Row * QuadrantSize + Column] - A[RowWidthA * Row + Column];
 
-//#pragma omp taskwait
   cilk_sync;
 
-//#pragma omp task private(Row, Column)
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S4[Row * QuadrantSize + Column] = A12[Row * RowWidthA + Column] - S2[QuadrantSize * Row + Column];
 
-//#pragma omp task private(Row, Column)
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
 
-//#pragma omp taskwait
   cilk_sync;
 
-//#pragma omp task private(Row, Column)
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S6[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - S5[Row * QuadrantSize + Column];
 
-//#pragma omp taskwait
   cilk_sync;
 
-//#pragma omp task private(Row, Column)
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S8[Row * QuadrantSize + Column] = S6[Row * QuadrantSize + Column] - B21[Row * RowWidthB + Column];
 
-//#pragma omp task private(Row, Column)
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
 
-//#pragma omp task private(Row, Column)
   cilk_for (int Row = 0; Row < QuadrantSize; Row++)
     for (int Column = 0; Column < QuadrantSize; Column++)
       S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
 
-//#pragma omp taskwait
   cilk_sync;
 
-
   /* M2 = A11 x B11 */
-  cilk_spawn OptimizedStrassenMultiply(M2, A11, B11, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(M2, A, B, QuadrantSize,
       QuadrantSize, RowWidthA, RowWidthB);
 
   /* M5 = S1 * S5 */
@@ -660,7 +589,7 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
       QuadrantSize);
 
   /* Step 1 of C11 = M2 + A12 * B21 */
-  cilk_spawn OptimizedStrassenMultiply(C11, A12, B21, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(C, A12, B21, QuadrantSize,
       RowWidthC, RowWidthA, RowWidthB);
 
   /* Step 1 of C12 = S4 x B22 + T1 + M5 */
@@ -676,66 +605,35 @@ void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
    **********************************************/
   cilk_sync;
 
-  /*************************************************************************
-   ** Step through all columns row by row (vertically)
-   ** (jumps in memory by RowWidth => bad locality)
-   ** (but we want the best locality on the innermost loop)
-   *************************************************************************/
-  for (Row = 0; Row < QuadrantSize; Row++) {
-
-    /*********************************************************************
-     ** Step through each row horizontally (addressing elements in 
-     ** each column) (jumps linearly througn memory => good locality)
-     *********************************************************************/
-    for (Column = 0; Column < QuadrantSize; Column += 4) {
-      REAL LocalM5_0 = *(M5);
-      REAL LocalM5_1 = *(M5+1);
-      REAL LocalM5_2 = *(M5+2);
-      REAL LocalM5_3 = *(M5+3);
-      REAL LocalM2_0 = *(M2);
-      REAL LocalM2_1 = *(M2+1);
-      REAL LocalM2_2 = *(M2+2);
-      REAL LocalM2_3 = *(M2+3);
-      REAL T1_0 = *(T1sMULT) + LocalM2_0;
-      REAL T1_1 = *(T1sMULT+1) + LocalM2_1;
-      REAL T1_2 = *(T1sMULT+2) + LocalM2_2;
-      REAL T1_3 = *(T1sMULT+3) + LocalM2_3;
-      REAL T2_0 = *(C22) + T1_0;
-      REAL T2_1 = *(C22+1) + T1_1;
-      REAL T2_2 = *(C22+2) + T1_2;
-      REAL T2_3 = *(C22+3) + T1_3;
-      (*(C11))   += LocalM2_0;
-      (*(C11+1)) += LocalM2_1;
-      (*(C11+2)) += LocalM2_2;
-      (*(C11+3)) += LocalM2_3;
-      (*(C12))   += LocalM5_0 + T1_0;
-      (*(C12+1)) += LocalM5_1 + T1_1;
-      (*(C12+2)) += LocalM5_2 + T1_2;
-      (*(C12+3)) += LocalM5_3 + T1_3;
-      (*(C22))   = LocalM5_0 + T2_0;
-      (*(C22+1)) = LocalM5_1 + T2_1;
-      (*(C22+2)) = LocalM5_2 + T2_2;
-      (*(C22+3)) = LocalM5_3 + T2_3;
-      (*(C21  )) = (- *(C21  )) + T2_0;
-      (*(C21+1)) = (- *(C21+1)) + T2_1;
-      (*(C21+2)) = (- *(C21+2)) + T2_2;
-      (*(C21+3)) = (- *(C21+3)) + T2_3;
-      M5 += 4;
-      M2 += 4;
-      T1sMULT += 4;
-      C11 += 4;
-      C12 += 4;
-      C21 += 4;
-      C22 += 4;
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
     }
-
-    C11 = (REAL*) ( ((PTR) C11 ) + RowIncrementC);
-    C12 = (REAL*) ( ((PTR) C12 ) + RowIncrementC);
-    C21 = (REAL*) ( ((PTR) C21 ) + RowIncrementC);
-    C22 = (REAL*) ( ((PTR) C22 ) + RowIncrementC);
   }
-  free(StartHeap);
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+
   cilk_sync;
+
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+        C22[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+
+  cilk_sync;
+
+  free(StartHeap);
   return;
 }
 

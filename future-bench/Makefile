@@ -67,7 +67,7 @@ strass: strassen.cpp
 	make run-strass
 
 run-strass:
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen -n 8192
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen -n 1024
     
 strass-fut: strassen-future.cpp
 	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o

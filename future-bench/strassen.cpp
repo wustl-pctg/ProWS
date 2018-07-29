@@ -462,6 +462,86 @@ void MultiplyByDivideAndConquer(REAL *C, const REAL *A, const REAL *B,
  **
  *****************************************************************************/
 
+void S1Loop(REAL *const S1, const int QuadrantSize, const int RowWidthA, const REAL *const A21, const REAL *const A22) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
+    }
+  }
+}
+
+void S2Loop(REAL *const S2, const int QuadrantSize, const int RowWidthA, const REAL *const S1, const REAL *const A) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S2[Row * QuadrantSize + Column] = S1[Row * QuadrantSize + Column] - A[RowWidthA * Row + Column];
+    }
+  }
+}
+
+void S3Loop(REAL *const S3, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
+    }
+  }
+}
+
+void S4Loop(REAL *const S4, const int QuadrantSize, const int RowWidthA, const REAL *const A12, const REAL *const S2) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S4[Row * QuadrantSize + Column] = A12[Row * RowWidthA + Column] - S2[QuadrantSize * Row + Column];
+    }
+  }
+}
+
+void S5Loop(REAL *const S5, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
+    }
+  }
+}
+
+void S6Loop(REAL *const S6, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const S5) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S6[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - S5[Row * QuadrantSize + Column];
+    }
+  }
+}
+
+void S7Loop(REAL *const S7, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
+    }
+  }
+}
+
+void S8Loop(REAL *const S8, const int QuadrantSize, const int RowWidthB, const REAL *const S6, const REAL *const B21) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      S8[Row * QuadrantSize + Column] = S6[Row * QuadrantSize + Column] - B21[Row * RowWidthB + Column];
+    }
+  }
+}
+
+void CLoop(REAL *const C, const int QuadrantSize, const int RowWidthC, const REAL *const M2) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
+    }
+  }
+}
+
+void C12Loop(REAL *const C12, const int QuadrantSize, const int RowWidthC, const REAL *const M5, const REAL *const T1sMULT, const REAL *const M2) {
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+}
+
 #define strassen(n,A,an,B,bn,C,cn) OptimizedStrassenMultiply(C,A,B,n,cn,bn,an)
 void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
     unsigned MatrixSize, unsigned RowWidthC,
@@ -529,45 +609,27 @@ void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
   M5 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
   T1sMULT = (REAL*) Heap; Heap += QuadrantSizeInBytes;
 
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
+
+  S1Loop(S1, QuadrantSize, RowWidthA, A21, A22);
+  //cilk_sync;
+
+  S2Loop(S2, QuadrantSize, RowWidthA, S1, A);
+
+  //cilk_sync;
+
+  cilk_spawn S4Loop(S4, QuadrantSize, RowWidthA, A12, S2);
+
+  S5Loop(S5, QuadrantSize, RowWidthB, B12, B);
 
   cilk_sync;
 
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S2[Row * QuadrantSize + Column] = S1[Row * QuadrantSize + Column] - A[RowWidthA * Row + Column];
+  S6Loop(S6, QuadrantSize, RowWidthB, B22, S5);
 
-  cilk_sync;
+  cilk_spawn S8Loop(S8, QuadrantSize, RowWidthB, S6, B21);
 
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S4[Row * QuadrantSize + Column] = A12[Row * RowWidthA + Column] - S2[QuadrantSize * Row + Column];
+  cilk_spawn S3Loop(S3, QuadrantSize, RowWidthA, A, A21);
 
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
-
-  cilk_sync;
-
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S6[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - S5[Row * QuadrantSize + Column];
-
-  cilk_sync;
-
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S8[Row * QuadrantSize + Column] = S6[Row * QuadrantSize + Column] - B21[Row * RowWidthB + Column];
-
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
-
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++)
-    for (int Column = 0; Column < QuadrantSize; Column++)
-      S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
+  S7Loop(S7, QuadrantSize, RowWidthB, B22, B12);
 
   cilk_sync;
 
@@ -607,21 +669,13 @@ void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
    **********************************************/
   cilk_sync;
 
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-        C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
-    }
-  }
+  cilk_spawn CLoop(C, QuadrantSize, RowWidthC, M2);
+
+  cilk_spawn C12Loop(C12, QuadrantSize, RowWidthC, M5, T1sMULT, M2);
 
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
-        C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
-    }
-  }
-
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-        C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+      C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
   }
 
@@ -632,8 +686,6 @@ void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
         C22[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
   }
-
-  cilk_sync;
 
   free(StartHeap);
   return;

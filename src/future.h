@@ -93,7 +93,6 @@ public:
     m_result = result;
     __asm__ volatile ("" ::: "memory");
 
-    assert(m_num_suspended_deques >= 0);
     int num_deques = __atomic_fetch_add(&m_num_suspended_deques, INT32_MIN, __ATOMIC_SEQ_CST);
 
     void *ret = NULL;
@@ -173,11 +172,12 @@ public:
 
   void* __attribute__((always_inline)) put(void) {
     int num_deques = __atomic_fetch_add(&m_num_suspended_deques, INT32_MIN, __ATOMIC_SEQ_CST);
+    __asm__ volatile ("" ::: "memory");
 
     void *ret = NULL;
 
     if (num_deques) {
-        volatile touch_node_t *volatile node = &head;
+        touch_node_t *node = &head;
         while (!node->next);
         node = node->next;
         num_deques--;

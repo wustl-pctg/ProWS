@@ -463,17 +463,19 @@ void MultiplyByDivideAndConquer(REAL *C, const REAL *A, const REAL *B,
  **
  *****************************************************************************/
 
-void S1Loop(REAL *const S1, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A21, const REAL *const A22) {
+void S1Loop(REAL *const S1, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A21, const REAL *const A22, cilk::future<void> *const AReady) {
+  if (AReady) AReady->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
-void S2Loop(REAL *const S2, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const S1, cilk::future<void> *const S1Completed, const REAL *const A) {
+void S2Loop(REAL *const S2, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const S1, cilk::future<void> *const S1Completed, const REAL *const A, cilk::future<void> *const AReady) {
+  if (AReady) AReady->get();
   S1Completed->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
@@ -481,20 +483,22 @@ void S2Loop(REAL *const S2, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
-void S3Loop(REAL *const S3, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21) {
+void S3Loop(REAL *const S3, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21, cilk::future<void> *const AReady) {
+  if (AReady) AReady->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
-void S4Loop(REAL *const S4, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A12, const REAL *const S2, cilk::future<void> *const S2Completed) {
+void S4Loop(REAL *const S4, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A12, cilk::future<void> *const AReady, const REAL *const S2, cilk::future<void> *const S2Completed) {
+  if (AReady) AReady->get();
   S2Completed->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
@@ -502,20 +506,22 @@ void S4Loop(REAL *const S4, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
-void S5Loop(REAL *const S5, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B) {
+void S5Loop(REAL *const S5, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B, cilk::future<void> *const BReady) {
+  if (BReady) BReady->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
-void S6Loop(REAL *const S6, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const S5, cilk::future<void> *const S5Completed) {
+void S6Loop(REAL *const S6, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, cilk::future<void> *const BReady, const REAL *const S5, cilk::future<void> *const S5Completed) {
+  if (BReady) BReady->get();
   S5Completed->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
@@ -523,20 +529,22 @@ void S6Loop(REAL *const S6, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
-void S7Loop(REAL *const S7, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12) {
+void S7Loop(REAL *const S7, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12, cilk::future<void> *const BReady) {
+  if (BReady) BReady->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
-void S8Loop(REAL *const S8, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const S6, cilk::future<void> *const S6Completed, const REAL *const B21) {
+void S8Loop(REAL *const S8, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const S6, cilk::future<void> *const S6Completed, const REAL *const B21, cilk::future<void> *const BReady) {
+  if (BReady) BReady->get();
   S6Completed->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
@@ -544,12 +552,12 @@ void S8Loop(REAL *const S8, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void CLoop(REAL *const C, cilk::future<void> *const C11Completed, const int QuadrantSize, const int RowWidthC, const REAL *const M2, cilk::future<void> *const M2Completed) {
-  //M2Completed->get();
-  //C11Completed->get();
+  M2Completed->get();
+  C11Completed->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
@@ -558,7 +566,7 @@ void CLoop(REAL *const C, cilk::future<void> *const C11Completed, const int Quad
 }
 
 void C12Loop(REAL *const C12, cilk::future<void> *const C12Completed, const int QuadrantSize, const int RowWidthC, const REAL *const M5, cilk::future<void> *const M5Completed, const REAL *const T1sMULT, cilk::future<void> *const T1sMULTCompleted, const REAL *const M2, cilk::future<void> *const M2Completed) {
-  //M2Completed->get(); T1sMULTCompleted->get(); M5Completed->get(); //C12Completed->get();
+  M2Completed->get(); T1sMULTCompleted->get(); M5Completed->get(); C12Completed->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
@@ -566,8 +574,19 @@ void C12Loop(REAL *const C12, cilk::future<void> *const C12Completed, const int 
   }
 }
 
-#define strassen(n,A,an,B,bn,C,cn) OptimizedStrassenMultiply(C,NULL, A,B,n,cn,bn,an)
-void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, const REAL *A, const REAL *B,
+void C21Loop(REAL *const C21, cilk::future<void> *const C21Completed_1, cilk::future<void> *const C21Completed, const int QuadrantSize, const int RowWidthC, const REAL *const C22, cilk::future<void> *const C22Completed, const REAL *const T1sMULT, cilk::future<void> *const T1sMULTCompleted, const REAL *const M2, cilk::future<void> *const M2Completed) {
+  C21Completed->get(); C22Completed->get(); T1sMULTCompleted->get(); M2Completed->get();
+  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+    for (int Column = 0; Column < QuadrantSize; Column++) {
+      C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+    }
+  }
+  void *__cilkrts_deque = C21Completed_1->put();
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
+}
+
+#define strassen(n,A,an,B,bn,C,cn) OptimizedStrassenMultiply(C,NULL, A,NULL,B,NULL,n,cn,bn,an)
+void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, const REAL *A, cilk::future<void> *const AReady, const REAL *B, cilk::future<void> *const BReady,
     unsigned MatrixSize, unsigned RowWidthC,
     unsigned RowWidthA, unsigned RowWidthB) {
 
@@ -596,8 +615,16 @@ void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, con
   void *StartHeap;
 
   if (MatrixSize <= SizeAtWhichDivideAndConquerIsMoreEfficient) {
+    if (AReady) AReady->get();
+    if (BReady) BReady->get();
+
     MultiplyByDivideAndConquer(C, A, B,
         MatrixSize, RowWidthC, RowWidthA, RowWidthB, 0);
+
+    if (completed) {
+      void *__cilkrts_deque = completed->put();
+      if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
+    }
 
     return;
   }
@@ -633,27 +660,10 @@ void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, con
   M5 = (REAL*) Heap; Heap += QuadrantSizeInBytes;
   T1sMULT = (REAL*) Heap; Heap += QuadrantSizeInBytes;
 
-  cilk::future<void> *SCompletions = new cilk::future<void>[8];
+  cilk::future<void> *completions = new cilk::future<void>[16];
+  #define SCompletions  (completions)
 
-  cilk_spawn S1Loop(S1, SCompletions, QuadrantSize, RowWidthA, A21, A22);
-
-  cilk_spawn S2Loop(S2, SCompletions+1, QuadrantSize, RowWidthA, S1, SCompletions, A);
-
-  cilk_spawn S4Loop(S4, SCompletions+3, QuadrantSize, RowWidthA, A12, S2, SCompletions+1);
-
-  cilk_spawn S5Loop(S5, SCompletions+4, QuadrantSize, RowWidthB, B12, B);
-
-  cilk_spawn S6Loop(S6, SCompletions+5, QuadrantSize, RowWidthB, B22, S5, SCompletions+4);
-
-  cilk_spawn S8Loop(S8, SCompletions+7, QuadrantSize, RowWidthB, S6, SCompletions+5, B21);
-
-  cilk_spawn S3Loop(S3, SCompletions+2, QuadrantSize, RowWidthA, A, A21);
-
-  S7Loop(S7, SCompletions+6, QuadrantSize, RowWidthB, B22, B12);
-
-  cilk_sync;
-
-  cilk::future<void> *PhaseTwoCompletions = new cilk::future<void>[7];
+  #define PhaseTwoCompletions (completions+8)
   #define M2Completed      (PhaseTwoCompletions)
   #define M5Completed      (PhaseTwoCompletions+1)
   #define T1sMULTCompleted (PhaseTwoCompletions+2)
@@ -661,76 +671,88 @@ void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, con
   #define C22Completed     (PhaseTwoCompletions+4)
   #define C11Completed     (PhaseTwoCompletions+5)
   #define C12Completed     (PhaseTwoCompletions+6)
+  #define C21Completed_1   (PhaseTwoCompletions+7)
+
+  cilk_spawn S1Loop(S1, SCompletions, QuadrantSize, RowWidthA, A21, A22, AReady);
+
+  cilk_spawn S2Loop(S2, SCompletions+1, QuadrantSize, RowWidthA, S1, SCompletions, A, AReady);
+
+  cilk_spawn S4Loop(S4, SCompletions+3, QuadrantSize, RowWidthA, A12, AReady, S2, SCompletions+1);
+
+  cilk_spawn S5Loop(S5, SCompletions+4, QuadrantSize, RowWidthB, B12, B, BReady);
+
+  cilk_spawn S6Loop(S6, SCompletions+5, QuadrantSize, RowWidthB, B22, BReady, S5, SCompletions+4);
+
+  cilk_spawn S8Loop(S8, SCompletions+7, QuadrantSize, RowWidthB, S6, SCompletions+5, B21, BReady);
+
+  cilk_spawn S3Loop(S3, SCompletions+2, QuadrantSize, RowWidthA, A, A21, AReady);
+
+  cilk_spawn S7Loop(S7, SCompletions+6, QuadrantSize, RowWidthB, B22, B12, BReady);
+
+  //cilk_sync;
+
 
   /* M2 = A11 x B11 */
-  cilk_spawn OptimizedStrassenMultiply(M2, M2Completed, A, B, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(M2, M2Completed, A, AReady, B, BReady, QuadrantSize,
       QuadrantSize, RowWidthA, RowWidthB);
 
   /* M5 = S1 * S5 */
-  cilk_spawn OptimizedStrassenMultiply(M5, M5Completed, S1, S5, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(M5, M5Completed, S1, SCompletions, S5, SCompletions+4, QuadrantSize,
       QuadrantSize, QuadrantSize, 
       QuadrantSize);
 
   /* Step 1 of T1 = S2 x S6 + M2 */
-  cilk_spawn OptimizedStrassenMultiply(T1sMULT, T1sMULTCompleted, S2, S6,  QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(T1sMULT, T1sMULTCompleted, S2, SCompletions+1, S6, SCompletions+5, QuadrantSize,
       QuadrantSize, QuadrantSize, 
       QuadrantSize);
 
   /* Step 1 of T2 = T1 + S3 x S7 */
-  cilk_spawn OptimizedStrassenMultiply(C22, C22Completed, S3, S7, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(C22, C22Completed, S3, SCompletions+2, S7, SCompletions+6, QuadrantSize,
       RowWidthC /*FIXME*/, QuadrantSize, 
       QuadrantSize);
 
   /* Step 1 of C11 = M2 + A12 * B21 */
-  cilk_spawn OptimizedStrassenMultiply(C, C11Completed, A12, B21, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(C, C11Completed, A12, AReady, B21, BReady, QuadrantSize,
       RowWidthC, RowWidthA, RowWidthB);
 
   /* Step 1 of C12 = S4 x B22 + T1 + M5 */
-  cilk_spawn OptimizedStrassenMultiply(C12, C12Completed, S4, B22, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(C12, C12Completed, S4, SCompletions+3, B22, BReady, QuadrantSize,
       RowWidthC, QuadrantSize, RowWidthB);
 
   /* Step 1 of C21 = T2 - A22 * S8 */
-  cilk_spawn OptimizedStrassenMultiply(C21, C21Completed, A22, S8, QuadrantSize,
+  cilk_spawn OptimizedStrassenMultiply(C21, C21Completed, A22, AReady, S8, SCompletions+7, QuadrantSize,
       RowWidthC, RowWidthA, QuadrantSize);
 
   /**********************************************
    ** Synchronization Point
    **********************************************/
-  cilk_sync;
+  //cilk_sync;
 
 
   cilk_spawn CLoop(C, C11Completed, QuadrantSize, RowWidthC, M2, M2Completed);
 
-  C12Loop(C12, C12Completed, QuadrantSize, RowWidthC, M5, M5Completed, T1sMULT, T1sMULTCompleted, M2, M2Completed);
+  cilk_spawn C12Loop(C12, C12Completed, QuadrantSize, RowWidthC, M5, M5Completed, T1sMULT, T1sMULTCompleted, M2, M2Completed);
 
-  cilk_sync;
+  cilk_spawn C21Loop(C21, C21Completed_1, C21Completed, QuadrantSize, RowWidthC, C22, C22Completed, T1sMULT, T1sMULTCompleted, M2, M2Completed);
 
-  //T1sMULTCompleted->get();
-  //M2Completed->get();
-  //C21Completed->get();
-  //C22Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
-    }
-  }
-
-  cilk_sync;
-
+  C22Completed->get(); C21Completed_1->get(); M5Completed->get(); T1sMULTCompleted->get(); M2Completed->get();
   cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
         C22[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
   }
 
+  cilk_sync;
+
   if (completed) {
     void *__cilkrts_deque = completed->put();
-    if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
   }
 
   free(StartHeap);
-  delete [] SCompletions;
-  delete [] PhaseTwoCompletions;
+  delete completions;
+  //delete [] SCompletions;
+  //delete [] PhaseTwoCompletions;
   return;
 }
 

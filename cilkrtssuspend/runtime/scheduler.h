@@ -444,6 +444,15 @@ void make_unrunnable(__cilkrts_worker *w, full_frame *ff,
 void make_runnable(__cilkrts_worker *w, full_frame *ff, deque* d);
 void unlink_child(full_frame *parent_ff, full_frame *child_ff);
 
+// Return values for provably_good_steal()
+enum provably_good_steal_t {
+    ABANDON_EXECUTION,  // Not the last child to the sync - attempt to steal work
+    CONTINUE_EXECUTION, // Last child to the sync - continue executing on this worker
+    WAIT_FOR_CONTINUE   // The replay log indicates that this was the worker
+                        // which continued.  Loop until we are the last worker
+                        // to the sync.
+};
+enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_frame *ff);
 
 __CILKRTS_END_EXTERN_C
 

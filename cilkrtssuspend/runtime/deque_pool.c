@@ -199,8 +199,9 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   data->owner = w;
   deque_to_resume->call_stack->worker = w;
 
+  // NOTE: Need to handle provably good steal possibility as well (in case of cilk_spawn'ed future)
   // If you use futures per the theoretical analysis, this should be the case
-  /*if (__builtin_expect(enable_resume == 2 && !w->current_stack_frame->call_parent, 1)) {
+  /*if (__builtin_expect(enable_resume == 2 && !w->current_stack_frame->call_parent, 1) && !((*w->l->frame_ff)->parent && provably_good_steal(w, (*w->l->frame_ff)->parent) == ABANDON_EXECUTION)) {
 
     cilk_fiber *current_fiber = cilk_fiber_get_current_fiber();
 
@@ -230,7 +231,7 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
         CILK_ASSERT(!cilk_fiber_is_resumable(current_fiber));
         cilk_fiber_remove_reference_from_self_and_resume_other(current_fiber, &(w->l->fiber_pool), fiber_to_resume);  
     }
-  } else {*/
+  } else { */
     w->l->active_deque->resumable = (enable_resume) ? 1 : 0;
     cilk_fiber *current_fiber = deque_suspend(w, deque_to_resume);
 

@@ -20,14 +20,6 @@
 #define END_WITH_FRAME_LOCK(w, ff)                                \
     while (__cilkrts_frame_unlock(w, _locked_ff), 0); } while (0)
 
-enum provably_good_steal_t {
-    ABANDON_EXECUTION,  // Not the last child to the sync - attempt to steal work
-    CONTINUE_EXECUTION, // Last child to the sync - continue executing on this worker
-    WAIT_FOR_CONTINUE   // The replay log indicates that this was the worker
-                        // which continued.  Loop until we are the last worker
-                        // to the sync.
-};
-
 static int __cilkrts_undo_detach(__cilkrts_stack_frame *sf) {
 	//    __cilkrts_worker *w = sf->worker;
 	__cilkrts_worker *w = __cilkrts_get_tls_worker();

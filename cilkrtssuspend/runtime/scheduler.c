@@ -125,14 +125,14 @@ enum schedule_t { SCHEDULE_RUN,
                   SCHEDULE_WAIT,
                   SCHEDULE_EXIT };
 
-// Return values for provably_good_steal()
-enum provably_good_steal_t {
-    ABANDON_EXECUTION,  // Not the last child to the sync - attempt to steal work
-    CONTINUE_EXECUTION, // Last child to the sync - continue executing on this worker
-    WAIT_FOR_CONTINUE   // The replay log indicates that this was the worker
-                        // which continued.  Loop until we are the last worker
-                        // to the sync.
-};
+//// Return values for provably_good_steal()
+//enum provably_good_steal_t {
+//    ABANDON_EXECUTION,  // Not the last child to the sync - attempt to steal work
+//    CONTINUE_EXECUTION, // Last child to the sync - continue executing on this worker
+//    WAIT_FOR_CONTINUE   // The replay log indicates that this was the worker
+//                        // which continued.  Loop until we are the last worker
+//                        // to the sync.
+//};
 
 
 // Verify that "w" is the worker we are currently executing on.
@@ -1051,7 +1051,7 @@ static void __cilkrts_mark_synched(full_frame *ff)
     ff->simulated_stolen = 0;
 }
 
-static enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_frame *ff) {
+/*static*/ enum provably_good_steal_t provably_good_steal(__cilkrts_worker *w, full_frame *ff) {
     // ASSERT: we hold w->lock and ff->lock
 
     enum provably_good_steal_t result = ABANDON_EXECUTION;

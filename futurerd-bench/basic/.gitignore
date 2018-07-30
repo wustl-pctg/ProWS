@@ -1,0 +1,4 @@
+*.o
+lcs
+sw
+matmul_z

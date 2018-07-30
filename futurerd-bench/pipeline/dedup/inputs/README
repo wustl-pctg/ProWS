@@ -1,0 +1,4 @@
+Please download the dataset from Parsec benchmark suite website, and copy the
+tar files here (should be named input_sim*.tar and input_native.tar).  
+
+Then invoke the unpack script to unpack data into ../data/ dir.

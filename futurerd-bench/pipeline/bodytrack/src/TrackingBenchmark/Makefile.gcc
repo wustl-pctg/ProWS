@@ -1,0 +1,86 @@
+# target tbb not supported for now
+.PHONEY: all clean serial pthread omp
+ 
+# All the *_SOURCES variables are unused; for reference only
+SOURCES = DMatrix.h GeneralUtil.h ParticleFilter.h \
+	SmallVectors.h Vector3.h system.h AnnealingFactor.h \
+	AnnealingFactor.cpp BodyGeometry.h BodyGeometry.cpp BodyPose.h \
+	BodyPose.cpp CameraModel.h CameraModel.cpp CovarianceMatrix.h \
+	CovarianceMatrix.cpp ImageMeasurements.h ImageMeasurements.cpp \
+	ImageProjection.h ImageProjection.cpp RandomGenerator.h \
+	RandomGenerator.cpp TrackingModel.h TrackingModel.cpp main.cpp \
+OMP_SOURCE = ParticleFilterOMP.h  TrackingModelOMP.h TrackingModelOMP.cpp
+PTHREAD_SOURCE = ParticleFilterPthread.h TrackingModelPthread.h \
+	TrackingModelPthread.cpp WorkPoolPthread.h AsyncIO.h AsyncIO.cpp
+TBB_SOURCE = TBBtypes.h ParticleFilterTBB.h TrackingModelTBB.h TrackingModelTBB.cpp
+
+OBJDIR = gcc-obj
+
+# object files for each configuration
+OBJECTS = $(OBJDIR)/AnnealingFactor.o $(OBJDIR)/BodyGeometry.o $(OBJDIR)/BodyPose.o \
+	$(OBJDIR)/CameraModel.o $(OBJDIR)/CovarianceMatrix.o $(OBJDIR)/ImageMeasurements.o \
+	$(OBJDIR)/ImageProjection.o $(OBJDIR)/RandomGenerator.o $(OBJDIR)/TrackingModel.o
+
+OMP_OBJECTS = $(OBJDIR)/main-omp.o $(OBJDIR)/TrackingModelOMP.o
+PTHREAD_OBJECTS = $(OBJDIR)/main-pthread.o $(OBJDIR)/TrackingModelPthread.o \
+$(OBJDIR)/AsyncIO.o
+# TBB_OBJECTS = $(OBJDIR)/main-tbb.o $(OBJDIR)/TrackingModelTBB.o
+
+DEPENDENCIES = ../FlexImageLib/$(OBJDIR)/libflex.a
+PTHREAD_DEPENDENCIES = threads/libthreads.a
+# TBB_DEPENDENCIES = -ltbb
+
+CXXFLAGS = -O3 -g -funroll-loops -fprefetch-loop-arrays -fpermissive -fexceptions -Wall -Wno-unknown-pragmas # -static-libgcc -Wl,--hash-style=both,--as-needed -fno-exceptions 
+LDFLAGS = ../FlexImageLib/$(OBJDIR)/libflex.a
+
+INCLUDES = -I../FlexImageLib
+LIBS = -lm
+
+all: serial pthread omp
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+serial: $(OBJDIR) bodytrack-serial-gcc
+pthread: LIBS += -lpthread
+pthread: $(OBJDIR) bodytrack-pthread
+# Unfortunately the Clang 3.4 that we have doesn't support omp
+omp: CXXFLAGS += -fopenmp
+omp: LDFLAGS += -fopenmp
+omp: $(OBJDIR) bodytrack-omp
+# tbb: INCLUDES += -I$(TBB_INSTALL)/include
+# tbb: LDFLAGS += -L$(TBB_INSTALL)/lib
+# tbb: LIBS += -ltbb -ltbbmalloc_proxy  -ltbbmalloc -ldl -lrt -lpthread 
+# tbb: $(OBJDIR) bodytrack-tbb
+	
+# Only the main file is compiled differently 
+$(OBJDIR)/main-serial.o: main.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<
+
+$(OBJDIR)/main-pthread.o: main.cpp
+	$(CXX) $(CXXFLAGS) -DUSE_THREADS=1 $(INCLUDES) -c -o $@ $<
+
+$(OBJDIR)/main-omp.o: main.cpp
+	$(CXX) $(CXXFLAGS) -DUSE_OPENMP=1 $(INCLUDES) -c -o $@ $<
+
+$(OBJDIR)/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<
+
+bodytrack-serial-gcc: $(OBJDIR)/main-serial.o $(OBJECTS) $(DEPENDENCIES)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+$(PTHREAD_DEPENDENCIES):
+	$(MAKE) -C threads
+
+bodytrack-pthread: $(OBJECTS) $(PTHREAD_OBJECTS) $(DEPENDENCIES) $(PTHREAD_DEPENDENCIES)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+bodytrack-omp: $(OBJECTS) $(OMP_OBJECTS) $(DEPENDENCIES)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+# bodytrack-tbb: $(OBJECTS) $(TBB_OBJECTS) $(DEPENDENCIES) $(TBB_DEPENDENCIES)
+# 	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS)
+
+
+clean:
+	rm -f $(OBJDIR)/*.o bodytrack-*

@@ -1,0 +1,54 @@
+reasync_helper interface:
+The template takes in the ReturnType of the function to spawn off, following
+its argument types.  The actual call itself takes in the future pointer
+to use for spawning off this tasks, followed by the function name to spawn
+off, followed by its arguments.
+
+
+The TBB pipeline consists of two stages, where each is a serial in order stage:
+TrackingModel
+ParticalFilter
+
+Each mCurFrame is an iteration of a pipeline
+
+The operator in TrackingModel first process 
+    images from each camera in parallel 
+    This is the same as TrackingModelOMP::GetObservation, wich is invoked as
+        the the first step of the  ParticalFilter::Update
+
+The TrackingModel has "SetNumThreads" --- for openMP that's used as the size
+to reset for thread local storage.  We should follow the TBB approach where
+the SetNumThread uses the number of particle
+
+For TBB, the pipeline synchornization is more nuanced.
+After first iteration, a new ImageSetToken that consists of 
+ 
+vector<FlexImage8u > ImageSet;			
+vector<BinaryImage> BinaryImageSet;
+
+is created as a token (I assume to pass down to second stage).
+
+These new vectors of images are used to call DoProcessImage, which 
+does similar operations as GetObservation, except that it calls
+ConvertToBinary and ComputeEdgeMapsTBB using these new image vectors. 
+(The ComputeEdgeMapsTBB is a lot like ComputeEdgeMaps, except
+with parallel loops.)
+
+The token then gets passed down to the next stage, ParticleFilterTBB
+operator, which uses these images to call on SetObservation, which modifies
+the TrackingModel's mEdgeMaps and mFGMaps to what's in the token.
+
+But why isn't setting it constitute a race??
+It seems that, we really just want a new set of FlexImage8u and BinaryImage to
+work with at every iterations.  The sequential code reuses the images, but we
+cannot do that for parallel execution.  At the end of the day, it seems that
+as long as the 2nd stage gets the image processed by the 1st stage, we are
+good.  The TBB always resets the image vectors in the TrackingModel
+(i.e, mEdgeMaps and mFGMaps) in the 2nd stage after recieving it from 
+1st stage, probably because then we could reuse all the sequential
+code and does not have to rewrite the code to restructure.
+
+This obscure the data flow, however.
+
+
+

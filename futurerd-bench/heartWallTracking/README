@@ -1,0 +1,4 @@
+openmp version comes from rodinia_3.1 download
+cilk plus version uses C++ instead of C because of the cilk::future
+implementation.
+

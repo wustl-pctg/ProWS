@@ -1,0 +1,7 @@
+./clang-obj
+*.o
+dedup-serial
+bt-base
+bt-inst
+bt-reach
+bt-rd

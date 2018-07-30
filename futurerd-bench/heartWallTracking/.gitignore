@@ -1,0 +1,6 @@
+/bak
+/openmp/*.o
+/openmp/result.txt
+/openmp/correct-result.txt
+/openmp/heartwall
+/openmp/AVI/*.o

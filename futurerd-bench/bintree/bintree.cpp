@@ -8,6 +8,9 @@
 #define spawn cilk_spawn
 #define sync cilk_sync
 
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES
+
 using key_t = bintree::key_t;
 using node = bintree::node;
 using fut_t = bintree::fut_t;
@@ -40,7 +43,7 @@ using futpair_t = bintree::futpair_t;
 // We don't actually support put/get style, but this makes things clearer.
 static node* immediate(node *n) { return n; }
 //#define put(fut,res) reasync_helper<node*,node*>((fut), immediate, (res))
-#define put(fut,res) fut->put(res)
+#define place(fut,res) (fut)->put((res))
 
 #else
 #define IS_FUTPTR(f) false
@@ -152,9 +155,7 @@ std::pair<node*,node*> bintree::split(node* n, key_t s) {
 //#define async_split(fut, args...)                                     \
   reasync_helper<node*,node*,key_t,fut_t*,fut_t*>((fut), split, args)
 
-#define async_split(fut,args...) reuse_future_inplace(node*,fut, args)
-
-static node* split(node* n, key_t s,
+static node* a_split(node* n, key_t s,
                    fut_t* res_left, fut_t* res_right,
                    int depth) {
   assert(!IS_FUTPTR(n));
@@ -165,25 +166,23 @@ static node* split(node* n, key_t s,
     auto next = n->left;
 
     if (!next) {
-      put(res_left, nullptr);
+      place((cilk::future<node*>*)res_left, nullptr);
     } else { // lookahead
 
       if (depth >= bintree::DEPTH_LIMIT) {
         auto res = bintree::split(next, s);
-        put(res_left, res.first);
+        place((cilk::future<node*>*)res_left, res.first);
         n->left = res.second;
         return n;
       }
 
-      auto next_res_right = (fut_t*) malloc(sizeof(fut_t));
+      auto next_res_right = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
       SET_FUTPTR(&n->left, next_res_right);
 
       if (s < next->key) { // left-left case
-        reuse_future_inplace(node*,next_res_right,split, next, s, res_left, next_res_right, depth+1);
-        //async_split(next_res_right, next, s, res_left, next_res_right, depth+1);
+        reuse_future_inplace(node*, (cilk::future<node*>*)next_res_right, a_split, next, s, res_left, next_res_right, (depth+1));
       } else { // left-right case
-        reuse_future_inplace(node*,res_left,split, next, s, res_left, next_res_right, depth+1);
-        //async_split(res_left, next, s, res_left, next_res_right, depth+1);
+        reuse_future_inplace(node*, (cilk::future<node*>*)res_left, a_split, next, s, res_left, next_res_right, (depth+1));
       }
     }
   } else { // go right
@@ -191,23 +190,23 @@ static node* split(node* n, key_t s,
     auto next = n->right;
 
     if (!next) {
-      put(res_right, nullptr);
+      place((cilk::future<node*>*)res_right, nullptr);
     } else { // lookahead
 
       if (depth >= bintree::DEPTH_LIMIT) {
         auto res = bintree::split(next, s);
         n->right = res.first;
-        put(res_right, res.second);
+        place((cilk::future<node*>*)res_right, res.second);
         return n;
       }
 
-      auto next_res_left = (fut_t*) malloc(sizeof(fut_t));
+      auto next_res_left = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
       SET_FUTPTR(&n->right, next_res_left);
 
       if (s < next->key) { // right-left case
-        async_split(res_right, next, s, next_res_left, res_right, depth+1);
+        reuse_future_inplace(node*, (cilk::future<node*>*)res_right, a_split, next, s, next_res_left, res_right, (depth+1));
       } else { // right-right case
-        async_split(next_res_left, next, s, next_res_left, res_right, depth+1);
+        reuse_future_inplace(node*, (cilk::future<node*>*)next_res_left, a_split, next, s, next_res_left, res_right, (depth+1));
       }
     }
   }
@@ -216,14 +215,15 @@ static node* split(node* n, key_t s,
 
 // Helper to "launch" two futures for splitting
 static futpair_t split2(node* n, key_t s) {
-  auto left = (fut_t*) malloc(sizeof(fut_t));
-  auto right = (fut_t*) malloc(sizeof(fut_t));
+  auto left = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
+  auto right = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
 
   // lookahead
-  if (s < n->key)
-    async_split(right, n, s, left, right, 0);
-  else
-    async_split(left, n, s, left, right, 0);
+  if (s < n->key) {
+    reuse_future_inplace(node*, (cilk::future<node*>*)right, a_split, n, s, left, right, 0);
+  } else {
+    reuse_future_inplace(node*, (cilk::future<node*>*)left, a_split, n, s, left, right, 0);
+  }
 
   return {left, right};
 }
@@ -256,7 +256,8 @@ node* bintree::merge(node* lr, node* rr, int depth) {
   }
 
 #ifdef STRUCTURED_FUTURES
-#define split2 split
+#pragma message ("Structured Futures")
+#define split2 a_split
 #define merge_helper merge
 #endif
 

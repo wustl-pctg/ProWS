@@ -9,8 +9,6 @@
 
 #include "util/util.h"
 
-#include "rd.h"
-
 #ifdef ENABLE_DMALLOC
 #include <dmalloc.h>
 #endif //ENABLE_DMALLOC
@@ -30,9 +28,9 @@ usage(char* prog) {
 
 /*--------------------------------------------------------------------------*/
 int main(int argc, char** argv) {
-#if (!RACE_DETECT) && REACH_MAINT
-  futurerd_disable_shadowing();
-#endif
+//#if (!RACE_DETECT) && REACH_MAINT
+//  futurerd_disable_shadowing();
+//#endif
 
     config_t conf;
     int32 compress = TRUE;

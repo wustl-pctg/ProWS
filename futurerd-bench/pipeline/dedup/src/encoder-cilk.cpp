@@ -440,9 +440,9 @@ dedupAndOnward(cilk::future<cilk::future<int>*> *prevIterDedupFuture,
     // pointer to the chunk that contains the compressed data
     int isDuplicate = sub_Deduplicate(chunk);
 
-    cilk::future<int> *writeFuture = (cilk::future<int> *) malloc(sizeof(cilk::future<int>));
-    reasync_helper<int, cilk::future<int> *, int, chunk_t *, int>
-        (writeFuture, compAndWrite, prevIterWriteFuture, isDuplicate, chunk, fd_out);
+    cilk::future<int> *writeFuture;// = (cilk::future<int> *) malloc(sizeof(cilk::future<int>));
+    //reasync_helper<int, cilk::future<int> *, int, chunk_t *, int>
+    cilk_future_create(int, writeFuture, compAndWrite, prevIterWriteFuture, isDuplicate, chunk, fd_out);
 
     return writeFuture;
 }
@@ -505,11 +505,11 @@ void *SerialIntegratedPipeline(file_info_t* args) {
         #endif 
 
         prevDedupFuture = dedupFuture;
-        dedupFuture = (cilk::future<cilk::future<int>*> *) 
-                          malloc(sizeof(cilk::future<cilk::future<int>*>));
-        reasync_helper<cilk::future<int> *,
-                       cilk::future<cilk::future<int>*> *, chunk_t *, int>
-            (dedupFuture, dedupAndOnward, prevDedupFuture, chunk, args->fd_out);
+        //dedupFuture = (cilk::future<cilk::future<int>*> *) 
+        //                  malloc(sizeof(cilk::future<cilk::future<int>*>));
+        //reasync_helper<cilk::future<int> *,
+        //               cilk::future<cilk::future<int>*> *, chunk_t *, int>
+        cilk_future_create(cilk::future<int>*, dedupFuture, dedupAndOnward, prevDedupFuture, chunk, args->fd_out);
     }
 
     // finish the last iter

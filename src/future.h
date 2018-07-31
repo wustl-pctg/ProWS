@@ -23,6 +23,16 @@ namespace cilk {
   }); \
   }
 
+#define reuse_future_inplace(T,loc,func,args...)  \
+  { \
+  auto functor = std::bind(func, ##args);  \
+  new (loc) cilk::future<T>();  \
+  auto __temp_fut = loc; \
+  __spawn_future_helper_helper([__temp_fut,functor]() -> void* { \
+    return __temp_fut->put(functor()); \
+  }); \
+  }
+
 #define cilk_future_get(fut)              (fut)->get()
 
 #define cilk_future_create(T,fut,func,args...) \

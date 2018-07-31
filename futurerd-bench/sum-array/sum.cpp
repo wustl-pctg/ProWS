@@ -10,17 +10,32 @@
 typedef struct pair_t {
     unsigned long n;
     cilk::future<struct pair_t> *fut;
+    pair_t(volatile pair_t const& other) {
+      this->n = other.n;
+      this->fut = other.fut;
+    }
+    pair_t(pair_t const& other) {
+      this->n = other.n;
+      this->fut = other.fut;
+    }
+    pair_t(unsigned long n=0) {
+      this->n = n;
+      this->fut = NULL;
+    }
+    pair_t& operator=(pair_t const& other) volatile {
+      this->n = other.n;
+      this->fut = other.fut;
+      return *(const_cast<pair_t*>(this));
+    }
 } pair_t;
 
 static pair_t produce(unsigned long n) {
-    pair_t res = { n, NULL };
+    pair_t res(n);
 
     if(n > 0) { 
-        cilk::future<pair_t> *fut;
-        // create_future_handle(pair_t, fut);
-        // spawn_proc_with_future_handle(fut, produce, n-1);
-        create_future(pair_t, fut, produce, n-1);
-        res.fut = fut; 
+        //cilk::future<pair_t> *fut;
+        //res.fut = fut; 
+        cilk_future_create(pair_t, res.fut, produce, n-1);
     } 
 
     return res;
@@ -30,9 +45,9 @@ static unsigned long consume(unsigned long curr_sum, pair_t data) {
     
     unsigned long res = curr_sum; 
 
-    if(data.fut != NULL) {
+    if (data.fut != NULL) {
         curr_sum += data.n;
-        pair_t next_data = data.fut->get();
+        pair_t next_data = (pair_t)data.fut->get();
         res = consume(curr_sum, next_data);
     }
 
@@ -50,7 +65,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    ensure_serial_execution();
+    __cilkrts_set_param("stack size","2097152");
+
+    //ensure_serial_execution();
     n = atoi(argv[1]);
 
     pair_t data = produce(n);

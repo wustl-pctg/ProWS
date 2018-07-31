@@ -11,7 +11,6 @@
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
-#include "rd.h"
 #endif
 
 #include "../util/getoptions.hpp"
@@ -113,8 +112,7 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
       } 
       // since we are walking the wavefront serially, no need to get
       // left dependency --- already gotten by previous square.
-      reasync_helper<int,int*,char*,char*,int,int,int>
-        (&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
+        reuse_future_inplace(int,&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
     }
   }
 
@@ -131,8 +129,7 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
       if(iB > 0) { // up dependency
         farray[(iB-1)*nBlocks + jB].get();
       } 
-      reasync_helper<int,int*,char*,char*,int,int,int>
-        (&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
+        reuse_future_inplace(int,&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
 
     }
   }
@@ -173,8 +170,7 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   cilk_for(int i=0; i < blocks; i++) {
     int iB = i / nBlocks; // row block index 
     int jB = i % nBlocks; // col block index
-    reasync_helper<int,decltype(farray),int*,char*,char*,int,int,int>
-      (&farray[i], process_sw_tile_with_get, farray, stor, a, b, n, iB, jB);
+      reuse_future_inplace(int,&farray[i], process_sw_tile_with_get, farray, stor, a, b, n, iB, jB);
   }
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
@@ -213,9 +209,9 @@ const char* specifiers[] = {"-n", "-c", "-h", "-b"};
 int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG};
 
 int main(int argc, char *argv[]) {
-#if REACH_MAINT && (!RACE_DETECT)
-    futurerd_disable_shadowing();
-#endif
+//#if REACH_MAINT && (!RACE_DETECT)
+//    futurerd_disable_shadowing();
+//#endif
 
   int n = 1024;
   int bSize = 0;
@@ -232,7 +228,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  ensure_serial_execution();
+  //ensure_serial_execution();
 
   if (bSize == 0) {
     bSize = std::sqrt(n);

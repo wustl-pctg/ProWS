@@ -3,7 +3,7 @@ include ../bench.mk
 
 BENCH = lcs sw matmul_z
 ALLTARGETS = $(BENCH:=-rd) $(BENCH:=-inst) $(BENCH:=-reach) $(BENCH:=-base)
-TARGETS = $(BENCH:=-$(btype))
+TARGETS = $(BENCH)
 
 ifeq ($(btype),inst)
   INST = yes
@@ -25,17 +25,20 @@ $(BENCH:=-serial): $$@.o ../util/getoptions.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 $(BENCH:=-all):
-	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=rd $(@:-all=)
-	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=inst $(@:-all=)
-	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=reach $(@:-all=)
+	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=rd $(@:-all=)
+	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=inst $(@:-all=)
+	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=reach $(@:-all=)
 	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=base $(@:-all=)
 
 INC += -I../util
-CFLAGS += $(APPFLAGS)
-CXXFLAGS += $(APPFLAGS)
+CFLAGS += $(APPFLAGS) $(INC)
+CXXFLAGS += $(APPFLAGS) $(INC) -std=c++11
+LDFLAGS += -flto $(RTS_LIB) -lnuma
 
 .SECONDEXPANSION:
-$(BENCH): $$@-$(btype)
+$(BENCH): $$@.o
+	$(CXX) $^ $(GETOPT) $(LDFLAGS) -o $@
+
 $(ALLTARGETS): $$@.o $(GETOPT) | $(RDLIB)
 	$(CXX) $^ $(LDFLAGS) -o $@
 

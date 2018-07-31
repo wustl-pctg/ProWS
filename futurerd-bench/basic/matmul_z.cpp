@@ -18,7 +18,6 @@
 
 #include "../util/getoptions.hpp"
 #include "../util/util.hpp"
-#include "rd.h"
 
 #ifndef RAND_MAX
 #define RAND_MAX 32767
@@ -224,8 +223,7 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
       for(int kB = 0; kB < nBlocks; kB++) {
         prevf = f; // first is NULL
         f = &(fhandles[fh_index(kB, iB, jB, nBlocks)]);
-        reasync_helper<int,DATA*,DATA*,DATA*,int,int,int,decltype(prevf)>
-          (f, matmul_base_structured, A, B, C, iB, kB, jB, prevf);
+          reuse_future_inplace(int, f, matmul_base_structured, A, B, C, iB, kB, jB, prevf);
       }
     }
   }
@@ -334,8 +332,7 @@ int matmul(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
   // }
   if (n == REC_BASE_CASE) {
     auto f = &(g_fhandles[fh_index(kB, iB, jB, g_nBlocks)]);
-    reasync_helper<int,DATA*,DATA*,DATA*,int,int,int,int>
-      (f, matmul_rec, A, B, C, n, iB, kB, jB);
+      reuse_future_inplace(int, f, matmul_rec, A, B, C, n, iB, kB, jB);
     return 0;
   }
 
@@ -405,9 +402,9 @@ const char * specifiers[] = {"-n", "-c", "-h", "-b", "-r", 0};
 int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG, INTARG, 0};
 
 int main(int argc, char *argv[]) {
-#if REACH_MAINT && (!RACE_DETECT)
-    futurerd_disable_shadowing();
-#endif
+//#if REACH_MAINT && (!RACE_DETECT)
+//    futurerd_disable_shadowing();
+//#endif
 
   int n = 1024; // default n value
   int bSize = 32; // iterative base case;
@@ -416,7 +413,7 @@ int main(int argc, char *argv[]) {
   int check = 0;
 
   get_options(argc, argv, specifiers, opt_types, &n, &check, &help, &bSize, &rSize);
-  ensure_serial_execution();
+  //ensure_serial_execution();
 
   if(help) {
     fprintf(stderr, "%s [-n <n>|-b <b>|-c|-h]\n", argv[0]);

@@ -356,9 +356,9 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
     if(prevFrameStageOne == nullptr) {
         assert(frameNum == 0);
         // calling 2nd stage, ret val, the future to use, function, its args 
-        reasync_helper<int, int, cilk::future<int> *, 
-                       ParticleFilterCilk<TrackingModelCilk>&, ofstream &, bool>
-            (&stageTwoFutures[frameNum], processFrameStageTwoIter0, frameNum, 
+        //reasync_helper<int, int, cilk::future<int> *, 
+        //               ParticleFilterCilk<TrackingModelCilk>&, ofstream &, bool>
+        reuse_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwoIter0, frameNum, 
              stageTwoFutures, pf, outputFileAvg, OutputBMP);
     } else {
 
@@ -376,11 +376,11 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
         model.GetObservationCilk(frameNum, iter_mFGMaps, iter_mEdgeMaps);
 
         // could have done this at the beginning of second stage
-        reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *, 
-                       TrackingModelCilk&,
-                       ParticleFilterCilk<TrackingModelCilk>&, ofstream &, 
-                       bool, vector<BinaryImage> *, vector<FlexImage8u> * >
-            (&stageTwoFutures[frameNum], processFrameStageTwo, frameNum, 
+        //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *, 
+        //               TrackingModelCilk&,
+        //               ParticleFilterCilk<TrackingModelCilk>&, ofstream &, 
+        //               bool, vector<BinaryImage> *, vector<FlexImage8u> * >
+        reuse_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwo, frameNum, 
              &stageTwoFutures[frameNum-1], stageTwoFutures, model, pf,
              outputFileAvg, OutputBMP, iter_mFGMaps, iter_mEdgeMaps);
 
@@ -439,19 +439,19 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
         if(i == 0) {
             // reuse_future(int, &stageOneFutures[i], processFrame,
             //              i, nullptr, stageTwoFutures, model, pf, outputFileAvg, OutputBMP);
-            reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
-                        TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
-                        ofstream &, bool>
-                (&stageOneFutures[i], processFrame, i, nullptr,
+            //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
+            //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
+            //            ofstream &, bool>
+            reuse_future_inplace(int, &stageOneFutures[i], processFrame, i, nullptr,
                  stageTwoFutures, model, pf, outputFileAvg, OutputBMP);
         } else {
             // reuse_future(int, &stageOneFutures[i], processFrame,
             //              i, &stageOneFutures[i-1], stageTwoFutures,
             //              model, pf, outputFileAvg, OutputBMP);
-            reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
-                        TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
-                        ofstream &, bool>
-                (&stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
+            //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
+            //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
+            //            ofstream &, bool>
+            reuse_future_inplace(&stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
                  stageTwoFutures, model, pf, outputFileAvg, OutputBMP);
         }
     }

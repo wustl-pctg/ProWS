@@ -22,21 +22,21 @@ CILK_SOURCE = ParticleFilterCilk.h  TrackingModelCilk.h TrackingModelCilk.cpp
 OBJ = AnnealingFactor BodyGeometry BodyPose CameraModel CovarianceMatrix
 OBJ += ImageMeasurements ImageProjection RandomGenerator TrackingModel
 INST = no
-ifeq ($(btype),inst)
-  INST = yes
-endif
-ifeq ($(btype),rd)
-  INST = yes
-endif
-ifeq ($(INST),yes)
-  OBJECTS = $(OBJ:%=$(OBJDIR)/%-inst.o)
-  FLEXLIB = ../FlexImageLib/$(OBJDIR)/libflex-inst.a
-else
-  OBJECTS = $(OBJ:%=$(OBJDIR)/%-noinst.o)
-  FLEXLIB = ../FlexImageLib/$(OBJDIR)/libflex-noinst.a
-endif
+#ifeq ($(btype),inst)
+#  INST = yes
+#endif
+#ifeq ($(btype),rd)
+#  INST = yes
+#endif
+#ifeq ($(INST),yes)
+#  OBJECTS = $(OBJ:%=$(OBJDIR)/%-inst.o)
+#  FLEXLIB = ../FlexImageLib/$(OBJDIR)/libflex-inst.a
+#else
+  OBJECTS = $(OBJ:%=$(OBJDIR)/%.o)
+  FLEXLIB = ../FlexImageLib/$(OBJDIR)/libflex.a
+#endif
 
-CILK_OBJECTS = $(OBJDIR)/main-$(btype).o $(OBJDIR)/TrackingModelCilk-$(btype).o
+CILK_OBJECTS = $(OBJDIR)/main.o $(OBJDIR)/TrackingModelCilk.o
 .SECONDARY: $(CILK_OBJECTS)
 
 DEPENDENCIES = $(FLEXLIB)
@@ -46,12 +46,12 @@ DEPENDENCIES = $(FLEXLIB)
 # -O3 -g
 CXXFLAGS += $(APPFLAGS) $(INC)
 CXXFLAGS += #-funroll-loops -fprefetch-loop-arrays -fpermissive -fexceptions
-CXXFLAGS += -Wall -Wno-unknown-pragmas # -static-libgcc -Wl,--hash-style=both,--as-needed -fno-exceptions 
-LDFLAGS += $(FLEXLIB)
+CXXFLAGS += -Wall -Wno-unknown-pragmas -std=c++11 # -static-libgcc -Wl,--hash-style=both,--as-needed -fno-exceptions 
+LDFLAGS += $(FLEXLIB) -flto $(RTS_LIB) -lnuma
 
 INCLUDES = -I../FlexImageLib
 
-TARGETS = bt-$(btype)
+TARGETS = bt
 all: $(OBJDIR) $(TARGETS) #cilk serial
 
 serial: $(OBJDIR) bodytrack-serial
@@ -61,12 +61,12 @@ serial: $(OBJDIR) bodytrack-serial
 # cilk: $(OBJDIR) bodytrack-cilk
 
 bt-all: $(OBJDIR)
-	$(MAKE) mode=$(mode) ftype=$(ftype) btype=rd
-	$(MAKE) mode=$(mode) ftype=$(ftype) btype=inst
-	$(MAKE) mode=$(mode) ftype=$(ftype) btype=reach
+	#$(MAKE) mode=$(mode) ftype=$(ftype) btype=rd
+	#$(MAKE) mode=$(mode) ftype=$(ftype) btype=inst
+	#$(MAKE) mode=$(mode) ftype=$(ftype) btype=reach
 	$(MAKE) mode=$(mode) ftype=$(ftype) btype=base
 
-bt-%: $(CILK_OBJECTS) $(OBJECTS) $(DEPENDENCIES)
+bt: $(CILK_OBJECTS) $(OBJECTS) $(DEPENDENCIES)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 $(OBJDIR):
@@ -76,13 +76,13 @@ $(OBJDIR):
 $(OBJDIR)/main-serial.o: main.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<
 
-$(OBJDIR)/main-%.o: main.cpp
+$(OBJDIR)/main.o: main.cpp
 	$(CXX) $(CXXFLAGS) -DUSE_CILK_FUTURE=1 $(INCLUDES) -c -o $@ $<
 
-$(OBJDIR)/TrackingModelCilk-%.o: TrackingModelCilk.cpp
+$(OBJDIR)/TrackingModelCilk.o: TrackingModelCilk.cpp
 	$(CXX) $(CXXFLAGS) -DUSE_CILK_FUTURE=1 $(INCLUDES) -c -o $@ $<
 
-$(OBJDIR)/%-inst.o $(OBJDIR)/%-noinst.o: %.cpp
+$(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<
 
 bodytrack-serial: $(OBJDIR)/main-serial.o $(OBJECTS) $(DEPENDENCIES)

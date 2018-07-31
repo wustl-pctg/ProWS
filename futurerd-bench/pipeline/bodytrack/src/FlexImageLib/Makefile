@@ -12,19 +12,19 @@ OBJDIR = clang-obj
 OBJ = $(OBJDIR)/FlexImage.o $(OBJDIR)/FlexIO.o
 
 INST = no
-ifeq ($(btype),inst)
-  INST = yes
-endif
-ifeq ($(btype),rd)
-  INST = yes
-endif
-ifeq ($(INST),yes)
-  OBJECTS = $(OBJ:.o=-inst.o)
-  TARGETS = $(OBJDIR)/libflex-inst.a
-else
-  OBJECTS = $(OBJ:.o=-noinst.o)
-  TARGETS = $(OBJDIR)/libflex-noinst.a
-endif
+#ifeq ($(btype),inst)
+#  INST = yes
+#endif
+#ifeq ($(btype),rd)
+#  INST = yes
+#endif
+#ifeq ($(INST),yes)
+#  OBJECTS = $(OBJ:.o=-inst.o)
+#  TARGETS = $(OBJDIR)/libflex-inst.a
+#else
+  OBJECTS = $(OBJ:.o)
+  TARGETS = $(OBJDIR)/libflex.a
+#endif
 
 ifeq ($(btype),all)
 all: $(OBJDIR)
@@ -43,7 +43,7 @@ AR = ar
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-$(OBJDIR)/%-inst.o $(OBJDIR)/%-noinst.o: %.cpp
+$(OBJDIR)/%-inst.o $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(TARGETS): $(OBJECTS)

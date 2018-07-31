@@ -29,16 +29,13 @@ const char* specifiers[] = {"-s1", "-s2", "-kmax", "-c"};
 int opt_types[] = { INTARG, INTARG, INTARG, BOOLARG };
 
 int main(int argc, char* argv[]) {
-#if REACH_MAINT && (!RACE_DETECT)
-  futurerd_disable_shadowing();
-#endif
 
   size_t t1_size = 4096;
   size_t t2_size = 2078;
   key_t key_max = 4096 * 4;
   int check = 0;
 
-  ensure_serial_execution();
+  //ensure_serial_execution();
   get_options(argc, argv, specifiers, opt_types, &t1_size, &t2_size, &key_max, &check);
   g_key_max = key_max;
 

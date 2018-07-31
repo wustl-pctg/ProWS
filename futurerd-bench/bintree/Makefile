@@ -2,24 +2,25 @@ include ../bench.mk
 
 .PHONY: all clean reallyclean
 
-TARGETS = merge-$(btype)
+TARGETS = merge
 
 all: $(TARGETS)
 
 INC += -I../util
-CFLAGS += $(APPFLAGS) #$(RDFLAGS)
-CXXFLAGS += $(APPFLAGS) #$(RDFLAGS)
+CFLAGS += $(APPFLAGS) $(INC)
+CXXFLAGS += $(APPFLAGS) $(INC) -std=c++11
+LDFLAGS += -flto $(RTS_LIB) -lnuma
 
 merge-all:
-	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=base
-	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=reach
-	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=inst
+	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=base
+	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=reach
+	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=inst
 	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=rd
 
-merge-%.o: merge.cpp
-bintree-%.o: bintree.cpp
+merge.o: merge.cpp
+bintree.o: bintree.cpp
 
-merge-%: merge-%.o bintree-%.o ../util/getoptions.o
+merge: merge.o bintree.o ../util/getoptions.o
 	$(CXX) $^ $(LDFLAGS) $(LIB) -o $@
 
 # delete all object files

@@ -39,7 +39,8 @@ using futpair_t = bintree::futpair_t;
 
 // We don't actually support put/get style, but this makes things clearer.
 static node* immediate(node *n) { return n; }
-#define put(fut,res) reasync_helper<node*,node*>((fut), immediate, (res))
+//#define put(fut,res) reasync_helper<node*,node*>((fut), immediate, (res))
+#define put(fut,res) fut->put(res)
 
 #else
 #define IS_FUTPTR(f) false
@@ -148,8 +149,10 @@ std::pair<node*,node*> bintree::split(node* n, key_t s) {
 
 // Pipelined splitting
 #ifdef NONBLOCKING_FUTURES
-#define async_split(fut, args...)                                     \
+//#define async_split(fut, args...)                                     \
   reasync_helper<node*,node*,key_t,fut_t*,fut_t*>((fut), split, args)
+
+#define async_split(fut,args...) reuse_future_inplace(node*,fut, args)
 
 static node* split(node* n, key_t s,
                    fut_t* res_left, fut_t* res_right,
@@ -176,9 +179,11 @@ static node* split(node* n, key_t s,
       SET_FUTPTR(&n->left, next_res_right);
 
       if (s < next->key) { // left-left case
-        async_split(next_res_right, next, s, res_left, next_res_right, depth+1);
+        reuse_future_inplace(node*,next_res_right,split, next, s, res_left, next_res_right, depth+1);
+        //async_split(next_res_right, next, s, res_left, next_res_right, depth+1);
       } else { // left-right case
-        async_split(res_left, next, s, res_left, next_res_right, depth+1);
+        reuse_future_inplace(node*,res_left,split, next, s, res_left, next_res_right, depth+1);
+        //async_split(res_left, next, s, res_left, next_res_right, depth+1);
       }
     }
   } else { // go right

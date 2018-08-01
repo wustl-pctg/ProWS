@@ -291,20 +291,20 @@ int mainPthreads(string path, int cameras, int frames,
 // for iteration 0 only
 static int processFrameStageTwoIter0(int frameNum, 
                                 cilk::future<int> *stageTwoFutures,
-                                ParticleFilterCilk<TrackingModelCilk> &pf, 
-                                ofstream &outputFileAvg, bool OutputBMP) {
+                                ParticleFilterCilk<TrackingModelCilk> *pf, 
+                                ofstream *outputFileAvg, bool OutputBMP) {
     
-    if(!pf.Update((float)frameNum)) { //Run particle filter step
+    if(!pf->Update((float)frameNum)) { //Run particle filter step
         cout << "Error loading observation data" << endl;
         return 0;
     }
 
     vector<float> estimate; //expected pose from particle distribution
 
-    pf.Estimate(estimate); //get average pose of the particle distribution
-    WritePose(outputFileAvg, estimate);
+    pf->Estimate(estimate); //get average pose of the particle distribution
+    WritePose(*outputFileAvg, estimate);
     if(OutputBMP) {
-        pf.Model().OutputBMP(estimate, frameNum);//save output bitmap file
+        pf->Model().OutputBMP(estimate, frameNum);//save output bitmap file
     }
 
     return 1;
@@ -313,9 +313,9 @@ static int processFrameStageTwoIter0(int frameNum,
 static int processFrameStageTwo(int frameNum, 
                                 cilk::future<int> *prevFrameStageTwo, 
                                 cilk::future<int> *stageTwoFutures,
-                                TrackingModelCilk &model,
-                                ParticleFilterCilk<TrackingModelCilk> &pf, 
-                                ofstream &outputFileAvg, bool OutputBMP,
+                                TrackingModelCilk *model,
+                                ParticleFilterCilk<TrackingModelCilk> *pf, 
+                                ofstream *outputFileAvg, bool OutputBMP,
                                 vector<BinaryImage> *iter_mFGMaps, 
                                 vector<FlexImage8u> *iter_mEdgeMaps) {
     
@@ -323,20 +323,20 @@ static int processFrameStageTwo(int frameNum,
     // complete stage two then reset the model mFGMaps and mEdgeMaps fields
     if(prevFrameStageTwo) {
         prevFrameStageTwo->get();
-        model.SetObservation(iter_mFGMaps, iter_mEdgeMaps); 
+        model->SetObservation(iter_mFGMaps, iter_mEdgeMaps); 
     }
 
-    if(!pf.Update((float)frameNum)) { //Run particle filter step
+    if(!pf->Update((float)frameNum)) { //Run particle filter step
         cout << "Error loading observation data" << endl;
         return 0;
     }
 
     vector<float> estimate; //expected pose from particle distribution
 
-    pf.Estimate(estimate); //get average pose of the particle distribution
-    WritePose(outputFileAvg, estimate);
+    pf->Estimate(estimate); //get average pose of the particle distribution
+    WritePose(*outputFileAvg, estimate);
     if(OutputBMP) {
-        pf.Model().OutputBMP(estimate, frameNum);//save output bitmap file
+        pf->Model().OutputBMP(estimate, frameNum);//save output bitmap file
     }
 
     return 1;
@@ -347,9 +347,9 @@ static int processFrameStageTwo(int frameNum,
 // second stage with future (but does not wait for it to return)
 static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
                         cilk::future<int> *stageTwoFutures,
-                        TrackingModelCilk &model,
-                        ParticleFilterCilk<TrackingModelCilk> &pf,
-                        ofstream &outputFileAvg, bool OutputBMP) {
+                        TrackingModelCilk *model,
+                        ParticleFilterCilk<TrackingModelCilk> *pf,
+                        ofstream *outputFileAvg, bool OutputBMP) {
 
     cout << "Processing frame " << frameNum << endl;
 
@@ -373,7 +373,7 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
         // otherwise, we wait for the first stage of the previous frame to
         // finish before we proceed with this frame
         prevFrameStageOne->get();
-        model.GetObservationCilk(frameNum, iter_mFGMaps, iter_mEdgeMaps);
+        model->GetObservationCilk(frameNum, iter_mFGMaps, iter_mEdgeMaps);
 
         // could have done this at the beginning of second stage
         //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *, 
@@ -443,7 +443,7 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
             //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
             //            ofstream &, bool>
             reuse_future_inplace(int, &stageOneFutures[i], processFrame, i, nullptr,
-                 stageTwoFutures, model, pf, outputFileAvg, OutputBMP);
+                 stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
         } else {
             // reuse_future(int, &stageOneFutures[i], processFrame,
             //              i, &stageOneFutures[i-1], stageTwoFutures,
@@ -451,8 +451,8 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
             //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
             //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
             //            ofstream &, bool>
-            reuse_future_inplace(&stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
-                 stageTwoFutures, model, pf, outputFileAvg, OutputBMP);
+            reuse_future_inplace(int, &stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
+                 stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
         }
     }
     stageTwoFutures[frames-1].get(); // wait for last frame's stage two to complete
@@ -633,7 +633,7 @@ int main(int argc, char **argv)
         case 4 :
 #if defined(USE_CILK_FUTURE)
             //Cilk with futures
-            threads = 1; // have to run single threaded
+            //threads = 1; // have to run single threaded
             mainCilkFuture(path, cameras, frames, particles, layers, threads, OutputBMP);
 #else
             cout << "Not compiled with Cilk future support. " << endl;

@@ -47,7 +47,7 @@ DEPENDENCIES = $(FLEXLIB)
 CXXFLAGS += $(APPFLAGS) $(INC)
 CXXFLAGS += #-funroll-loops -fprefetch-loop-arrays -fpermissive -fexceptions
 CXXFLAGS += -Wall -Wno-unknown-pragmas -std=c++11 # -static-libgcc -Wl,--hash-style=both,--as-needed -fno-exceptions 
-LDFLAGS += $(FLEXLIB) -flto $(RTS_LIB) -lnuma
+LDFLAGS += -flto $(FLEXLIB) $(RTS_LIB) -lnuma
 
 INCLUDES = -I../FlexImageLib
 

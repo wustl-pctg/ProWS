@@ -471,7 +471,7 @@ void S1Loop(REAL *const S1, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void S2Loop(REAL *const S2, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const S1, cilk::future<void> *const S1Completed, const REAL *const A, cilk::future<void> *const AReady) {
@@ -483,7 +483,7 @@ void S2Loop(REAL *const S2, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void S3Loop(REAL *const S3, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21, cilk::future<void> *const AReady) {
@@ -494,7 +494,7 @@ void S3Loop(REAL *const S3, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void S4Loop(REAL *const S4, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A12, cilk::future<void> *const AReady, const REAL *const S2, cilk::future<void> *const S2Completed) {
@@ -506,7 +506,7 @@ void S4Loop(REAL *const S4, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void S5Loop(REAL *const S5, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B, cilk::future<void> *const BReady) {
@@ -517,7 +517,7 @@ void S5Loop(REAL *const S5, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void S6Loop(REAL *const S6, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, cilk::future<void> *const BReady, const REAL *const S5, cilk::future<void> *const S5Completed) {
@@ -529,7 +529,7 @@ void S6Loop(REAL *const S6, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void S7Loop(REAL *const S7, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12, cilk::future<void> *const BReady) {
@@ -540,7 +540,7 @@ void S7Loop(REAL *const S7, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void S8Loop(REAL *const S8, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const S6, cilk::future<void> *const S6Completed, const REAL *const B21, cilk::future<void> *const BReady) {
@@ -552,7 +552,7 @@ void S8Loop(REAL *const S8, cilk::future<void> *const completed, const int Quadr
     }
   }
   void *__cilkrts_deque = completed->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 void CLoop(REAL *const C, cilk::future<void> *const C11Completed, const int QuadrantSize, const int RowWidthC, const REAL *const M2, cilk::future<void> *const M2Completed) {
@@ -582,7 +582,7 @@ void C21Loop(REAL *const C21, cilk::future<void> *const C21Completed_1, cilk::fu
     }
   }
   void *__cilkrts_deque = C21Completed_1->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
 }
 
 #define strassen(n,A,an,B,bn,C,cn) OptimizedStrassenMultiply(C,NULL, A,NULL,B,NULL,n,cn,bn,an)
@@ -623,7 +623,7 @@ void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, con
 
     if (completed) {
       void *__cilkrts_deque = completed->put();
-      if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+      if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
     }
 
     return;
@@ -747,7 +747,7 @@ void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, con
 
   if (completed) {
     void *__cilkrts_deque = completed->put();
-    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 1);
   }
 
   free(StartHeap);

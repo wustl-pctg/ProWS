@@ -810,6 +810,7 @@ void __attribute__((always_inline)) cilk_fiber::setup_for_future(cilk_fiber *oth
   this->owner  = NULL;
 
   this->set_resumable();
+  other->set_not_resumable();
 
 // We aren't quite there, but close enough
 #if SUPPORT_GET_CURRENT_FIBER
@@ -824,6 +825,7 @@ void __attribute__((always_inline)) cilk_fiber::setup_for_future_return(cilk_fib
   // Suspended fiber should have a reference count of at least 1.  (It is not in a pool).
   this->dec_ref_count();
   other->inc_ref_count();
+  this->set_resumable();
 
   // Set a pending remove reference for this fiber, once we have
   // actually switched off.

@@ -435,9 +435,9 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   d->saved_ped = w->pedigree;
   d->call_stack = w->current_stack_frame;
 
-  int allocate_new_deque = !new_deque;
+  int attempt_steal = 0;
 
-  if (allocate_new_deque) {
+  if (!new_deque) {
     // Before we allocate a new deque, let's see if we have something to resume
     __cilkrts_mutex_lock(w, &w->l->lock);
     int size = w->l->resumable_deques.size;
@@ -455,6 +455,7 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
         && -1 != deque_init(new_deque, w->g->ltqsize)) {
       new_deque->team = d->team;
       new_deque->fiber = w->l->scheduling_fiber;
+      attempt_steal = 1;
     } else {
       __cilkrts_free(new_deque);
       new_deque = NULL;
@@ -499,37 +500,44 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     //    deque_pool_validate(p, w);
 
     deque_switch(w, w->l->active_deque);
+
     // TODO: We could do an immediate steal here from the deque being
     //       suspended. Right now the following commented out code
     //       causes segfaults.
-    /*extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber*);
-    if (allocate_new_deque && new_deque && can_steal_from(w,d)) {
-        cilk_fiber *fiber;
-        START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
-            // Verify that we can get a stack.  If not, no need to continue.
-            fiber = cilk_fiber_allocate(&w->l->fiber_pool);
-        } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
-        if (fiber) {
-            cilkg_increment_active_workers(w->g);
-            detach_for_steal(w, w, d, fiber);
-            w->l->work_stolen = 1;
-        if (w->l->next_frame_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
-            START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
-                int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
-                // Fibers we use when trying to steal should not be active,
-                // and thus should not have any other references.
-                CILK_ASSERT(0 == ref_count);
-            } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
-            cilk_fiber_take(w->l->next_frame_ff->fiber_self);
+    extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber*);
+    w->l->work_stolen = 0;
+    if (attempt_steal && can_steal_from(w,d)) {
+        cilk_fiber *steal_fiber = NULL;
+        int proceed_with_steal = 0;
+        // Only allocate a new fiber if it isn't a future
+        if (((*d->head)->flags & CILK_FRAME_FUTURE_PARENT) == 0) {
+          START_INTERVAL(w, INTERVAL_FIBER_ALLOCATE) {
+              // Verify that we can get a stack.  If not, no need to continue.
+              steal_fiber = cilk_fiber_allocate(&w->l->fiber_pool);
+          } STOP_INTERVAL(w, INTERVAL_FIBER_ALLOCATE);
+          proceed_with_steal = steal_fiber;
         } else {
-            cilk_fiber_take(fiber);
-            // Since our steal was successful, finish initialization of
-            // the fiber.
-            cilk_fiber_reset_state(fiber,
-                                   fiber_proc_to_resume_user_code_for_random_steal);
+          proceed_with_steal = 1;
         }
+
+        if (proceed_with_steal) {
+            dekker_protocol(w, d);
+            cilkg_increment_active_workers(w->g);
+            detach_for_steal(w, w, d, steal_fiber);
+            w->l->work_stolen = 1;
+            if (w->l->next_frame_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
+                CILK_ASSERT(!steal_fiber);
+                cilk_fiber_take(w->l->next_frame_ff->fiber_self);
+            } else {
+                cilk_fiber_take(steal_fiber);
+                // Since our steal was successful, finish initialization of
+                // the fiber.
+                cilk_fiber_reset_state(steal_fiber,
+                                       fiber_proc_to_resume_user_code_for_random_steal);
+            }
+            CILK_ASSERT(!w->l->next_frame_ff->simulated_stolen);
         }
-    }*/
+    }
 
   } END_WITH_WORKER_LOCK(w);
 

@@ -646,7 +646,7 @@ full_frame *unroll_call_stack(__cilkrts_worker *w,
  * @param fiber   The fiber being used to resume user code.
  * @param arg     Unused.
  */
-static
+//static
 void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber *fiber)
 {
     cilk_fiber_data *data = cilk_fiber_get_data(fiber);
@@ -986,6 +986,7 @@ done:
                 // and thus should not have any other references.
                 CILK_ASSERT(0 == ref_count);
             } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
+            CILK_ASSERT(w->l->next_frame_ff->fiber_self);
             cilk_fiber_take(w->l->next_frame_ff->fiber_self);
         } else {
             cilk_fiber_take(fiber);
@@ -1040,6 +1041,7 @@ static void provably_good_steal_exceptions(__cilkrts_worker *w,
 static void provably_good_steal_stacks(__cilkrts_worker *w, full_frame *ff)
 {
     CILK_ASSERT(NULL == ff->fiber_self);
+    CILK_ASSERT(ff->fiber_child);
     ff->fiber_self = ff->fiber_child;
     ff->fiber_child = NULL;
     cilk_fiber_take(ff->fiber_self);

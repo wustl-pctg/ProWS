@@ -10,9 +10,6 @@
 
 #include <cstdint>
 
-extern unsigned long ZERO;
-
-
 //extern CILK_ABI_VOID __cilkrts_future_sync(__cilkrts_stack_frame *sf);
 //extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
 //extern CILK_ABI_VOID __cilkrts_leave_future_parent_frame(__cilkrts_stack_frame *sf);
@@ -32,7 +29,6 @@ void thread3(void);
 void thread4(void);
 
 int helloFuture(cilk::future<int>* other) {
-  int* dummy = (int*) alloca(ZERO);
   //printf("helloFuture dummy: %p\n", &dummy);
   //for (volatile uint32_t i = 0; i < UINT32_MAX/8; i++) {
   //  gdummy += i;
@@ -49,8 +45,7 @@ int helloFuture(cilk::future<int>* other) {
 
 
 int helloMoreFutures() {
-  sleep(5);
-  int* dummy = (int *) alloca(ZERO);
+  sleep(1);
   for (volatile uint32_t j = 0; j < UINT32_MAX/4; j++) {
     dummy2 += j;
   }
@@ -74,7 +69,6 @@ int helloAnotherFuture() {
 }
 
 void thread1() {
-  int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****In thread1, creating future!*****\n\n\n");
   //cilk_spawn thread2();
   //sleep(5);
@@ -87,7 +81,7 @@ void thread1() {
   //__spawn_future_helper_helper(helloFuture);
   //cilk_sync;
   printf("\n\n\n*****I'm in thread1 again!*****\n\n\n");
-  sleep(5);
+  sleep(1);
   //auto result = cilk_future_get(test_future);
   auto result = cilk_future_get(test_future3);
   cilk_spawn thread2();
@@ -101,7 +95,6 @@ void thread1() {
 }
 
 void thread2() {
-  int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****thread 2*****\n\n\n");
   //output_lock.lock();
   //output_lock.unlock();
@@ -117,7 +110,6 @@ void thread2() {
 }
 
 void debugThis() {
-    int *dummy = (int *)alloca(ZERO);
     printf("\n\n\n*****debugThis*****\n\n\n");
     while (test_future == NULL) {
         //sleep(1);
@@ -131,7 +123,6 @@ void debugThis() {
 }
 
 void thread3() {
-  int* dummy = (int *)alloca(ZERO);
   //cilk_future_create(int,test_future2,helloMoreFutures);
   reuse_future(int,test_future2,test_future,helloMoreFutures);
   //test_future2 = new (test_future) cilk::future<int>();
@@ -140,7 +131,6 @@ void thread3() {
   printf("\n\n\n*****%d*****\n\n\n", cilk_future_get(test_future2));
 }
 void thread4() {
-  int* dummy = (int *)alloca(ZERO);
   printf("\n\n\n*****thread 4*****\n\n\n");
   //output_lock.lock();
   //output_lock.unlock();
@@ -169,7 +159,6 @@ void is_only_printf_crashing() {
 }
 
 void another_thread() {
-    int* dummy = (int *)alloca(ZERO);
     printf("\n\n\n*****Hi, this is another thread!*****\n\n\n");
     cilk_spawn thread1();
     printf("\n\n\n*****Spawned thread1 from another_thread*****\n\n\n");
@@ -181,7 +170,6 @@ void another_thread() {
 }
 
 void yet_another_thread() {
-    int* dummy = (int *)alloca(ZERO);
     printf("\n\n\n*****Hello, this is yet another thread!*****\n\n\n");
     cilk_spawn another_thread();
     printf("\n\n\n*****Spawned another_thread from yet_another_thread*****\n\n\n");
@@ -193,7 +181,7 @@ void yet_another_thread() {
 }
 
 int my_test_of_waiting_for_futures() {
-    sleep(7);
+    sleep(1);
     printf("\n\nJust kidding, there was more! :-D\n\n");
     return 9001;
 }
@@ -203,7 +191,6 @@ void thread5() {
 }
 
 int main(int argc, char** argv) {
-    int* dummy = (int *)alloca(ZERO);
 
 
     //cilk_spawn thread1();

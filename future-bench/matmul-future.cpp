@@ -27,6 +27,8 @@
 #define RAND_MAX 32767
 #endif
 
+#define ERR_THRESHOLD   (0.1)
+
 #define REAL int
 static int BASE_CASE; //the base case of the computation (2*POWER)
 static int POWER; //the power of two the base case is based on
@@ -326,6 +328,14 @@ void mat_mul_par_rm(REAL *A, REAL *B, REAL *C, int n, int orig_n){
 const char *specifiers[] = {"-n", "-c", "-rc", "-h", 0};
 int opt_types[] = {INTARG, BOOLARG, BOOLARG, BOOLARG, 0};
 
+void check_result(REAL* A, REAL* B, REAL* C, int n) {
+  REAL *ans = (REAL *) malloc(n*n*sizeof(REAL));
+
+  iter_matmul(A, B, ans, n);
+  double err = maxerror(C, ans, n);
+  if (err >= ERR_THRESHOLD) printf("INCORRECT RESULT\n");
+}
+
 int main(int argc, char *argv[]) {
     int n = 2048; //default n value
     POWER = 5; //default k value
@@ -373,6 +383,9 @@ int main(int argc, char *argv[]) {
   mat_mul_par(A, B, C, n); 
 #endif
 __cilkrts_accum_timing();
+
+  if (check) check_result(A, B, C, n);
+
     //clean up memory
   delete [] A;
     delete [] B;

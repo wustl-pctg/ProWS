@@ -106,16 +106,23 @@ run-strass-fut:
 TARGETS += matmul
 APPS += matmul
 
-matmul: ktiming.o getoptions.o
+matmul: matmul.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c matmul.cpp -o matmul.o
 	$(CXX) -flto matmul.o getoptions.o ktiming.o -o matmul $(MY_LDFLAGS)
+
+run-matmul:
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul -n 1024 -c
+
 
 TARGETS += matmul-future
 APPS += matmul-future
 
-matmul-future: ktiming.o getoptions.o
+matmul-future: matmul-future.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c matmul-future.cpp -o matmul-future.o
 	$(CXX) -flto matmul-future.o getoptions.o ktiming.o -o matmul-future $(MY_LDFLAGS)
+
+run-matmul-future:
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-future -n 1024 -c
 
 ###########################################################################
 # Though shalt not cross this line lest thou knowest what thou art doing! #

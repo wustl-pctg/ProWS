@@ -69,10 +69,6 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
                           : "=r" (old_sp)
                           : "r" (new_sp));
 
-        // Move the stack pointer to the new stack
-        __asm__ volatile ("mov %0,%%rsp"
-                          : : "r" (new_sp));
-
         // Now that we are on the new stack, we can
         // run the future
         __spawn_future_helper(std::move(func));

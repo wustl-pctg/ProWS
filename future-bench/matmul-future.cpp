@@ -29,6 +29,25 @@
 
 #define ERR_THRESHOLD   (0.1)
 
+#include "internal/abi.h"
+#include "future.h"
+
+//typedef void cilk_fiber;
+class cilk_fiber;
+
+extern char* __cilkrts_switch_fibers();
+extern void __cilkrts_switch_fibers_back(cilk_fiber*);
+extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+cilk_fiber* cilk_fiber_get_current_fiber();
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
+
 #define REAL int
 static int BASE_CASE; //the base case of the computation (2*POWER)
 static int POWER; //the power of two the base case is based on
@@ -225,11 +244,40 @@ double maxerror_rm(REAL *M1, REAL *M2, int n) {
     return err;
 }
 
+void mat_mul_par(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n);
+
+void mat_mul_par_helper(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n) {
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_fast_1(&sf);
+  __cilkrts_detach(&sf);
+
+  mat_mul_par(A, B, C, CReady, n);
+
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_frame(&sf);
+}
+
+void mat_mul_par_fut_helper(cilk::future<void> *fut, REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n) {
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_fast_1(&sf);
+  __cilkrts_detach(&sf);
+
+    mat_mul_par(A, B, C, CReady, n);
+    void *__cilkrts_deque = fut->put();
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_future_frame(&sf);
+}
+
 //recursive parallel solution to matrix multiplication
-void mat_mul_par(REAL *A, REAL *B, REAL *C, int n){
+void mat_mul_par(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n){
     //BASE CASE: here computation is switched to itterative matrix multiplication
     //At the base case A, B, and C point to row order matrices of n x n
     if(n == BASE_CASE) {
+
+      if (CReady) CReady->get();
+
         int i, j, k;
         for(i = 0; i < n; i++){
             for(k = 0; k < n; k++){
@@ -242,6 +290,9 @@ void mat_mul_par(REAL *A, REAL *B, REAL *C, int n){
         }
         return;
     }
+
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_1(&sf);
 
     //partition each matrix into 4 sub matrices
     //each sub-matrix points to the start of the z pattern
@@ -260,18 +311,102 @@ void mat_mul_par(REAL *A, REAL *B, REAL *C, int n){
     REAL *C3 = &C[block_convert(n >> 1,0)];
     REAL *C4 = &C[block_convert(n >> 1, n >> 1)];
 
-    //recrusively call the sub-matrices for evaluation in parallel
-    cilk_spawn mat_mul_par(A1, B1, C1, n >> 1);
-    cilk_spawn mat_mul_par(A1, B2, C2, n >> 1);
-    cilk_spawn mat_mul_par(A3, B1, C3, n >> 1);
-    cilk_spawn mat_mul_par(A3, B2, C4, n >> 1);
-    cilk_sync; //wait here for first round to finish
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+    cilk::future<void> stages[4];// = new cilk::future<void>[4];
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+      char *new_sp = __cilkrts_switch_fibers();
+      char *old_sp = NULL;
 
-    cilk_spawn mat_mul_par(A2, B3, C1, n >> 1);
-    cilk_spawn mat_mul_par(A2, B4, C2, n >> 1);
-    cilk_spawn mat_mul_par(A4, B3, C3, n >> 1);
-    cilk_spawn mat_mul_par(A4, B4, C4, n >> 1);
-    cilk_sync; //wait here for all second round to finish
+      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      mat_mul_par_fut_helper(&stages[0], A1, B1, C1, CReady, n>>1);
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+      __cilkrts_switch_fibers_back(initial_fiber);
+    }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+    //recursively call the sub-matrices for evaluation in parallel
+    //cilk_spawn mat_mul_par(A1, B1, C1, n >> 1);
+
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+      char *new_sp = __cilkrts_switch_fibers();
+      char *old_sp = NULL;
+
+      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      mat_mul_par_fut_helper(&stages[1], A1, B2, C2, CReady, n>>1);
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+      __cilkrts_switch_fibers_back(initial_fiber);
+    }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+    ///*cilk_spawn*/ mat_mul_par(A1, B2, C2, n >> 1);
+    
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+      char *new_sp = __cilkrts_switch_fibers();
+      char *old_sp = NULL;
+
+      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      mat_mul_par_fut_helper(&stages[2], A3, B1, C3, CReady, n>>1);
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+      __cilkrts_switch_fibers_back(initial_fiber);
+    }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+    ///*cilk_spawn*/ mat_mul_par(A3, B1, C3, n >> 1);
+    
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+      char *new_sp = __cilkrts_switch_fibers();
+      char *old_sp = NULL;
+
+      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      mat_mul_par_fut_helper(&stages[3], A3, B2, C4, CReady, n>>1);
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+      __cilkrts_switch_fibers_back(initial_fiber);
+    }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+    ///*cilk_spawn*/ mat_mul_par(A3, B2, C4, n >> 1);
+    //cilk_sync; //wait here for first round to finish
+
+    if (!CILK_SETJMP(sf.ctx)) {
+      mat_mul_par_helper(A2, B3, C1, &stages[0], n>>1);
+    }
+    ///*cilk_spawn*/ mat_mul_par(A2, B3, C1, n >> 1);
+    
+    if (!CILK_SETJMP(sf.ctx)) {
+      mat_mul_par_helper(A2, B4, C2, &stages[1], n>>1);
+    }
+    ///*cilk_spawn*/ mat_mul_par(A2, B4, C2, n >> 1);
+    
+    if (!CILK_SETJMP(sf.ctx)) {
+      mat_mul_par_helper(A4, B3, C3, &stages[2], n>>1);
+    }
+    ///*cilk_spawn*/ mat_mul_par(A4, B3, C3, n >> 1);
+    
+    //if (!CILK_SETJMP(sf.ctx)) {
+    mat_mul_par(A4, B4, C4, &stages[3], n>>1);
+    //}
+
+    if (sf.flags & CILK_FRAME_UNSYNCHED) {
+      if (!CILK_SETJMP(sf.ctx)) {
+        __cilkrts_sync(&sf);
+      }
+    }
+
+    //delete [] stages;
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 }
 
 //recursive parallel solution to matrix multiplication - row major order
@@ -311,17 +446,17 @@ void mat_mul_par_rm(REAL *A, REAL *B, REAL *C, int n, int orig_n){
     REAL *C4 = &C[((n * orig_n) + n) >> 1];
 
     //recursively call the sub-matrices for evaluation in parallel
-    cilk_spawn mat_mul_par_rm(A1, B1, C1, n >> 1, orig_n);
-    cilk_spawn mat_mul_par_rm(A1, B2, C2, n >> 1, orig_n);
-    cilk_spawn mat_mul_par_rm(A3, B1, C3, n >> 1, orig_n);
-    cilk_spawn mat_mul_par_rm(A3, B2, C4, n >> 1, orig_n);
-    cilk_sync; //wait here for first round to finish
+    /*cilk_spawn*/ mat_mul_par_rm(A1, B1, C1, n >> 1, orig_n);
+    /*cilk_spawn*/ mat_mul_par_rm(A1, B2, C2, n >> 1, orig_n);
+    /*cilk_spawn*/ mat_mul_par_rm(A3, B1, C3, n >> 1, orig_n);
+    /*cilk_spawn*/ mat_mul_par_rm(A3, B2, C4, n >> 1, orig_n);
+    /*cilk_sync*/; //wait here for first round to finish
 
-    cilk_spawn mat_mul_par_rm(A2, B3, C1, n >> 1, orig_n);
-    cilk_spawn mat_mul_par_rm(A2, B4, C2, n >> 1, orig_n);
-    cilk_spawn mat_mul_par_rm(A4, B3, C3, n >> 1, orig_n);
-    cilk_spawn mat_mul_par_rm(A4, B4, C4, n >> 1, orig_n);
-    cilk_sync; //wait here for all second round to finish
+    /*cilk_spawn*/ mat_mul_par_rm(A2, B3, C1, n >> 1, orig_n);
+    /*cilk_spawn*/ mat_mul_par_rm(A2, B4, C2, n >> 1, orig_n);
+    /*cilk_spawn*/ mat_mul_par_rm(A4, B3, C3, n >> 1, orig_n);
+    /*cilk_spawn*/ mat_mul_par_rm(A4, B4, C4, n >> 1, orig_n);
+    /*cilk_sync*/; //wait here for all second round to finish
 
 }
 
@@ -371,7 +506,7 @@ int main(int argc, char *argv[]) {
     init_rm(B, n);
     zero(C, n);
     begin= ktiming_getmark();
-    mat_mul_par(A, B, C, n); 
+    mat_mul_par(A, B, C, NULL, n); 
     end = ktiming_getmark();
     elapsed[i] = ktiming_diff_usec(&begin, &end);
   }

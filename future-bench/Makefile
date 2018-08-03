@@ -1,3 +1,10 @@
+###########################################################################
+# NOTE: Thou shalt add thine build targets to the TARGETS designator, and #
+#       thou shalt add thine resulting executables to the APPS designator,#
+#       lest thou desire to be charged with polluting the systems of      #
+#       thine fellows.                                                    #
+###########################################################################
+
 # This MUST be before any includes
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
@@ -8,6 +15,7 @@ MY_CXXFLAGS = -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -
 MY_CFLAGS = -O3 -g
 MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt 
 
+TARGETS = default
 APPS = fib_cilkplus
 
 .PHONY = default
@@ -22,12 +30,14 @@ getoptions.o: getoptions.cpp
 ktiming.o: ktiming.c
 	$(CXX) $(MY_CXXFLAGS) -c ktiming.c -o ktiming.o
 
+TARGETS += fib-fut
 APPS += fib_cilkfut
 
 fib-fut: ktiming.o
 	$(CXX) $(MY_CXXFLAGS) -c fib_cilkfut.cpp -o fib_cilkfut.o
 	$(CXX) -flto fib_cilkfut.o ktiming.o -o fib_cilkfut $(MY_LDFLAGS)
 
+TARGETS += fib-handcomp
 APPS += handcomp_fib_cilkfut
 
 fib-handcomp: ktiming.o
@@ -36,10 +46,12 @@ fib-handcomp: ktiming.o
 
 APPS += handcomp_fib_cilkfut_nofibers
 
+TARGETS += fib-handcomp-nofibers
 fib-handcomp-nofibers: ktiming.o
 	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o handcomp_fib_cilkfut_nofibers.o
 	$(CXX) -flto handcomp_fib_cilkfut_nofibers.o ktiming.o -o handcomp_fib_cilkfut_nofibers $(MY_LDFLAGS)
 
+TARGETS += fib-interop-tests
 APPS += handcomp_fib_cilkfut_spawn-after-sync-after handcomp_fib_cilkfut_spawn-after-sync-before handcomp_fib_cilkfut_spawn-before-sync-after handcomp_fib_cilkfut_spawn-before-sync-before handcomp_fib_cilkfut_future-interop  handcomp_fib_cilkfut_nofibers
 
 fib-interop-tests: ktiming.o default fib-handcomp
@@ -69,6 +81,7 @@ run-tests:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut 40
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./handcomp_fib_cilkfut 40
 
+TARGETS += strass
 APPS += strassen
 
 strass: ktiming.o getoptions.o strassen.cpp
@@ -79,6 +92,7 @@ strass: ktiming.o getoptions.o strassen.cpp
 run-strass:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen -n 1024 -c
 
+TARGETS += strass-fut
 APPS += strassen-future
     
 strass-fut: ktiming.o getoptions.o strassen-future.cpp
@@ -89,11 +103,26 @@ strass-fut: ktiming.o getoptions.o strassen-future.cpp
 run-strass-fut:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future -n 1024 -c
 
+TARGETS += matmul
 APPS += matmul
 
 matmul: ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c matmul.cpp -o matmul.o
 	$(CXX) -flto matmul.o getoptions.o ktiming.o -o matmul $(MY_LDFLAGS)
+
+TARGETS += matmul-future
+APPS += matmul-future
+
+matmul-future: ktiming.o getoptions.o
+	$(CXX) $(MY_CXXFLAGS) -c matmul-future.cpp -o matmul-future.o
+	$(CXX) -flto matmul-future.o getoptions.o ktiming.o -o matmul-future $(MY_LDFLAGS)
+
+###########################################################################
+# Though shalt not cross this line lest thou knowest what thou art doing! #
+###########################################################################
+
+.PHONE = all
+all: $(TARGETS)
 
 .PHONY = clean
 clean:

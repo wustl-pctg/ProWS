@@ -272,11 +272,12 @@ void mat_mul_par_fut_helper(cilk::future<void> *fut, REAL *A, REAL *B, REAL *C, 
 
 //recursive parallel solution to matrix multiplication
 void mat_mul_par(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n){
+    if (CReady) CReady->get();
     //BASE CASE: here computation is switched to itterative matrix multiplication
     //At the base case A, B, and C point to row order matrices of n x n
     if(n == BASE_CASE) {
 
-      if (CReady) CReady->get();
+      //if (CReady) CReady->get();
 
         int i, j, k;
         for(i = 0; i < n; i++){

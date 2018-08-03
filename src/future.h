@@ -7,7 +7,7 @@
 #include <internal/abi.h>
 #include <pthread.h>
 
-#define MAX_TOUCHES (100)
+#define MAX_TOUCHES (10)
 
 extern void __spawn_future_helper_helper(std::function<void*(void)>);
 

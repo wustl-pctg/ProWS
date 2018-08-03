@@ -4,50 +4,51 @@ mkfile_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
 include ../common.mk
 
-OBJ = simple_future_cilkr.o
-MY_LDFLAGS=-R=../cilkrtssuspend/.libs -lpthread -lcilkrts
-MY_CXXFLAGS=-g -std=c++11 -Wfatal-errors -I../cilkrtssuspend/include -fcilkplus -fcilk-no-inline
-APP = simple-future
-.SECONDARY: $(OBJ)
+MY_CXXFLAGS = -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
+MY_CFLAGS = -O3 -g
+MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt 
+
 
 .PHONY = default
-default:
-	$(CXX) -O3 -flto -g  -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -flto -g  -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c fib_cilkplus.cpp -o fib_cilkplus.o
-	$(CXX) -flto  fib_cilkplus.o ktiming.o -o fib_cilkplus ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
 
-fib-fut:
-	$(CXX) -O3 -flto -g  -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -flto -g  -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c fib_cilkfut.cpp -o fib_cilkfut.o
-	$(CXX) -flto fib_cilkfut.o ktiming.o -o fib_cilkfut ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+default: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus.cpp -o fib_cilkplus.o
+	$(CXX) -flto fib_cilkplus.o ktiming.o -o fib_cilkplus $(MY_LDFLAGS)
 
-fib-handcomp:
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+getoptions.o: getoptions.cpp
+	$(CXX) $(MY_CXXFLAGS) -c getoptions.cpp -o getoptions.o
 
-fib-handcomp-nofibers:
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut_nofibers.cpp -o handcomp_fib_cilkfut_nofibers.o
-	$(CXX) -flto handcomp_fib_cilkfut_nofibers.o ktiming.o -o handcomp_fib_cilkfut_nofibers ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+ktiming.o: ktiming.c
+	$(CXX) $(MY_CXXFLAGS) -c ktiming.c -o ktiming.o
 
-fib-interop-tests: default fib-handcomp
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
+fib-fut: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c fib_cilkfut.cpp -o fib_cilkfut.o
+	$(CXX) -flto fib_cilkfut.o ktiming.o -o fib_cilkfut $(MY_LDFLAGS)
+
+fib-handcomp: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut $(MY_LDFLAGS)
+
+fib-handcomp-nofibers: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o handcomp_fib_cilkfut_nofibers.o
+	$(CXX) -flto handcomp_fib_cilkfut_nofibers.o ktiming.o -o handcomp_fib_cilkfut_nofibers $(MY_LDFLAGS)
+
+fib-interop-tests: ktiming.o default fib-handcomp
 	# Test spawns before futures, sync after touching the future
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DTEST_INTEROP_PRE_FUTURE_CREATE -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-after ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-after $(MY_LDFLAGS)
 	# Test spawns before futures, sync before touching the future
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DTEST_INTEROP_PRE_FUTURE_CREATE -DFUTURE_AFTER_SYNC -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-before ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-before $(MY_LDFLAGS)
 	# Test spawns after futures, sync after touching the future
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DTEST_INTEROP_POST_FUTURE_CREATE -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-after ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-after $(MY_LDFLAGS)
 	# Test spawns after futures, sync before touching the future
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DTEST_INTEROP_POST_FUTURE_CREATE -DFUTURE_AFTER_SYNC -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-before ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-before $(MY_LDFLAGS)
 	# Test futures working with futures
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DTEST_INTEROP_MULTI_FUTURE -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_future-interop ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+	$(CXX) -DTEST_INTEROP_MULTI_FUTURE $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_future-interop $(MY_LDFLAGS)
 	make run-tests
 
 run-tests:
@@ -59,25 +60,25 @@ run-tests:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut 40
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./handcomp_fib_cilkfut 40
 
-strass: strassen.cpp
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c getoptions.cpp -o getoptions.o
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c strassen.cpp -o strassen.o
-	$(CXX) -flto strassen.o getoptions.o ktiming.o -o strassen ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+strass: ktiming.o getoptions.o strassen.cpp
+	$(CXX) $(MY_CXXFLAGS) -c strassen.cpp -o strassen.o
+	$(CXX) -flto strassen.o getoptions.o ktiming.o -o strassen $(MY_LDFLAGS)
 	make run-strass
 
 run-strass:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen -n 1024 -c
     
-strass-fut: strassen-future.cpp
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c ktiming.c -o ktiming.o
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c getoptions.cpp -o getoptions.o
-	$(CXX) -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall -c strassen-future.cpp -o strassen-future.o
-	$(CXX) -flto strassen-future.o getoptions.o ktiming.o -o strassen-future ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+strass-fut: ktiming.o getoptions.o strassen-future.cpp
+	$(CXX) $(MY_CXXFLAGS) -c strassen-future.cpp -o strassen-future.o
+	$(CXX) -flto strassen-future.o getoptions.o ktiming.o -o strassen-future $(MY_LDFLAGS)
 	make run-strass-fut
 
 run-strass-fut:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future -n 1024 -c
+
+matmul: ktiming.o getoptions.o
+	$(CXX) $(MY_CXXFLAGS) -c matmul.cpp -o matmul.o
+	$(CXX) -flto matmul.o getoptions.o ktiming.o -o matmul $(MY_LDFLAGS)
 
 .PHONY = clean
 clean:

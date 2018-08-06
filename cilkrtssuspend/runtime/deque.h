@@ -54,6 +54,8 @@ struct deque
   __cilkrts_pedigree saved_ped;
   __cilkrts_stack_frame *call_stack;
 
+  __cilkrts_deque_link link;
+
   // As long as we allow suspended deques to change which deque_pool
   // they are in, I don't see how to get away with not having these
   // pointers back to a deque's location in a deque pool. This is

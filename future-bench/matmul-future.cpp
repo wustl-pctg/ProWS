@@ -244,9 +244,9 @@ double maxerror_rm(REAL *M1, REAL *M2, int n) {
     return err;
 }
 
-void mat_mul_par(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n);
+void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n);
 
-void mat_mul_par_helper(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n) {
+void mat_mul_par_helper(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   __cilkrts_detach(&sf);
@@ -257,7 +257,7 @@ void mat_mul_par_helper(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, i
   __cilkrts_leave_frame(&sf);
 }
 
-void mat_mul_par_fut_helper(cilk::future<void> *fut, REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n) {
+void mat_mul_par_fut_helper(cilk::future<void> *fut, const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   __cilkrts_detach(&sf);
@@ -271,14 +271,14 @@ void mat_mul_par_fut_helper(cilk::future<void> *fut, REAL *A, REAL *B, REAL *C, 
 }
 
 //recursive parallel solution to matrix multiplication
-void mat_mul_par(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n){
-    if (CReady) CReady->get();
+void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n){
+    if (CReady) {
+      CReady->get();
+      CReady = NULL;
+    }
     //BASE CASE: here computation is switched to itterative matrix multiplication
     //At the base case A, B, and C point to row order matrices of n x n
     if(n == BASE_CASE) {
-
-      //if (CReady) CReady->get();
-
         int i, j, k;
         for(i = 0; i < n; i++){
             for(k = 0; k < n; k++){
@@ -297,15 +297,15 @@ void mat_mul_par(REAL *A, REAL *B, REAL *C, cilk::future<void> *CReady, int n){
 
     //partition each matrix into 4 sub matrices
     //each sub-matrix points to the start of the z pattern
-    REAL *A1 = &A[block_convert(0,0)];
-    REAL *A2 = &A[block_convert(0, n >> 1)]; //bit shift to divide by 2
-    REAL *A3 = &A[block_convert(n >> 1,0)];
-    REAL *A4 = &A[block_convert(n >> 1, n >> 1)];
+    const REAL *const A1 = &A[block_convert(0,0)];
+    const REAL *const A2 = &A[block_convert(0, n >> 1)]; //bit shift to divide by 2
+    const REAL *const A3 = &A[block_convert(n >> 1,0)];
+    const REAL *const A4 = &A[block_convert(n >> 1, n >> 1)];
 
-    REAL *B1 = &B[block_convert(0,0)];
-    REAL *B2 = &B[block_convert(0, n >> 1)];
-    REAL *B3 = &B[block_convert(n >> 1, 0)];
-    REAL *B4 = &B[block_convert(n >> 1, n >> 1)];
+    const REAL *const B1 = &B[block_convert(0,0)];
+    const REAL *const B2 = &B[block_convert(0, n >> 1)];
+    const REAL *const B3 = &B[block_convert(n >> 1, 0)];
+    const REAL *const B4 = &B[block_convert(n >> 1, n >> 1)];
     
     REAL *C1 = &C[block_convert(0,0)];
     REAL *C2 = &C[block_convert(0, n >> 1)];

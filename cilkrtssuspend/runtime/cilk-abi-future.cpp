@@ -33,11 +33,7 @@ static void __attribute__((noinline)) __spawn_future_helper(std::function<void*(
         void* __cilk_deque = func();
         
         if (__builtin_expect(__cilk_deque != NULL, 0)) {
-            if (__builtin_expect(!sf.call_parent, 1)) {
-                __cilkrts_resume_suspended(__cilk_deque, 2);
-            } else {
-                __cilkrts_make_resumable(__cilk_deque);
-            }
+            __cilkrts_resume_suspended(__cilk_deque, 2);
         }
 
     __cilkrts_pop_frame(&sf);

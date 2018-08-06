@@ -429,6 +429,11 @@ struct __cilkrts_stack_frame
 
 __CILKRTS_BEGIN_EXTERN_C
 
+typedef struct __cilkrts_deque_link {
+  void* d;
+  struct __cilkrts_deque_link *volatile next;
+} __cilkrts_deque_link;
+
 /**
  * Call __cilkrts_enter_frame to initialize an ABI 0 frame descriptor.
  * Initialize the frame descriptor before spawn or detach.  A function that

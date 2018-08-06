@@ -80,6 +80,13 @@
  * on the THE protocol.
  */
 
+void __attribute__((always_inline)) __cilkrts_insert_deque_into_list(__cilkrts_deque_link *volatile *tail) {
+  deque* d = (deque*)__cilkrts_get_deque();
+  d->link.next = NULL;
+  __cilkrts_deque_link* old_tail = __atomic_exchange_n(tail, &(d->link), __ATOMIC_SEQ_CST);
+  old_tail->next = &(d->link);
+}
+
 int can_take_fiber_from(deque *d) {
     // Unlike in normal dekker, we SHOULD be able to take the last of the fibers
     return ((d->fiber_head < d->fiber_tail) && (d->fiber_head < d->fiber_protected_tail));
@@ -334,6 +341,7 @@ void __cilkrts_promote_own_deque(__cilkrts_worker *w)
 int deque_init(deque *d, size_t ltqsize)
 {
   memset(d, 0, sizeof(deque));
+  d->link.d = d;
   d->ltq = (__cilkrts_stack_frame **)
     __cilkrts_malloc(ltqsize * sizeof(__cilkrts_stack_frame*));
 

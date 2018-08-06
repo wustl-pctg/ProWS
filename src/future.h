@@ -11,6 +11,10 @@
 
 extern void __spawn_future_helper_helper(std::function<void*(void)>);
 
+extern "C" {
+void __cilkrts_insert_deque_into_list(__cilkrts_deque_link *volatile *list);
+}
+
 namespace cilk {
 
 #define reuse_future(T,fut, loc,func,args...)  \
@@ -55,32 +59,22 @@ namespace cilk {
     }); \
   }
 
-typedef struct touch_node_t {
-    void* deque;
-    touch_node_t *volatile next;
-} touch_node_t;
-
 template<typename T>
 class future {
 private:
   volatile T m_result;
 
-  touch_node_t m_suspended_deques[MAX_TOUCHES];
-  touch_node_t head = {
-    .next = NULL
+  __cilkrts_deque_link head = {
+    .d = NULL, .next = NULL
   };
-  touch_node_t *volatile tail;
+  __cilkrts_deque_link *volatile tail;
   volatile int m_num_suspended_deques;
 
   void __attribute__((always_inline)) suspend_deque() {
-    void *deque = __cilkrts_get_deque();
     int ticket = __atomic_fetch_add(&m_num_suspended_deques, 1, __ATOMIC_SEQ_CST);
     if (ticket >= 0) {
-        m_suspended_deques[ticket].deque = deque;
-        m_suspended_deques[ticket].next = NULL;
-        touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
-        prev->next = &m_suspended_deques[ticket];
-
+        __cilkrts_insert_deque_into_list(&tail);
+        __asm__ volatile ("" ::: "memory");
         __cilkrts_suspend_deque();
     }
   }
@@ -108,16 +102,16 @@ public:
     void *ret = NULL;
 
     if (num_deques > 0) {
-        touch_node_t *node = &head;
+        __cilkrts_deque_link *node = &head;
         while (!node->next);
         node = node->next;
         num_deques--;
-        ret = node->deque;
+        ret = node->d;
         while (num_deques) {
             while (!node->next);
             node = node->next;
             num_deques--;
-            __cilkrts_make_resumable(node->deque);
+            __cilkrts_make_resumable(node->d);
         }
     }
 
@@ -145,22 +139,17 @@ public:
 template<>
 class future<void> {
 private:
-  touch_node_t m_suspended_deques[MAX_TOUCHES];
-  touch_node_t head = {
+  __cilkrts_deque_link head = {
+    .d = NULL,
     .next = NULL
   };
-  touch_node_t *volatile tail;
+  __cilkrts_deque_link *volatile tail;
   volatile int m_num_suspended_deques;
 
   void __attribute__((always_inline)) suspend_deque() {
-    void *deque = __cilkrts_get_deque();
     int ticket = __atomic_fetch_add(&m_num_suspended_deques, 1, __ATOMIC_SEQ_CST);
     if (ticket >= 0) {
-        assert(deque);
-        m_suspended_deques[ticket].deque = deque;
-        m_suspended_deques[ticket].next = NULL;
-        touch_node_t* prev = __atomic_exchange_n(&tail, &m_suspended_deques[ticket], __ATOMIC_SEQ_CST);
-        prev->next = &m_suspended_deques[ticket];
+        __cilkrts_insert_deque_into_list(&tail);
         __asm__ volatile ("" ::: "memory");
         __cilkrts_suspend_deque();
     }
@@ -186,17 +175,17 @@ public:
 
     void *ret = NULL;
 
-    if (num_deques) {
-        touch_node_t *node = &head;
+    if (num_deques > 0) {
+        __cilkrts_deque_link *node = &head;
         while (!node->next);
         node = node->next;
         num_deques--;
-        ret = node->deque;
+        ret = node->d;
         while (num_deques) {
             while (!node->next);
             node = node->next;
             num_deques--;
-            __cilkrts_make_resumable(node->deque);
+            __cilkrts_make_resumable(node->d);
         }
     }
 

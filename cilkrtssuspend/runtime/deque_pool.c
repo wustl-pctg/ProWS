@@ -205,7 +205,6 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 
   // Basically, if we were operating on a true future we can destroy the old deque.
   if (enable_resume == 2 && !w->current_stack_frame->call_parent && !(*w->l->frame_ff)->parent && !(w->current_stack_frame->flags & CILK_FRAME_LAST)) {
-
     cilk_fiber *current_fiber = cilk_fiber_get_current_fiber();
 
     deque_to_resume->resumable = 0;

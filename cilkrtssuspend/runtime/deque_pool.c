@@ -80,7 +80,6 @@ void __cilkrts_suspend_deque()
   } else { // no more memory for deques
     fiber_to_resume = w->l->scheduling_fiber;
   }
-  //printf("suspending fiber %p\n", current_fiber);
   cilk_fiber_suspend_self_and_resume_other(current_fiber,
                                            fiber_to_resume);
 }
@@ -199,11 +198,7 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   data->owner = w;
   deque_to_resume->call_stack->worker = w;
 
-  // NOTE: Need to handle provably good steal possibility as well (in case of cilk_spawn'ed future)
-  // If you use futures per the theoretical analysis, this should be the case
-  //if (enable_resume == 2 && !w->current_stack_frame->call_parent && !((*w->l->frame_ff)->parent && provably_good_steal(w, (*w->l->frame_ff)->parent) == ABANDON_EXECUTION)) {
-
-  // Basically, if we were operating on a true future we can destroy the old deque.
+  // Basically, if we are operating on a true future we can destroy the old deque.
   if (enable_resume == 2 && !w->current_stack_frame->call_parent && !(*w->l->frame_ff)->parent && !(w->current_stack_frame->flags & CILK_FRAME_LAST)) {
     cilk_fiber *current_fiber = cilk_fiber_get_current_fiber();
 

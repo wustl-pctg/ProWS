@@ -319,7 +319,8 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
       char *new_sp = __cilkrts_switch_fibers();
       char *old_sp = NULL;
 
-      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
       mat_mul_par_fut_helper(&stages[0], A1, B1, C1, CReady, n>>1);
       __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
 
@@ -336,7 +337,8 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
       char *new_sp = __cilkrts_switch_fibers();
       char *old_sp = NULL;
 
-      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
       mat_mul_par_fut_helper(&stages[1], A1, B2, C2, CReady, n>>1);
       __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
 
@@ -352,7 +354,8 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
       char *new_sp = __cilkrts_switch_fibers();
       char *old_sp = NULL;
 
-      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
       mat_mul_par_fut_helper(&stages[2], A3, B1, C3, CReady, n>>1);
       __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
 
@@ -368,7 +371,8 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
       char *new_sp = __cilkrts_switch_fibers();
       char *old_sp = NULL;
 
-      __asm__ volatile ("mov %%rsp, %0\n mov %1, %%rsp" : "=r" (old_sp) : "r" (new_sp));
+      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
       mat_mul_par_fut_helper(&stages[3], A3, B2, C4, CReady, n>>1);
       __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
 

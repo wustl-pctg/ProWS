@@ -6,7 +6,7 @@ CXX=$(COMPILER_HOME)/bin/clang++
 LIBNAME = $(BUILD_DIR)/libporr.a
 
 INC = -I$(RUNTIME_HOME)/include
-LDFLAGS = -ldl -lpthread -ltcmalloc
+LDFLAGS = -ldl -lpthread -L$(BASE_DIR)/SuperMalloc/release/lib -lsupermalloc
 ARFLAGS = rcs
 OPT = -O3 #-march=native -DNDEBUG
 
@@ -22,5 +22,6 @@ ifeq ($(LTO),1)
 	#ARFLAGS += --plugin $(COMPILER_HOME)/lib/LLVMgold.so
 endif
 
-CFLAGS = -g -std=c++11 -Wfatal-errors $(OPT) $(DEFS) $(INC)
+CFLAGS = -g -std=c++11 -Wfatal-errors -DPRECOMPUTE_PEDIGREES=1 $(OPT) $(DEFS) $(INC)
+CXXFLAGS = -DPRECOMPUTE_PEDIGREES=1
 CILKFLAGS = -fcilkplus -fcilk-no-inline

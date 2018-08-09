@@ -60,10 +60,11 @@ CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::functi
 
         // Save the old stack pointer and
         // move it to point to the new fiber.
-        __asm__ volatile ("mov %%rsp,%0\n"
-                          "mov %1,%%rsp"
-                          : "=r" (old_sp)
-                          : "r" (new_sp));
+        __asm__ volatile ("mov %%rsp,%0"
+                          : "=r" (old_sp));
+
+        __asm__ volatile ("mov %0,%%rsp"
+                          : : "r" (new_sp));
 
         // Now that we are on the new stack, we can
         // run the future

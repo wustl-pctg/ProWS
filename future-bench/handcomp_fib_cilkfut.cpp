@@ -129,10 +129,11 @@ int  __attribute__((noinline)) fib(int n) {
             char* old_sp = NULL;
             // Save the old stack pointer and
             // move it to point to the new fiber.
-            __asm__ volatile ("mov %%rsp,%0\n"
-                              "mov %1,%%rsp"
-                              : "=r" (old_sp)
-                              : "r" (new_sp));
+            __asm__ volatile ("mov %%rsp,%0"
+                              : "=r" (old_sp));
+
+            __asm__ volatile ("mov %0,%%rsp"
+                              : : "r" (new_sp));
 
             fib_fut(&y_fut, n-2);
 

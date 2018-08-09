@@ -35,6 +35,16 @@ namespace cilk {
   }); \
   }
 
+#define use_future_inplace(T,fut,func,args...)  \
+  { \
+  auto functor = std::bind(func, ##args);  \
+  auto __temp_fut = fut; \
+  __spawn_future_helper_helper([__temp_fut,functor]() -> void* { \
+    return __temp_fut->put(functor()); \
+  }); \
+  }
+
+
 #define cilk_future_get(fut)              (fut)->get()
 
 #define cilk_future_create(T,fut,func,args...) \

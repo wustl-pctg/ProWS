@@ -22,6 +22,9 @@
 #define LEFT 1
 #define UP   2
 
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
+
 static int base_case_log;
 #define MIN_BASE_CASE 32
 #define NUM_BLOCKS(n) (n >> base_case_log)
@@ -160,25 +163,98 @@ static int process_lcs_tile(int *stor, char *a, char *b, int n, int iB, int jB) 
 */
 
 #ifdef STRUCTURED_FUTURES
-int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
 
+int structured_future_process_lcs_tile(int *stor, char *a, char *b, int n, int iB, int jB, cilk::future<int> *up_dependency, cilk::future<int> *left_dependency) {
+  if (up_dependency) up_dependency->get();
+  if (left_dependency) left_dependency->get();
+
+  return process_lcs_tile(stor, a, b, n, iB, jB);
+}
+
+/*void structured_future_populate_right(int *stor, char *a, char *b, int n, int row, int col_start, int col_end, cilk::future<int> *farray) {
+  cilk::future<int> *up_dependency = NULL;
+  cilk::future<int> *left_dependency = NULL;
+
+  for (int j = col_start; j < row; j++) {
+      int iB = row - jB;
+      if (j > 0) { left_dependency = &farray[row*nBlocks + (j-1)]; } else { left_dependency = NULL; } // left dependency
+      if (row > 0) { up_dependency = &farray[(row-1)*nBlocks + j]; } else {up_dependency = NULL; }// up dependency
+
+        use_future_inplace(int, &farray[row*nBlocks+j], structured_future_process_lcs_tile, stor, a, b, n, iB, j, up_dependency, left_dependency);
+  }
+}*/
+
+void populate_column() {
+
+}
+
+int populate_row(int section, int nBlocks, cilk::future<int> *farray, int *stor, char *a, char *b, int n) {
+  cilk::future<int> *up_dependency = NULL;
+  cilk::future<int> *left_dependency = NULL;
+
+    for (int col = section+1; col < nBlocks; col++) {
+      // Create future for (section, col)
+      if (section > 0) { up_dependency = &farray[(section-1)*nBlocks + col]; } else { up_dependency = NULL; }
+      left_dependency = &farray[section*nBlocks + col - 1]; // There is ALWAYS a left dependency
+
+      reuse_future_inplace(int, &farray[section*nBlocks + col], structured_future_process_lcs_tile, stor, a, b, n, section, col, up_dependency, left_dependency);
+    }
+    return 0;
+}
+
+static void noop() { }
+
+extern "C" {
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
+int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_1(&sf);
   int nBlocks = NUM_BLOCKS(n);
 
+  //cilk_spawn noop();
   // create an array of future objects
   auto farray = (cilk::future<int>*)
     malloc(sizeof(cilk::future<int>) * nBlocks * nBlocks);
+  //cilk::future<int> *farray = new cilk::future<int> [nBlocks*nBlocks];
+  cilk::future<int> *up_dependency = NULL;
+  cilk::future<int> *left_dependency = NULL;
+  cilk::future<int> blah;
 
+  for (int section = 0; section < nBlocks; section++) {
+    printf("Hiiii!\n");
+    if (section > 0) {
+      up_dependency = &farray[(section-1)*nBlocks + section];
+      left_dependency = &farray[section*nBlocks + section - 1];
+    }
+    reuse_future_inplace(int, &farray[section*nBlocks + section], structured_future_process_lcs_tile, stor, a, b, n, section, section, up_dependency, left_dependency);
+    printf("Here!\n");
+    use_future_inplace(int,&blah,populate_row, section, nBlocks, farray, stor, a, b, n);
+    //cilk_spawn populate_row(section, nBlocks, farray, stor, a, b, n);
+    for (int row = section+1; row < nBlocks; row++) {
+      up_dependency = &farray[(row-1)*nBlocks + section]; // There is ALWAYS an up dependency here
+      if (section > 0) { left_dependency = &farray[row*nBlocks + section - 1]; } else { left_dependency = NULL; }
+
+      reuse_future_inplace(int, &farray[row*nBlocks + section], structured_future_process_lcs_tile, stor, a, b, n, row, section, up_dependency, left_dependency);
+    }
+    printf("There!\n");
+    //cilk_sync;
+    blah.get();
+    blah.reset();
+    printf("Everywhere!\n");
+  }
+
+/*
   // walk the upper half of triangle, including the diagonal (we assume square NxN LCS)
   for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
     for(int jB = 0; jB <= wave_front; jB++) {
       int iB = wave_front - jB;
 
-      if(iB > 0) { farray[(iB-1)*nBlocks + jB].get(); } // up dependency
+      if (jB > 0) { left_dependency = &farray[iB*nBlocks + (jB-1)]; } else { left_dependency = NULL; } // left dependency
+      if (iB > 0) { up_dependency = &farray[(iB-1)*nBlocks + jB]; } else {up_dependency = NULL; }// up dependency
 
-      // since we are walking the wavefront serially, no need to get
-      // left dependency --- already gotten by previous square.
-
-        reuse_future_inplace(int, &farray[iB*nBlocks+jB], process_lcs_tile, stor, a, b, n, iB, jB);
+        use_future_inplace(int, &farray[iB*nBlocks+jB], structured_future_process_lcs_tile, stor, a, b, n, iB, jB, up_dependency, left_dependency);
 
       // process_lcs_tile(stor, a, b, n, iB, jB);
 
@@ -194,19 +270,28 @@ int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
       // but otherwise just the up dependency.
 
       if(iB == (nBlocks - 1) && jB > 0) // left dependency
-        farray[iB*nBlocks + jB - 1].get();
-      if(iB > 0) // up dependency
-        farray[(iB-1)*nBlocks + jB].get();
+        left_dependency = &farray[iB*nBlocks + jB - 1];
+      else
+        left_dependency = NULL;
 
-        reuse_future_inplace(int, &farray[iB*nBlocks+jB], process_lcs_tile, stor, a, b, n, iB, jB);
+      if(iB > 0) // up dependency
+        up_dependency = &farray[(iB-1)*nBlocks + jB];
+      else
+        up_dependency = NULL;
+
+        use_future_inplace(int, &farray[iB*nBlocks+jB], structured_future_process_lcs_tile, stor, a, b, n, iB, jB, up_dependency, left_dependency);
 
       // process_lcs_tile(stor, a, b, n, iB, jB);
 
     }
   }
+  */
   // make sure the last square finishes before we move onto returning
   farray[nBlocks * nBlocks - 1].get();
 
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_frame(&sf);
+  //delete [] farray;
   free(farray);
 
   return stor[n*(n-1) + n-1];
@@ -233,20 +318,22 @@ int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
   int blocks = nBlocks * nBlocks;
 
   // create an array of future handles
-  auto farray = (cilk::future<int>*)
-    malloc(sizeof(cilk::future<int>) * blocks);
+  //auto farray = (cilk::future<int>*)
+  //  malloc(sizeof(cilk::future<int>) * blocks);
+  cilk::future<int> *farray = new cilk::future<int>[blocks];
 
 
   // now we spawn off the function that will call get
   cilk_for(int i=0; i < blocks; i++) {
     int iB = i / nBlocks; // row block index
     int jB = i % nBlocks; // col block index
-      reuse_future_inplace(int,&farray[i], process_lcs_tile_with_get, farray, stor, a, b, n, iB, jB);
+      use_future_inplace(int,&farray[i], process_lcs_tile_with_get, farray, stor, a, b, n, iB, jB);
   }
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
 
-  free(farray);
+  //free(farray);
+  delete [] farray;
 
   return stor[n*(n-1) + n-1];
 }
@@ -341,6 +428,8 @@ int main(int argc, char *argv[]) {
   printf("Performing LCS with structured futures and %d x %d base case.\n",
          bSize, bSize);
 #endif
+
+  __cilkrts_init();
 
   auto start = std::chrono::steady_clock::now();
   result = wave_lcs_with_futures(stor1, a1, b1, n);

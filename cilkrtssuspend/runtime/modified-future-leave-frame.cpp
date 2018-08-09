@@ -456,7 +456,7 @@ CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf) {
 			// The update of pedigree for leaving the frame occurs
 			// inside this call if it does not return.
 			__cilkrts_c_kyles_THE_exception_check(w, sf);
-		}
+    }
 
 		update_pedigree_on_leave_frame(w, sf);
 

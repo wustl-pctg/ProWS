@@ -1,8 +1,8 @@
 include ../common.mk
 
 OBJ = simple_future_cilkr.o
-MY_LDFLAGS= -flto ../cilkrtssuspend/.libs/libcilkrts.a -lnuma -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
-MY_CXXFLAGS=-O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c
+MY_LDFLAGS= -flto ../cilkrtssuspend/.libs/libcilkrts.a -L../SuperMalloc/release/lib -lnuma -lrt -ldl -lpthread -lsupermalloc -lpthread -lm -lrt
+MY_CXXFLAGS= -flto -O3 -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c
 APP = simple-future
 .SECONDARY: $(OBJ)
 

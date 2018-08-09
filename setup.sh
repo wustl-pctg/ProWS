@@ -28,12 +28,10 @@ fi
 ./build-llvm-linux.sh
 
 msg "Modified clang compiled."
-pushd .
-cd ./SuperMalloc
-git submodule update
-cd ./release
-make
-popd
+
+git submodule update --init ./SuperMalloc
+cd ./SuperMalloc/release
+cd -
 
 # # Build the runtime (ability to suspend/resume deques)
 cd ./cilkrtssuspend

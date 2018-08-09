@@ -81,6 +81,8 @@
  */
 
 void __attribute__((always_inline)) __cilkrts_insert_deque_into_list(__cilkrts_deque_link *volatile *tail) {
+  CILK_ASSERT(tail);
+  CILK_ASSERT(*tail);
   deque* d = (deque*)__cilkrts_get_deque();
   d->link.next = NULL;
   __cilkrts_deque_link* old_tail = __atomic_exchange_n(tail, &(d->link), __ATOMIC_SEQ_CST);
@@ -551,45 +553,50 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
   // right thing to do if it fails.
   if (d->resumable || d->head != d->tail) {
 
-  // Probably slightly better balls and bins result compared to random;
-  // based on very light testing. slightly better performance in practice.
-    CILK_ASSERT(w->g->total_workers > 1);
-    int victim_idx = myrand(w) % (w->g->total_workers);
-    int victim2_idx = myrand(w) % (w->g->total_workers - 1);
-    if (victim2_idx >= victim_idx) victim2_idx++;
-    __cilkrts_worker *victim = w->g->workers[victim_idx];
-    __cilkrts_worker *potential_victim = w->g->workers[victim2_idx];
+    __cilkrts_worker *victim = NULL;
 
-    if ((d->resumable && victim->l->resumable_deques.size > potential_victim->l->resumable_deques.size) || victim->l->suspended_deques.size > potential_victim->l->suspended_deques.size) {
-      victim = potential_victim;
+    if (__builtin_expect(w->g->total_workers > 1, 1)) {
+        // Probably slightly better balls and bins result compared to random;
+        // based on very light testing. slightly better performance in practice.
+        int victim_idx = myrand(w) % (w->g->total_workers);
+        int victim2_idx = myrand(w) % (w->g->total_workers - 1);
+        if (victim2_idx >= victim_idx) victim2_idx++;
+        victim = w->g->workers[victim_idx];
+        __cilkrts_worker *potential_victim = w->g->workers[victim2_idx];
+
+        if ((d->resumable && victim->l->resumable_deques.size > potential_victim->l->resumable_deques.size) || victim->l->suspended_deques.size > potential_victim->l->suspended_deques.size) {
+          victim = potential_victim;
+        }
+    } else {
+      victim = w;
     }
 
-    DEQUE_LOG("(w: %i) pushing suspended deque %p on to %i\n",
-              w->self, d, victim->self);
+        DEQUE_LOG("(w: %i) pushing suspended deque %p on to %i\n",
+                  w->self, d, victim->self);
 
-    __cilkrts_mutex_lock(w, &victim->l->lock); {
-      if (d->resumable) {
-        deque_pool_add(victim, &victim->l->resumable_deques, d);
-        /* fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n", */
-        /*        w->self, d, victim->self); */
+        __cilkrts_mutex_lock(w, &victim->l->lock); {
+          if (d->resumable) {
+            deque_pool_add(victim, &victim->l->resumable_deques, d);
+            /* fprintf(stderr, "(w: %i) pushed resumable deque %p on to %i\n", */
+            /*        w->self, d, victim->self); */
 
-      } else if (d->head != d->tail) { // not resumable, but stealable!
-        deque_pool_add(victim, &victim->l->suspended_deques, d);
-        /* fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n", */
-        /*              w->self, d, victim->self); */
+          } else if (d->head != d->tail) { // not resumable, but stealable!
+            deque_pool_add(victim, &victim->l->suspended_deques, d);
+            /* fprintf(stderr, "(w: %i) pushed suspended (stealable) deque %p on to %i\n", */
+            /*              w->self, d, victim->self); */
 
-//      } else { // empty: no need to add, will be resumed later
+//          } else { // empty: no need to add, will be resumed later
 
 
-//        d->self = INVALID_DEQUE_INDEX;
-//        d->worker = NULL;
-        //      w->l->mugged++;
+//            d->self = INVALID_DEQUE_INDEX;
+//            d->worker = NULL;
+            //      w->l->mugged++;
 
-        /* fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n", */
-        /*        w->self, d, victim->self); */
+            /* fprintf(stderr, "(w: %i) suspended non-stealable deque %p on to %i\n", */
+            /*        w->self, d, victim->self); */
 
-      }
-    } __cilkrts_mutex_unlock(w, &victim->l->lock);
+          }
+        } __cilkrts_mutex_unlock(w, &victim->l->lock);
   } else {
     d->self = INVALID_DEQUE_INDEX;
     d->worker = NULL;

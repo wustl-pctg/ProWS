@@ -75,7 +75,7 @@ private:
   __cilkrts_deque_link head = {
     .d = NULL, .next = NULL
   };
-  __cilkrts_deque_link *volatile tail;
+  __cilkrts_deque_link *volatile tail = &head;
   volatile int m_num_suspended_deques;
 
   void __attribute__((always_inline)) suspend_deque() {
@@ -99,6 +99,8 @@ public:
 
   inline void reset() {
     m_num_suspended_deques = 0;
+    tail = &head;
+    head.next = NULL;
   }
 
   void* __attribute__((always_inline)) put(T result) {
@@ -151,7 +153,7 @@ private:
     .d = NULL,
     .next = NULL
   };
-  __cilkrts_deque_link *volatile tail;
+  __cilkrts_deque_link *volatile tail = &head;
   volatile int m_num_suspended_deques;
 
   void __attribute__((always_inline)) suspend_deque() {
@@ -175,6 +177,8 @@ public:
 
   inline void reset() {
     m_num_suspended_deques = 0;
+    tail = &head;
+    head.next = NULL;
   }
 
   void* __attribute__((always_inline)) put(void) {

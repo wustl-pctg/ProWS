@@ -119,15 +119,20 @@ void __cilkrts_make_resumable(void* _deque)
               deque_to_resume, victim->self);
   } else {
 
-    int victim_idx = myrand(w) % (w->g->total_workers);
-    int victim2_idx = myrand(w) % (w->g->total_workers - 1);
-    if (victim2_idx >= victim_idx) victim2_idx++;
+    __cilkrts_worker *victim = NULL;
+    if (w->g->total_workers > 1) {
+      int victim_idx = myrand(w) % (w->g->total_workers);
+      int victim2_idx = myrand(w) % (w->g->total_workers - 1);
+      if (victim2_idx >= victim_idx) victim2_idx++;
 
-    __cilkrts_worker *victim = w->g->workers[victim_idx];
-    __cilkrts_worker *potential_victim = w->g->workers[victim2_idx];
+      victim = w->g->workers[victim_idx];
+      __cilkrts_worker *potential_victim = w->g->workers[victim2_idx];
 
-    if (victim->l->resumable_deques.size > potential_victim->l->resumable_deques.size) {
-        victim = potential_victim;
+      if (victim->l->resumable_deques.size > potential_victim->l->resumable_deques.size) {
+          victim = potential_victim;
+      }
+    } else {
+      victim = w;
     }
 
     CILK_ASSERT(deque_to_resume->self == INVALID_DEQUE_INDEX);

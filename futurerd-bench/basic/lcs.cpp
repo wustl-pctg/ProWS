@@ -399,7 +399,6 @@ typedef struct wave_lcs_loop_context_t {
 void wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
-  //__cilkrts_detach(&sf);
 
   wave_lcs_loop_context_t *ctx = (wave_lcs_loop_context_t*) context;
   cilk_fiber *initial_fiber = NULL;

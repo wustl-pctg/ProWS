@@ -16,7 +16,7 @@
 #include "getoptions.h"
 
 #ifndef TIMING_COUNT
-#define TIMING_COUNT 1
+#define TIMING_COUNT 10
 #endif
 
 #if TIMING_COUNT
@@ -503,6 +503,7 @@ int main(int argc, char *argv[]) {
   uint64_t elapsed[TIMING_COUNT];
 
   for(int i=0; i < TIMING_COUNT; i++) {
+    __cilkrts_set_param("local stacks", "256");
     init_rm(A, n);
     init_rm(B, n);
     zero(C, n);

@@ -31,6 +31,7 @@ msg "Modified clang compiled."
 
 git submodule update --init ./SuperMalloc
 cd ./SuperMalloc/release
+make
 cd -
 
 # # Build the runtime (ability to suspend/resume deques)

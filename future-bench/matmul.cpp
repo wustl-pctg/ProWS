@@ -16,7 +16,7 @@
 #include "getoptions.h"
 
 #ifndef TIMING_COUNT
-#define TIMING_COUNT 1
+#define TIMING_COUNT 10
 #endif
 
 #if TIMING_COUNT
@@ -226,7 +226,7 @@ double maxerror_rm(REAL *M1, REAL *M2, int n) {
 }
 
 //recursive parallel solution to matrix multiplication
-void mat_mul_par(REAL *A, REAL *B, REAL *C, int n){
+void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, int n){
     //BASE CASE: here computation is switched to itterative matrix multiplication
     //At the base case A, B, and C point to row order matrices of n x n
     if(n == BASE_CASE) {
@@ -245,15 +245,15 @@ void mat_mul_par(REAL *A, REAL *B, REAL *C, int n){
 
     //partition each matrix into 4 sub matrices
     //each sub-matrix points to the start of the z pattern
-    REAL *A1 = &A[block_convert(0,0)];
-    REAL *A2 = &A[block_convert(0, n >> 1)]; //bit shift to divide by 2
-    REAL *A3 = &A[block_convert(n >> 1,0)];
-    REAL *A4 = &A[block_convert(n >> 1, n >> 1)];
+    const REAL *const A1 = &A[block_convert(0,0)];
+    const REAL *const A2 = &A[block_convert(0, n >> 1)]; //bit shift to divide by 2
+    const REAL *const A3 = &A[block_convert(n >> 1,0)];
+    const REAL *const A4 = &A[block_convert(n >> 1, n >> 1)];
 
-    REAL *B1 = &B[block_convert(0,0)];
-    REAL *B2 = &B[block_convert(0, n >> 1)];
-    REAL *B3 = &B[block_convert(n >> 1, 0)];
-    REAL *B4 = &B[block_convert(n >> 1, n >> 1)];
+    const REAL *const B1 = &B[block_convert(0,0)];
+    const REAL *const B2 = &B[block_convert(0, n >> 1)];
+    const REAL *const B3 = &B[block_convert(n >> 1, 0)];
+    const REAL *const B4 = &B[block_convert(n >> 1, n >> 1)];
     
     REAL *C1 = &C[block_convert(0,0)];
     REAL *C2 = &C[block_convert(0, n >> 1)];
@@ -367,6 +367,7 @@ int main(int argc, char *argv[]) {
   uint64_t elapsed[TIMING_COUNT];
 
   for(int i=0; i < TIMING_COUNT; i++) {
+    __cilkrts_set_param("local stacks", "256");
     init_rm(A, n);
     init_rm(B, n);
     zero(C, n);

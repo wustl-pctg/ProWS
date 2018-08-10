@@ -15,14 +15,8 @@ MY_CXXFLAGS = -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -
 MY_CFLAGS = -O3 -g
 MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt 
 
-TARGETS = default
-APPS = fib_cilkplus
-
 .PHONY = default
-
-default: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus.cpp -o fib_cilkplus.o
-	$(CXX) -flto fib_cilkplus.o ktiming.o -o fib_cilkplus $(MY_LDFLAGS)
+default: all
 
 getoptions.o: getoptions.cpp
 	$(CXX) $(MY_CXXFLAGS) -c getoptions.cpp -o getoptions.o
@@ -30,31 +24,45 @@ getoptions.o: getoptions.cpp
 ktiming.o: ktiming.c
 	$(CXX) $(MY_CXXFLAGS) -c ktiming.c -o ktiming.o
 
-TARGETS += fib-fut
-APPS += fib_cilkfut
+TARGETS = fib
+APPS = fib
 
-fib-fut: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c fib_cilkfut.cpp -o fib_cilkfut.o
-	$(CXX) -flto fib_cilkfut.o ktiming.o -o fib_cilkfut $(MY_LDFLAGS)
+fib: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus.cpp -o fib.o
+	$(CXX) -flto fib.o ktiming.o -o fib $(MY_LDFLAGS)
 
 TARGETS += fib-handcomp
-APPS += handcomp_fib_cilkfut
+APPS += fib-handcomp
 
 fib-handcomp: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut $(MY_LDFLAGS)
+	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus-handcomp.cpp -o fib-handcomp.o
+	$(CXX) -flto fib-handcomp.o ktiming.o -o fib-handcomp $(MY_LDFLAGS)
 
-APPS += handcomp_fib_cilkfut_nofibers
+TARGETS += fib-future-macro
+APPS += fib-future-macro
 
-TARGETS += fib-handcomp-nofibers
-fib-handcomp-nofibers: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o handcomp_fib_cilkfut_nofibers.o
-	$(CXX) -flto handcomp_fib_cilkfut_nofibers.o ktiming.o -o handcomp_fib_cilkfut_nofibers $(MY_LDFLAGS)
+fib-future-macro: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c fib_cilkfut.cpp -o fib-future-macro.o
+	$(CXX) -flto fib-future-macro.o ktiming.o -o fib-future-macro $(MY_LDFLAGS)
+
+TARGETS += fib-future
+APPS += fib-future
+
+fib-future: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o fib-future.o
+	$(CXX) -flto fib-future.o ktiming.o -o fib-future $(MY_LDFLAGS)
+
+APPS += fib-future-nofibers
+TARGETS += fib-future-nofibers
+
+fib-future-nofibers: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o fib-future-nofibers.o
+	$(CXX) -flto fib-future-nofibers.o ktiming.o -o fib-future-nofibers $(MY_LDFLAGS)
 
 TARGETS += fib-interop-tests
 APPS += handcomp_fib_cilkfut_spawn-after-sync-after handcomp_fib_cilkfut_spawn-after-sync-before handcomp_fib_cilkfut_spawn-before-sync-after handcomp_fib_cilkfut_spawn-before-sync-before handcomp_fib_cilkfut_future-interop  handcomp_fib_cilkfut_nofibers
 
-fib-interop-tests: ktiming.o default fib-handcomp
+fib-interop-tests: ktiming.o fib fib-future
 	# Test spawns before futures, sync after touching the future
 	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
 	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-after $(MY_LDFLAGS)
@@ -78,8 +86,8 @@ run-tests:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_spawn-after-sync-after 40
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_spawn-after-sync-before 40
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_future-interop 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./handcomp_fib_cilkfut 40
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./fib-future 40
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./fib-future 40
 
 TARGETS += strass
 APPS += strassen
@@ -120,7 +128,7 @@ APPS += matmul-handcomp
 matmul-handcomp: matmul-handcomp.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c matmul-handcomp.cpp -o matmul-handcomp.o
 	$(CXX) -flto matmul-handcomp.o getoptions.o ktiming.o -o matmul-handcomp $(MY_LDFLAGS)
-	make run-matmul-handcomp
+	#make run-matmul-handcomp
 
 run-matmul-handcomp:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-handcomp -n 1024 -c

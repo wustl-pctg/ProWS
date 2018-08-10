@@ -6,7 +6,7 @@
 #include "../src/future.h"
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 1 
+#define TIMES_TO_RUN 10
 #endif
 
 /* 
@@ -61,6 +61,8 @@ int main(int argc, char * args[]) {
     }
     
     n = atoi(args[1]);
+    __cilkrts_set_param("local stacks", "128");
+    __cilkrts_set_param("shared stacks", "128");
 
     int res = 0;
     res = cilk_spawn run(n, running_time);

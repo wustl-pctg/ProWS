@@ -14,6 +14,7 @@
 
 #include "../util/getoptions.hpp"
 #include "../util/util.hpp"
+#include "../util/ktiming.h"
 
 #define SIZE_OF_ALPHABETS 4
 #define COMPUTE_LCS 0
@@ -21,6 +22,10 @@
 #define DIAGONAL 0
 #define LEFT 1
 #define UP   2
+
+#ifndef TIMES_TO_RUN
+#define TIMES_TO_RUN 10
+#endif
 
 #undef STRUCTURED_FUTURES
 #define NONBLOCKING_FUTURES 1
@@ -567,7 +572,6 @@ int main(int argc, char *argv[]) {
   // str len is n-1, but allocated n to have the last char be \0
   char *a1 = (char *)malloc(n * sizeof(char));
   char *b1 = (char *)malloc(n * sizeof(char));
-  int *stor1 = (int *) malloc(sizeof(int) * n * n);
   int result = 0;
 
   /* Generate random inputs; a/b[n-1] not used */
@@ -587,15 +591,28 @@ int main(int argc, char *argv[]) {
 #endif
 
   //__cilkrts_init();
+  uint64_t running_time[TIMES_TO_RUN];
 
-  auto start = std::chrono::steady_clock::now();
-  result = wave_lcs_with_futures(stor1, a1, b1, n);
-  auto end = std::chrono::steady_clock::now();
+  int *stor1;// = (int *) malloc(sizeof(int) * n * n);
+  for (int i = 0; i < TIMES_TO_RUN; i++) {
+    stor1 = (int *) malloc(sizeof(int) * n * n);
+    __cilkrts_init();
+    auto start = ktiming_getmark();
+    result = wave_lcs_with_futures(stor1, a1, b1, n);
+    auto end = ktiming_getmark();
+    running_time[i] = ktiming_diff_usec(&start, &end);
+    if (i < TIMES_TO_RUN-1)
+        free(stor1);
+  }
   if(check) { do_check(stor1, a1, b1, n, result); }
 
   printf("Result: %d\n", result);
-  auto time = std::chrono::duration <double, std::milli> (end-start).count();
-  printf("Benchmark time: %f ms\n", time);
+  //auto time = std::chrono::duration <double, std::milli> (end-start).count();
+  //printf("Benchmark time: %f ms\n", time);
+  if( TIMES_TO_RUN > 10 ) 
+      print_runtime_summary(running_time, TIMES_TO_RUN); 
+  else 
+      print_runtime(running_time, TIMES_TO_RUN); 
 
   free(a1);
   free(b1);

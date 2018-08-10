@@ -21,7 +21,7 @@ endif
 all: $(TARGETS)
 
 .SECONDEXPANSION:
-$(BENCH:=-serial): $$@.o ../util/getoptions.o
+$(BENCH:=-serial): $$@.o ../util/getoptions.o ../util/ktiming.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 $(BENCH:=-all):
@@ -37,9 +37,9 @@ LDFLAGS += -flto $(RTS_LIB) -lnuma
 
 .SECONDEXPANSION:
 $(BENCH): $$@.o
-	$(CXX) $^ $(GETOPT) $(LDFLAGS) -o $@
+	$(CXX) $^ ../util/ktiming.o $(GETOPT) $(LDFLAGS) -o $@
 
-$(ALLTARGETS): $$@.o $(GETOPT) | $(RDLIB)
+$(ALLTARGETS): $$@.o ../util/ktiming.o $(GETOPT) | $(RDLIB)
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 ifeq ($(btype),all)

@@ -22,7 +22,7 @@ int fib(int n) {
     int x;
     int y;
 
-    if(n <= 2) {
+    if(n < 2) {
         return n;
     }
     

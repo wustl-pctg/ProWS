@@ -16,7 +16,7 @@
 #include "getoptions.h"
 
 #ifndef TIMING_COUNT
-#define TIMING_COUNT 10
+#define TIMING_COUNT 1
 #endif
 
 #if TIMING_COUNT
@@ -246,7 +246,7 @@ double maxerror_rm(REAL *M1, REAL *M2, int n) {
 
 void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n);
 
-void mat_mul_par_helper(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
+void __attribute__((noinline)) mat_mul_par_helper(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   __cilkrts_detach(&sf);
@@ -257,7 +257,7 @@ void mat_mul_par_helper(const REAL *const A, const REAL *const B, REAL *C, cilk:
   __cilkrts_leave_frame(&sf);
 }
 
-void mat_mul_par_fut_helper(cilk::future<void> *fut, const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
+void __attribute__((noinline)) mat_mul_par_fut_helper(cilk::future<void> *fut, const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   __cilkrts_detach(&sf);
@@ -272,6 +272,7 @@ void mat_mul_par_fut_helper(cilk::future<void> *fut, const REAL *const A, const 
 
 //recursive parallel solution to matrix multiplication
 void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n){
+
     if (CReady) {
       CReady->get();
       CReady = NULL;
@@ -289,11 +290,13 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
                 C[i * n + k] += c;
             }
         }
+
         return;
     }
 
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
+
 
     //partition each matrix into 4 sub matrices
     //each sub-matrix points to the start of the z pattern

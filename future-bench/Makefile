@@ -109,11 +109,21 @@ APPS += matmul
 matmul: matmul.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c matmul.cpp -o matmul.o
 	$(CXX) -flto matmul.o getoptions.o ktiming.o -o matmul $(MY_LDFLAGS)
-	make run-matmul
+	#make run-matmul
 
 run-matmul:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul -n 1024 -c
 
+TARGETS += matmul-handcomp
+APPS += matmul-handcomp
+
+matmul-handcomp: matmul-handcomp.cpp ktiming.o getoptions.o
+	$(CXX) $(MY_CXXFLAGS) -c matmul-handcomp.cpp -o matmul-handcomp.o
+	$(CXX) -flto matmul-handcomp.o getoptions.o ktiming.o -o matmul-handcomp $(MY_LDFLAGS)
+	make run-matmul-handcomp
+
+run-matmul-handcomp:
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-handcomp -n 1024 -c
 
 TARGETS += matmul-future
 APPS += matmul-future
@@ -121,7 +131,7 @@ APPS += matmul-future
 matmul-future: matmul-future.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c matmul-future.cpp -o matmul-future.o
 	$(CXX) -flto matmul-future.o getoptions.o ktiming.o -o matmul-future $(MY_LDFLAGS)
-	make run-matmul-future
+	#make run-matmul-future
 
 run-matmul-future:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-future -n 1024 -c

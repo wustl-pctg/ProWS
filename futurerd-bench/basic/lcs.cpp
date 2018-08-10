@@ -382,8 +382,7 @@ void process_lcs_tile_with_get_helper(cilk::future<int> *fut, cilk::future<int> 
   if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
   __cilkrts_pop_frame(&sf);
-  //if (sf.flags)
-    __cilkrts_leave_future_frame(&sf);
+  __cilkrts_leave_future_frame(&sf);
 }
 
 typedef struct wave_lcs_loop_context_t {

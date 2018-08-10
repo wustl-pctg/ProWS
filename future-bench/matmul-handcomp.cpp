@@ -29,6 +29,12 @@
 
 #define ERR_THRESHOLD   (0.1)
 
+#include "internal/abi.h"
+extern "C" {
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
 #define REAL int
 static int BASE_CASE; //the base case of the computation (2*POWER)
 static int POWER; //the power of two the base case is based on
@@ -225,6 +231,19 @@ double maxerror_rm(REAL *M1, REAL *M2, int n) {
     return err;
 }
 
+void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, int n);
+
+void __attribute__((noinline)) mat_mul_par_helper(const REAL *const A, const REAL *const B, REAL *C, int n) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    mat_mul_par(A, B, C, n);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
+}
+
 //recursive parallel solution to matrix multiplication
 void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, int n){
     //BASE CASE: here computation is switched to itterative matrix multiplication
@@ -242,6 +261,9 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, int n){
         }
         return;
     }
+
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_1(&sf);
 
     //partition each matrix into 4 sub matrices
     //each sub-matrix points to the start of the z pattern
@@ -261,17 +283,48 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, int n){
     REAL *C4 = &C[block_convert(n >> 1, n >> 1)];
 
     //recrusively call the sub-matrices for evaluation in parallel
-    cilk_spawn mat_mul_par(A1, B1, C1, n >> 1);
-    cilk_spawn mat_mul_par(A1, B2, C2, n >> 1);
-    cilk_spawn mat_mul_par(A3, B1, C3, n >> 1);
-    mat_mul_par(A3, B2, C4, n >> 1);
-    cilk_sync; //wait here for first round to finish
+    if (!CILK_SETJMP(sf.ctx)) {
+        mat_mul_par_helper(A1, B1, C1, n >> 1);
+    }
 
-    cilk_spawn mat_mul_par(A2, B3, C1, n >> 1);
-    cilk_spawn mat_mul_par(A2, B4, C2, n >> 1);
-    cilk_spawn mat_mul_par(A4, B3, C3, n >> 1);
+    if (!CILK_SETJMP(sf.ctx)) {
+        mat_mul_par_helper(A1, B2, C2, n >> 1);
+    }
+
+    if (!CILK_SETJMP(sf.ctx)) {
+        mat_mul_par_helper(A3, B1, C3, n >> 1);
+    }
+
+    mat_mul_par(A3, B2, C4, n >> 1);
+
+    if (sf.flags & CILK_FRAME_UNSYNCHED) {
+      if (!CILK_SETJMP(sf.ctx)) {
+        __cilkrts_sync(&sf);
+      }
+    }
+
+    if (!CILK_SETJMP(sf.ctx)) {
+        mat_mul_par_helper(A2, B3, C1, n >> 1);
+    }
+
+    if (!CILK_SETJMP(sf.ctx)) {
+        mat_mul_par_helper(A2, B4, C2, n >> 1);
+    }
+
+    if (!CILK_SETJMP(sf.ctx)) {
+        mat_mul_par_helper(A4, B3, C3, n >> 1);
+    }
+
     mat_mul_par(A4, B4, C4, n >> 1);
-    cilk_sync; //wait here for all second round to finish
+
+    if (sf.flags & CILK_FRAME_UNSYNCHED) {
+      if (!CILK_SETJMP(sf.ctx)) {
+        __cilkrts_sync(&sf);
+      }
+    }
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 }
 
 //recursive parallel solution to matrix multiplication - row major order
@@ -311,7 +364,7 @@ void mat_mul_par_rm(REAL *A, REAL *B, REAL *C, int n, int orig_n){
     REAL *C4 = &C[((n * orig_n) + n) >> 1];
 
     //recursively call the sub-matrices for evaluation in parallel
-    cilk_spawn mat_mul_par_rm(A1, B1, C1, n >> 1, orig_n);
+    /*cilk_spawn mat_mul_par_rm(A1, B1, C1, n >> 1, orig_n);
     cilk_spawn mat_mul_par_rm(A1, B2, C2, n >> 1, orig_n);
     cilk_spawn mat_mul_par_rm(A3, B1, C3, n >> 1, orig_n);
     cilk_spawn mat_mul_par_rm(A3, B2, C4, n >> 1, orig_n);
@@ -322,6 +375,7 @@ void mat_mul_par_rm(REAL *A, REAL *B, REAL *C, int n, int orig_n){
     cilk_spawn mat_mul_par_rm(A4, B3, C3, n >> 1, orig_n);
     cilk_spawn mat_mul_par_rm(A4, B4, C4, n >> 1, orig_n);
     cilk_sync; //wait here for all second round to finish
+    */
 
 }
 

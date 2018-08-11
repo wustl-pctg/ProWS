@@ -497,7 +497,8 @@ void S1Loop(REAL *const S1, const int QuadrantSize, const int RowWidthA, const R
     .A21 = A21,
     .A22 = A22
   };
-  __cilkrts_cilk_for_32(S1LoopBody, &ctx, QuadrantSize, 0);
+  S1LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(S1LoopBody, &ctx, QuadrantSize, 0);
 }
 
 typedef struct s2loopctx {
@@ -525,7 +526,8 @@ void S2Loop(REAL *const S2, const int QuadrantSize, const int RowWidthA, const R
     .S1 = S1,
     .A = A
   };
-  __cilkrts_cilk_for_32(S2LoopBody, &ctx, QuadrantSize, 0);
+  S2LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(S2LoopBody, &ctx, QuadrantSize, 0);
 }
 
 typedef struct s3loopctx {
@@ -553,7 +555,8 @@ void __attribute__((noinline)) S3Loop(REAL *const S3, const int QuadrantSize, co
     .A = A,
     .A21 = A21
   };
-  __cilkrts_cilk_for_32(S3LoopBody, &ctx, QuadrantSize, 0);
+  S3LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(S3LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) S3LoopHelper(REAL *const S3, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21) {
@@ -594,7 +597,8 @@ void __attribute__((noinline)) S4Loop(REAL *const S4, const int QuadrantSize, co
     .S2 = S2
   };
 
-  __cilkrts_cilk_for_32(S4LoopBody, &ctx, QuadrantSize, 0);
+  S4LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(S4LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) S4LoopHelper(REAL *const S4, const int QuadrantSize, const int RowWidthA, const REAL *const A12, const REAL *const S2) {
@@ -636,7 +640,8 @@ void __attribute__((noinline)) S5Loop(REAL *const S5, const int QuadrantSize, co
     .B = B
   };
 
-  __cilkrts_cilk_for_32(S5LoopBody, &ctx, QuadrantSize, 0);
+  S5LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(S5LoopBody, &ctx, QuadrantSize, 0);
 }
 
 typedef struct s6loopctx {
@@ -664,7 +669,8 @@ void __attribute__((noinline)) S6Loop(REAL *const S6, const int QuadrantSize, co
     .B22 = B22,
     .S5 = S5
   };
-  __cilkrts_cilk_for_32(S6LoopBody, &ctx, QuadrantSize, 0);
+  //__cilkrts_cilk_for_32(S6LoopBody, &ctx, QuadrantSize, 0);
+  S6LoopBody(&ctx, 0, QuadrantSize);
 }
 
 typedef struct s7loopctx {
@@ -695,7 +701,8 @@ void __attribute__((noinline)) S7Loop(REAL *const S7, const int QuadrantSize, co
     .B12 = B12
   };
 
-  __cilkrts_cilk_for_32(S7LoopBody, &ctx, QuadrantSize, 0);
+  S7LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(S7LoopBody, &ctx, QuadrantSize, 0);
 }
 
 typedef struct s8loopctx {
@@ -725,7 +732,8 @@ void __attribute__((noinline)) S8Loop(REAL *const S8, const int QuadrantSize, co
     .B21 = B21
   };
 
-  __cilkrts_cilk_for_32(S8LoopBody, &ctx, QuadrantSize, 0);
+  S8LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(S8LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) S8LoopHelper(REAL *const S8, const int QuadrantSize, const int RowWidthB, const REAL *const S6, const REAL *const B21) {
@@ -763,7 +771,8 @@ void __attribute__((noinline)) CLoop(REAL *const C, const int QuadrantSize, cons
     .RowWidthC = RowWidthC,
     .M2 = M2
   };
-  __cilkrts_cilk_for_32(CLoopBody, &ctx, QuadrantSize, 0);
+  CLoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(CLoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) CLoopHelper(REAL *const C, const int QuadrantSize, const int RowWidthC, const REAL *const M2) {
@@ -806,7 +815,8 @@ void __attribute__((noinline)) C12Loop(REAL *const C12, const int QuadrantSize, 
     .M2 = M2
   };
 
-  __cilkrts_cilk_for_32(C12LoopBody, &ctx, QuadrantSize, 0);
+  C12LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(C12LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) C12LoopHelper(REAL *const C12, const int QuadrantSize, const int RowWidthC, const REAL *const M5, const REAL *const T1sMULT, const REAL *const M2) {
@@ -848,7 +858,8 @@ void __attribute__((noinline)) C21Loop(REAL *const C21, const int QuadrantSize, 
     .M2 = M2
   };
 
-  __cilkrts_cilk_for_32(C21LoopBody, &ctx, QuadrantSize, 0);
+  C21LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(C21LoopBody, &ctx, QuadrantSize, 0);
 }
 
 typedef struct c22loopctx {
@@ -879,7 +890,8 @@ void __attribute__((noinline)) C22Loop(REAL *const C22, const int QuadrantSize, 
     .M2 = M2
   };
 
-  __cilkrts_cilk_for_32(C22LoopBody, &ctx, QuadrantSize, 0);
+  C22LoopBody(&ctx, 0, QuadrantSize);
+  //__cilkrts_cilk_for_32(C22LoopBody, &ctx, QuadrantSize, 0);
 }
 void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
     unsigned MatrixSize, unsigned RowWidthC,

@@ -465,7 +465,7 @@ void MultiplyByDivideAndConquer(REAL *C, const REAL *A, const REAL *B,
 
 void S1Loop(REAL *const S1, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A21, const REAL *const A22, cilk::future<void> *const AReady) {
   if (AReady) AReady->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
     }
@@ -477,7 +477,7 @@ void S1Loop(REAL *const S1, cilk::future<void> *const completed, const int Quadr
 void S2Loop(REAL *const S2, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const S1, cilk::future<void> *const S1Completed, const REAL *const A, cilk::future<void> *const AReady) {
   if (AReady) AReady->get();
   S1Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S2[Row * QuadrantSize + Column] = S1[Row * QuadrantSize + Column] - A[RowWidthA * Row + Column];
     }
@@ -488,7 +488,7 @@ void S2Loop(REAL *const S2, cilk::future<void> *const completed, const int Quadr
 
 void S3Loop(REAL *const S3, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21, cilk::future<void> *const AReady) {
   if (AReady) AReady->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
     }
@@ -500,7 +500,7 @@ void S3Loop(REAL *const S3, cilk::future<void> *const completed, const int Quadr
 void S4Loop(REAL *const S4, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthA, const REAL *const A12, cilk::future<void> *const AReady, const REAL *const S2, cilk::future<void> *const S2Completed) {
   if (AReady) AReady->get();
   S2Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S4[Row * QuadrantSize + Column] = A12[Row * RowWidthA + Column] - S2[QuadrantSize * Row + Column];
     }
@@ -511,7 +511,7 @@ void S4Loop(REAL *const S4, cilk::future<void> *const completed, const int Quadr
 
 void S5Loop(REAL *const S5, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B, cilk::future<void> *const BReady) {
   if (BReady) BReady->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
     }
@@ -523,7 +523,7 @@ void S5Loop(REAL *const S5, cilk::future<void> *const completed, const int Quadr
 void S6Loop(REAL *const S6, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, cilk::future<void> *const BReady, const REAL *const S5, cilk::future<void> *const S5Completed) {
   if (BReady) BReady->get();
   S5Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S6[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - S5[Row * QuadrantSize + Column];
     }
@@ -534,7 +534,7 @@ void S6Loop(REAL *const S6, cilk::future<void> *const completed, const int Quadr
 
 void S7Loop(REAL *const S7, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12, cilk::future<void> *const BReady) {
   if (BReady) BReady->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
     }
@@ -546,7 +546,7 @@ void S7Loop(REAL *const S7, cilk::future<void> *const completed, const int Quadr
 void S8Loop(REAL *const S8, cilk::future<void> *const completed, const int QuadrantSize, const int RowWidthB, const REAL *const S6, cilk::future<void> *const S6Completed, const REAL *const B21, cilk::future<void> *const BReady) {
   if (BReady) BReady->get();
   S6Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S8[Row * QuadrantSize + Column] = S6[Row * QuadrantSize + Column] - B21[Row * RowWidthB + Column];
     }
@@ -558,7 +558,7 @@ void S8Loop(REAL *const S8, cilk::future<void> *const completed, const int Quadr
 void CLoop(REAL *const C, cilk::future<void> *const C11Completed, const int QuadrantSize, const int RowWidthC, const REAL *const M2, cilk::future<void> *const M2Completed) {
   M2Completed->get();
   C11Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
     }
@@ -567,7 +567,7 @@ void CLoop(REAL *const C, cilk::future<void> *const C11Completed, const int Quad
 
 void C12Loop(REAL *const C12, cilk::future<void> *const C12Completed, const int QuadrantSize, const int RowWidthC, const REAL *const M5, cilk::future<void> *const M5Completed, const REAL *const T1sMULT, cilk::future<void> *const T1sMULTCompleted, const REAL *const M2, cilk::future<void> *const M2Completed) {
   M2Completed->get(); T1sMULTCompleted->get(); M5Completed->get(); C12Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
@@ -576,7 +576,7 @@ void C12Loop(REAL *const C12, cilk::future<void> *const C12Completed, const int 
 
 void C21Loop(REAL *const C21, cilk::future<void> *const C21Completed_1, cilk::future<void> *const C21Completed, const int QuadrantSize, const int RowWidthC, const REAL *const C22, cilk::future<void> *const C22Completed, const REAL *const T1sMULT, cilk::future<void> *const T1sMULTCompleted, const REAL *const M2, cilk::future<void> *const M2Completed) {
   C21Completed->get(); C22Completed->get(); T1sMULTCompleted->get(); M2Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
@@ -737,7 +737,7 @@ void OptimizedStrassenMultiply(REAL *C, cilk::future<void> *const completed, con
   cilk_spawn C21Loop(C21, C21Completed_1, C21Completed, QuadrantSize, RowWidthC, C22, C22Completed, T1sMULT, T1sMULTCompleted, M2, M2Completed);
 
   C22Completed->get(); C21Completed_1->get(); M5Completed->get(); T1sMULTCompleted->get(); M2Completed->get();
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
         C22[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
@@ -935,8 +935,8 @@ int main(int argc, char *argv[]) {
     end = ktiming_getmark();
     elapsed[i] = ktiming_diff_usec(&begin, &end);
   }
-  //cilk_for (int i = 0; i < 10000; i++)
-  //cilk_for (int i = 0; i < 10000; i++) {
+  //for (int i = 0; i < 10000; i++)
+  //for (int i = 0; i < 10000; i++) {
   //  printf("%d\n", i);
   //}
   print_runtime(elapsed, TIMING_COUNT);

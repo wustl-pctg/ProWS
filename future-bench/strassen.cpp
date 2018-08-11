@@ -463,7 +463,7 @@ void MultiplyByDivideAndConquer(REAL *C, const REAL *A, const REAL *B,
  *****************************************************************************/
 
 void S1Loop(REAL *const S1, const int QuadrantSize, const int RowWidthA, const REAL *const A21, const REAL *const A22) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
     }
@@ -471,7 +471,7 @@ void S1Loop(REAL *const S1, const int QuadrantSize, const int RowWidthA, const R
 }
 
 void S2Loop(REAL *const S2, const int QuadrantSize, const int RowWidthA, const REAL *const S1, const REAL *const A) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S2[Row * QuadrantSize + Column] = S1[Row * QuadrantSize + Column] - A[RowWidthA * Row + Column];
     }
@@ -479,7 +479,7 @@ void S2Loop(REAL *const S2, const int QuadrantSize, const int RowWidthA, const R
 }
 
 void S3Loop(REAL *const S3, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
     }
@@ -487,7 +487,7 @@ void S3Loop(REAL *const S3, const int QuadrantSize, const int RowWidthA, const R
 }
 
 void S4Loop(REAL *const S4, const int QuadrantSize, const int RowWidthA, const REAL *const A12, const REAL *const S2) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S4[Row * QuadrantSize + Column] = A12[Row * RowWidthA + Column] - S2[QuadrantSize * Row + Column];
     }
@@ -495,7 +495,7 @@ void S4Loop(REAL *const S4, const int QuadrantSize, const int RowWidthA, const R
 }
 
 void S5Loop(REAL *const S5, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
     }
@@ -503,7 +503,7 @@ void S5Loop(REAL *const S5, const int QuadrantSize, const int RowWidthB, const R
 }
 
 void S6Loop(REAL *const S6, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const S5) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S6[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - S5[Row * QuadrantSize + Column];
     }
@@ -511,7 +511,7 @@ void S6Loop(REAL *const S6, const int QuadrantSize, const int RowWidthB, const R
 }
 
 void S7Loop(REAL *const S7, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
     }
@@ -519,7 +519,7 @@ void S7Loop(REAL *const S7, const int QuadrantSize, const int RowWidthB, const R
 }
 
 void S8Loop(REAL *const S8, const int QuadrantSize, const int RowWidthB, const REAL *const S6, const REAL *const B21) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       S8[Row * QuadrantSize + Column] = S6[Row * QuadrantSize + Column] - B21[Row * RowWidthB + Column];
     }
@@ -527,7 +527,7 @@ void S8Loop(REAL *const S8, const int QuadrantSize, const int RowWidthB, const R
 }
 
 void CLoop(REAL *const C, const int QuadrantSize, const int RowWidthC, const REAL *const M2) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
     }
@@ -535,7 +535,7 @@ void CLoop(REAL *const C, const int QuadrantSize, const int RowWidthC, const REA
 }
 
 void C12Loop(REAL *const C12, const int QuadrantSize, const int RowWidthC, const REAL *const M5, const REAL *const T1sMULT, const REAL *const M2) {
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
@@ -673,7 +673,7 @@ void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
 
   cilk_spawn C12Loop(C12, QuadrantSize, RowWidthC, M5, T1sMULT, M2);
 
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
       C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
@@ -681,7 +681,7 @@ void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
 
   cilk_sync;
 
-  cilk_for (int Row = 0; Row < QuadrantSize; Row++) {
+  for (int Row = 0; Row < QuadrantSize; Row++) {
     for (int Column = 0; Column < QuadrantSize; Column++) {
         C22[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
     }
@@ -869,8 +869,8 @@ int main(int argc, char *argv[]) {
     end = ktiming_getmark();
     elapsed[i] = ktiming_diff_usec(&begin, &end);
   }
-  //cilk_for (int i = 0; i < 10000; i++)
-  //cilk_for (int i = 0; i < 10000; i++) {
+  //for (int i = 0; i < 10000; i++)
+  //for (int i = 0; i < 10000; i++) {
   //  printf("%d\n", i);
   //}
   print_runtime(elapsed, TIMING_COUNT);

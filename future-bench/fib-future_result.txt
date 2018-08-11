@@ -1,0 +1,99 @@
+Sat Aug 11 12:37:00 CDT 2018
+32
+Res: 102334155
+Running time 1: 0.494242s
+Running time 2: 0.465213s
+Running time 3: 0.466874s
+Running time 4: 0.470423s
+Running time 5: 0.476667s
+Running time 6: 0.477995s
+Running time 7: 0.473811s
+Running time 8: 0.478505s
+Running time 9: 0.474946s
+Running time 10: 0.471762s
+Running time average: 0.475044 s
+Std. dev: 0.00808931 s (1.703%)
+24
+Res: 102334155
+Running time 1: 0.673986s
+Running time 2: 0.60529s
+Running time 3: 0.604592s
+Running time 4: 0.606944s
+Running time 5: 0.608275s
+Running time 6: 0.610266s
+Running time 7: 0.609155s
+Running time 8: 0.633423s
+Running time 9: 0.646185s
+Running time 10: 0.61818s
+Running time average: 0.62163 s
+Std. dev: 0.0229278 s (3.688%)
+16
+Res: 102334155
+Running time 1: 0.905534s
+Running time 2: 0.90132s
+Running time 3: 0.903325s
+Running time 4: 0.904847s
+Running time 5: 0.904933s
+Running time 6: 0.901487s
+Running time 7: 0.92281s
+Running time 8: 0.952373s
+Running time 9: 0.916116s
+Running time 10: 0.934261s
+Running time average: 0.914701 s
+Std. dev: 0.0170919 s (1.869%)
+8
+Res: 102334155
+Running time 1: 1.79454s
+Running time 2: 1.78952s
+Running time 3: 1.78124s
+Running time 4: 1.79084s
+Running time 5: 1.78332s
+Running time 6: 1.79057s
+Running time 7: 1.78685s
+Running time 8: 1.77944s
+Running time 9: 1.79202s
+Running time 10: 1.79742s
+Running time average: 1.78858 s
+Std. dev: 0.0058073 s (0.325%)
+4
+Res: 102334155
+Running time 1: 3.5899s
+Running time 2: 3.59026s
+Running time 3: 3.56694s
+Running time 4: 3.57441s
+Running time 5: 3.56926s
+Running time 6: 3.58028s
+Running time 7: 3.59442s
+Running time 8: 3.57208s
+Running time 9: 3.55639s
+Running time 10: 3.57297s
+Running time average: 3.57669 s
+Std. dev: 0.0119635 s (0.334%)
+2
+Res: 102334155
+Running time 1: 7.1334s
+Running time 2: 7.07561s
+Running time 3: 7.05994s
+Running time 4: 7.05168s
+Running time 5: 7.10406s
+Running time 6: 7.15029s
+Running time 7: 7.14297s
+Running time 8: 7.13298s
+Running time 9: 7.16289s
+Running time 10: 7.12137s
+Running time average: 7.11352 s
+Std. dev: 0.0390343 s (0.549%)
+1
+Res: 102334155
+Running time 1: 14.2895s
+Running time 2: 14.2582s
+Running time 3: 14.2585s
+Running time 4: 14.2654s
+Running time 5: 14.2669s
+Running time 6: 14.2662s
+Running time 7: 14.2664s
+Running time 8: 14.2661s
+Running time 9: 14.2675s
+Running time 10: 14.2622s
+Running time average: 14.2667 s
+Std. dev: 0.00871983 s (0.061%)

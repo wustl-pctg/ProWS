@@ -56,7 +56,6 @@ int __attribute__((noinline)) fib(int n) {
       }
     }
 
-    __asm__ volatile ("" ::: "memory");
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_frame(&sf);
 

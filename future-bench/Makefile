@@ -11,9 +11,9 @@ mkfile_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
 include ../common.mk
 
-MY_CXXFLAGS = -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
+MY_CXXFLAGS = -O0 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
 MY_CFLAGS = -O3 -g
-MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt 
+MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
 
 .PHONY = default
 default: all
@@ -99,6 +99,13 @@ strass: ktiming.o getoptions.o strassen.cpp
 
 run-strass:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen -n 1024 -c
+
+TARGETS += strass-handcomp
+APPS += strassen-handcomp
+
+strass-handcomp: ktiming.o getoptions.o strassen.cpp
+	$(CXX) $(MY_CXXFLAGS) -c strassen-handcomp.cpp -o strassen-handcomp.o
+	$(CXX) -flto strassen-handcomp.o getoptions.o ktiming.o -o strassen-handcomp $(MY_LDFLAGS)
 
 TARGETS += strass-fut
 APPS += strassen-future

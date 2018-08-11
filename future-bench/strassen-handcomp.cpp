@@ -60,6 +60,8 @@
 #include "internal/abi.h"
 
 extern "C" {
+  void __cilkrts_cilk_for_32(void (*body) (void *, uint32_t, uint32_t),
+      void *context, uint32_t count, int grain);
 void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 void __cilkrts_detach(__cilkrts_stack_frame*);
 }
@@ -470,28 +472,88 @@ void MultiplyByDivideAndConquer(REAL *C, const REAL *A, const REAL *B,
  **
  *****************************************************************************/
 
+typedef struct s1loopctx {
+  REAL *S1;
+  int QuadrantSize;
+  int RowWidthA;
+  const REAL *A21;
+  const REAL *A22; 
+} s1loopctx;
+
+void __attribute__((noinline)) S1LoopBody(void *context, uint32_t start, uint32_t end) {
+  s1loopctx *ctx = (s1loopctx*) context;
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S1[Row * ctx->QuadrantSize + Column] = ctx->A21[ctx->RowWidthA * Row + Column] + ctx->A22[ctx->RowWidthA * Row + Column];
+    }
+  }
+}
+
 void S1Loop(REAL *const S1, const int QuadrantSize, const int RowWidthA, const REAL *const A21, const REAL *const A22) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S1[Row * QuadrantSize + Column] = A21[RowWidthA * Row + Column] + A22[RowWidthA * Row + Column];
+  s1loopctx ctx = {
+    .S1 = S1,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthA = RowWidthA,
+    .A21 = A21,
+    .A22 = A22
+  };
+  __cilkrts_cilk_for_32(S1LoopBody, &ctx, QuadrantSize, 0);
+}
+
+typedef struct s2loopctx {
+  REAL *S2;
+  int QuadrantSize;
+  int RowWidthA;
+  const REAL *S1;
+  const REAL *A;
+} s2loopctx;
+
+void __attribute__((noinline)) S2LoopBody(void *context, uint32_t start, uint32_t end) {
+  s2loopctx *ctx = (s2loopctx*) context;
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S2[Row * ctx->QuadrantSize + Column] = ctx->S1[Row * ctx->QuadrantSize + Column] - ctx->A[ctx->RowWidthA * Row + Column];
     }
   }
 }
 
 void S2Loop(REAL *const S2, const int QuadrantSize, const int RowWidthA, const REAL *const S1, const REAL *const A) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S2[Row * QuadrantSize + Column] = S1[Row * QuadrantSize + Column] - A[RowWidthA * Row + Column];
+  s2loopctx ctx = {
+    .S2 = S2,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthA = RowWidthA,
+    .S1 = S1,
+    .A = A
+  };
+  __cilkrts_cilk_for_32(S2LoopBody, &ctx, QuadrantSize, 0);
+}
+
+typedef struct s3loopctx {
+  REAL *S3;
+  int QuadrantSize;
+  int RowWidthA;
+  const REAL *A;
+  const REAL *A21;
+} s3loopctx;
+
+void __attribute__((noinline)) S3LoopBody(void *context, uint32_t start, uint32_t end) {
+  s3loopctx* ctx = (s3loopctx*) context;
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S3[Row * ctx->QuadrantSize + Column] = ctx->A[ctx->RowWidthA * Row + Column] - ctx->A21[ctx->RowWidthA * Row + Column];
     }
   }
 }
 
-void S3Loop(REAL *const S3, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S3[Row * QuadrantSize + Column] = A[RowWidthA * Row + Column] - A21[RowWidthA * Row + Column];
-    }
-  }
+void __attribute__((noinline)) S3Loop(REAL *const S3, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21) {
+  s3loopctx ctx = {
+    .S3 = S3,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthA = RowWidthA,
+    .A = A,
+    .A21 = A21
+  };
+  __cilkrts_cilk_for_32(S3LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) S3LoopHelper(REAL *const S3, const int QuadrantSize, const int RowWidthA, const REAL *const A, const REAL *const A21) {
@@ -505,12 +567,34 @@ void __attribute__((noinline)) S3LoopHelper(REAL *const S3, const int QuadrantSi
   __cilkrts_leave_frame(&sf);
 }
 
-void S4Loop(REAL *const S4, const int QuadrantSize, const int RowWidthA, const REAL *const A12, const REAL *const S2) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S4[Row * QuadrantSize + Column] = A12[Row * RowWidthA + Column] - S2[QuadrantSize * Row + Column];
+typedef struct s4loopctx {
+  REAL *S4;
+  int QuadrantSize;
+  int RowWidthA;
+  const REAL *A12;
+  const REAL *S2;
+} s4loopctx;
+
+void __attribute__((noinline)) S4LoopBody(void *context, uint32_t start, uint32_t end) {
+  s4loopctx *ctx = (s4loopctx*) context;
+
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S4[Row * ctx->QuadrantSize + Column] = ctx->A12[Row * ctx->RowWidthA + Column] - ctx->S2[ctx->QuadrantSize * Row + Column];
     }
   }
+}
+
+void __attribute__((noinline)) S4Loop(REAL *const S4, const int QuadrantSize, const int RowWidthA, const REAL *const A12, const REAL *const S2) {
+  s4loopctx ctx = {
+    .S4 = S4,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthA = RowWidthA,
+    .A12 = A12,
+    .S2 = S2
+  };
+
+  __cilkrts_cilk_for_32(S4LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) S4LoopHelper(REAL *const S4, const int QuadrantSize, const int RowWidthA, const REAL *const A12, const REAL *const S2) {
@@ -523,36 +607,125 @@ void __attribute__((noinline)) S4LoopHelper(REAL *const S4, const int QuadrantSi
   __cilkrts_pop_frame(&sf);
   __cilkrts_leave_frame(&sf);
 }
-void S5Loop(REAL *const S5, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S5[Row * QuadrantSize + Column] = B12[Row * RowWidthB + Column] - B[Row * RowWidthB + Column];
+
+typedef struct s5loopctx {
+  REAL *S5;
+  int QuadrantSize;
+  int RowWidthB;
+  const REAL *B12;
+  const REAL *B;
+} s5loopctx;
+
+void __attribute__((noinline)) S5LoopBody(void *context, uint32_t start, uint32_t end) {
+  s5loopctx *ctx = (s5loopctx*)context;
+
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S5[Row * ctx->QuadrantSize + Column] = ctx->B12[Row * ctx->RowWidthB + Column] - ctx->B[Row * ctx->RowWidthB + Column];
+    }
+  }
+
+}
+
+void __attribute__((noinline)) S5Loop(REAL *const S5, const int QuadrantSize, const int RowWidthB, const REAL *const B12, const REAL *const B) {
+  s5loopctx ctx = {
+    .S5 = S5,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthB = RowWidthB,
+    .B12 = B12,
+    .B = B
+  };
+
+  __cilkrts_cilk_for_32(S5LoopBody, &ctx, QuadrantSize, 0);
+}
+
+typedef struct s6loopctx {
+  REAL *S6;
+  int QuadrantSize;
+  int RowWidthB;
+  const REAL *B22;
+  const REAL *S5;
+} s6loopctx;
+
+void __attribute__((noinline)) S6LoopBody(void *context, uint32_t start, uint32_t end) {
+  s6loopctx *ctx = (s6loopctx*) context;
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S6[Row * ctx->QuadrantSize + Column] = ctx->B22[Row * ctx->RowWidthB + Column] - ctx->S5[Row * ctx->QuadrantSize + Column];
     }
   }
 }
 
-void S6Loop(REAL *const S6, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const S5) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S6[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - S5[Row * QuadrantSize + Column];
+void __attribute__((noinline)) S6Loop(REAL *const S6, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const S5) {
+  s6loopctx ctx = {
+    .S6 = S6,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthB = RowWidthB,
+    .B22 = B22,
+    .S5 = S5
+  };
+  __cilkrts_cilk_for_32(S6LoopBody, &ctx, QuadrantSize, 0);
+}
+
+typedef struct s7loopctx {
+  REAL *S7;
+  int QuadrantSize;
+  int RowWidthB;
+  const REAL *B22;
+  const REAL *B12;
+} s7loopctx;
+
+void __attribute__((noinline)) S7LoopBody(void *context, uint32_t start, uint32_t end) {
+  s7loopctx *ctx = (s7loopctx*)context;
+
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S7[Row * ctx->QuadrantSize + Column] = ctx->B22[Row * ctx->RowWidthB + Column] - ctx->B12[Row * ctx->RowWidthB + Column];
+    }
+  }
+  
+}
+
+void __attribute__((noinline)) S7Loop(REAL *const S7, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12) {
+  s7loopctx ctx = {
+    .S7 = S7,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthB = RowWidthB,
+    .B22 = B22,
+    .B12 = B12
+  };
+
+  __cilkrts_cilk_for_32(S7LoopBody, &ctx, QuadrantSize, 0);
+}
+
+typedef struct s8loopctx {
+  REAL *S8;
+  int QuadrantSize;
+  int RowWidthB;
+  const REAL *S6;
+  const REAL *B21;
+} s8loopctx;
+
+void __attribute__((noinline)) S8LoopBody(void *context, uint32_t start, uint32_t end) {
+  s8loopctx *ctx = (s8loopctx*)context;
+
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->S8[Row * ctx->QuadrantSize + Column] = ctx->S6[Row * ctx->QuadrantSize + Column] - ctx->B21[Row * ctx->RowWidthB + Column];
     }
   }
 }
 
-void S7Loop(REAL *const S7, const int QuadrantSize, const int RowWidthB, const REAL *const B22, const REAL *const B12) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S7[Row * QuadrantSize + Column] = B22[Row * RowWidthB + Column] - B12[Row * RowWidthB + Column];
-    }
-  }
-}
+void __attribute__((noinline)) S8Loop(REAL *const S8, const int QuadrantSize, const int RowWidthB, const REAL *const S6, const REAL *const B21) {
+  s8loopctx ctx = {
+    .S8 = S8,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthB = RowWidthB,
+    .S6 = S6,
+    .B21 = B21
+  };
 
-void S8Loop(REAL *const S8, const int QuadrantSize, const int RowWidthB, const REAL *const S6, const REAL *const B21) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      S8[Row * QuadrantSize + Column] = S6[Row * QuadrantSize + Column] - B21[Row * RowWidthB + Column];
-    }
-  }
+  __cilkrts_cilk_for_32(S8LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) S8LoopHelper(REAL *const S8, const int QuadrantSize, const int RowWidthB, const REAL *const S6, const REAL *const B21) {
@@ -566,12 +739,31 @@ void __attribute__((noinline)) S8LoopHelper(REAL *const S8, const int QuadrantSi
   __cilkrts_leave_frame(&sf);
 }
 
-void CLoop(REAL *const C, const int QuadrantSize, const int RowWidthC, const REAL *const M2) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      C[RowWidthC * Row + Column] += M2[Row * QuadrantSize + Column];
+typedef struct cloopctx {
+  REAL *C;
+  int QuadrantSize;
+  int RowWidthC;
+  const REAL *M2;
+} cloopctx;
+
+void __attribute__((noinline)) CLoopBody(void *context, uint32_t start, uint32_t end) {
+  cloopctx *ctx = (cloopctx*)context;
+
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->C[ctx->RowWidthC * Row + Column] += ctx->M2[Row * ctx->QuadrantSize + Column];
     }
   }
+}
+
+void __attribute__((noinline)) CLoop(REAL *const C, const int QuadrantSize, const int RowWidthC, const REAL *const M2) {
+  cloopctx ctx = {
+    .C = C,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthC = RowWidthC,
+    .M2 = M2
+  };
+  __cilkrts_cilk_for_32(CLoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) CLoopHelper(REAL *const C, const int QuadrantSize, const int RowWidthC, const REAL *const M2) {
@@ -585,12 +777,36 @@ void __attribute__((noinline)) CLoopHelper(REAL *const C, const int QuadrantSize
   __cilkrts_leave_frame(&sf);
 }
 
-void C12Loop(REAL *const C12, const int QuadrantSize, const int RowWidthC, const REAL *const M5, const REAL *const T1sMULT, const REAL *const M2) {
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      C12[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
+typedef struct c12loopctx {
+  REAL *C12;
+  int QuadrantSize;
+  int RowWidthC;
+  const REAL *M5;
+  const REAL *T1sMULT;
+  const REAL *M2;
+} c12loopctx;
+
+void __attribute__((noinline)) C12LoopBody(void *context, uint32_t start, uint32_t end) {
+  c12loopctx *ctx = (c12loopctx*) context;
+
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->C12[ctx->RowWidthC * Row + Column] += ctx->M5[Row * ctx->QuadrantSize + Column] + ctx->T1sMULT[Row * ctx->QuadrantSize + Column] + ctx->M2[Row * ctx->QuadrantSize + Column];
     }
   }
+}
+
+void __attribute__((noinline)) C12Loop(REAL *const C12, const int QuadrantSize, const int RowWidthC, const REAL *const M5, const REAL *const T1sMULT, const REAL *const M2) {
+  c12loopctx ctx = {
+    .C12 = C12,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthC = RowWidthC,
+    .M5 = M5,
+    .T1sMULT = T1sMULT,
+    .M2 = M2
+  };
+
+  __cilkrts_cilk_for_32(C12LoopBody, &ctx, QuadrantSize, 0);
 }
 
 void __attribute__((noinline)) C12LoopHelper(REAL *const C12, const int QuadrantSize, const int RowWidthC, const REAL *const M5, const REAL *const T1sMULT, const REAL *const M2) {
@@ -602,6 +818,68 @@ void __attribute__((noinline)) C12LoopHelper(REAL *const C12, const int Quadrant
 
   __cilkrts_pop_frame(&sf);
   __cilkrts_leave_frame(&sf);
+}
+
+typedef struct c21loopctx {
+  REAL *C21;
+  int QuadrantSize;
+  int RowWidthC;
+  const REAL *C22;
+  const REAL *T1sMULT;
+  const REAL *M2;
+} c21loopctx;
+
+void __attribute__((noinline)) C21LoopBody(void *context, uint32_t start, uint32_t end) {
+  c21loopctx *ctx = (c21loopctx*)context;
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+      ctx->C21[ctx->RowWidthC * Row + Column] = -ctx->C21[ctx->RowWidthC * Row + Column] + ctx->C22[ctx->RowWidthC * Row + Column] + ctx->T1sMULT[Row * ctx->QuadrantSize + Column] + ctx->M2[Row * ctx->QuadrantSize + Column];
+    }
+  }
+}
+
+void __attribute__((noinline)) C21Loop(REAL *const C21, const int QuadrantSize, const int RowWidthC, const REAL *const C22, const REAL *const T1sMULT, const REAL *const M2) {
+  c21loopctx ctx = {
+    .C21 = C21,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthC = RowWidthC,
+    .C22 = C22,
+    .T1sMULT = T1sMULT,
+    .M2 = M2
+  };
+
+  __cilkrts_cilk_for_32(C21LoopBody, &ctx, QuadrantSize, 0);
+}
+
+typedef struct c22loopctx {
+  REAL *C22;
+  int QuadrantSize;
+  int RowWidthC;
+  const REAL *M5;
+  const REAL *T1sMULT;
+  const REAL *M2;
+} c22loopctx;
+
+void __attribute__((noinline)) C22LoopBody(void *context, uint32_t start, uint32_t end) {
+  c22loopctx *ctx = (c22loopctx*)context;
+  for (int Row = start; Row < end; Row++) {
+    for (int Column = 0; Column < ctx->QuadrantSize; Column++) {
+        ctx->C22[ctx->RowWidthC * Row + Column] += ctx->M5[Row * ctx->QuadrantSize + Column] + ctx->T1sMULT[Row * ctx->QuadrantSize + Column] + ctx->M2[Row * ctx->QuadrantSize + Column];
+    }
+  }
+}
+
+void __attribute__((noinline)) C22Loop(REAL *const C22, const int QuadrantSize, const int RowWidthC, const REAL *const M5, const REAL *const T1sMULT, const REAL *const M2) {
+  c22loopctx ctx = {
+    .C22 = C22,
+    .QuadrantSize = QuadrantSize,
+    .RowWidthC = RowWidthC,
+    .M5 = M5,
+    .T1sMULT = T1sMULT,
+    .M2 = M2
+  };
+
+  __cilkrts_cilk_for_32(C22LoopBody, &ctx, QuadrantSize, 0);
 }
 void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
     unsigned MatrixSize, unsigned RowWidthC,
@@ -791,11 +1069,7 @@ void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
     C12LoopHelper(C12, QuadrantSize, RowWidthC, M5, T1sMULT, M2);
   }
 
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-      C21[RowWidthC * Row + Column] = -C21[RowWidthC * Row + Column] + C22[RowWidthC * Row + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
-    }
-  }
+  C21Loop(C21, QuadrantSize, RowWidthC, C22, T1sMULT, M2);
 
   if (sf.flags & CILK_FRAME_UNSYNCHED) {
     if (!CILK_SETJMP(sf.ctx)) {
@@ -803,11 +1077,7 @@ void OptimizedStrassenMultiply(REAL *C, const REAL *A, const REAL *B,
     }
   }
 
-  for (int Row = 0; Row < QuadrantSize; Row++) {
-    for (int Column = 0; Column < QuadrantSize; Column++) {
-        C22[RowWidthC * Row + Column] += M5[Row * QuadrantSize + Column] + T1sMULT[Row * QuadrantSize + Column] + M2[Row * QuadrantSize + Column];
-    }
-  }
+  C22Loop(C22, QuadrantSize, RowWidthC, M5, T1sMULT, M2);
 
   if (sf.flags & CILK_FRAME_UNSYNCHED) {
     if (!CILK_SETJMP(sf.ctx)) {

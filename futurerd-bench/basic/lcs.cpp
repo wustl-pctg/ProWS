@@ -437,7 +437,7 @@ void wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
 }
 
 extern "C" {
-  void __cilkrts_for_32(void (*body) (void *, uint32_t, uint32_t),
+  void __cilkrts_cilk_for_32(void (*body) (void *, uint32_t, uint32_t),
       void *context, uint32_t count, int grain);
 }
 

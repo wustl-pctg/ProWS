@@ -102,7 +102,9 @@ int main(int argc, char * args[]) {
 
     int res = 0;
     for (int i = 0; i < TIMES_TO_RUN; i++) {
-        run_helper(&res, n, running_time, i);
+        if (!CILK_SETJMP(sf.ctx)) {
+          run_helper(&res, n, running_time, i);
+        }
         if (sf.flags & CILK_FRAME_UNSYNCHED) {
           if (!CILK_SETJMP(sf.ctx)) {
             __cilkrts_sync(&sf);

@@ -6,6 +6,22 @@
 
 #include "define.hpp"
 
+#include "internal/abi.h"
+
+class cilk_fiber;
+
+char* __cilkrts_switch_fibers();
+void __cilkrts_switch_fibers_back(cilk_fiber*);
+void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+cilk_fiber* cilk_fiber_get_current_fiber();
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
 //=========================================================================
 //=========================================================================
 //	COMPUTE FUNCTION
@@ -572,6 +588,31 @@ int compute_step10(const public_struct *pub, private_struct *priv) {
     return pub->frame_no;
 }
 
+#define CONCAT3(X,Y,Z) X##Y##Z
+#define CONCAT(X,Y) X##Y
+
+#define COMPUTE_HELPER(__compute_step) \
+void CONCAT3(compute_step,__compute_step,_helper) (cilk::future<int> *fut, const public_struct *pub, private_struct *priv) {\
+  __cilkrts_stack_frame sf;\
+  __cilkrts_enter_frame_fast_1(&sf);\
+  __cilkrts_detach(&sf);\
+  void *__cilkrts_deque = fut->put(CONCAT(compute_step,__compute_step)(pub, priv));\
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);\
+  __cilkrts_pop_frame(&sf);\
+  __cilkrts_leave_future_frame(&sf);\
+}
+
+COMPUTE_HELPER(1)
+COMPUTE_HELPER(2)
+COMPUTE_HELPER(3)
+COMPUTE_HELPER(4)
+COMPUTE_HELPER(5)
+COMPUTE_HELPER(6)
+COMPUTE_HELPER(7)
+COMPUTE_HELPER(8)
+COMPUTE_HELPER(9)
+COMPUTE_HELPER(10)
+
 #ifdef STRUCTURED_FUTURES
 void compute_kernel(const public_struct *pub, private_struct *priv) {
     int frame_no = pub->frame_no;
@@ -579,32 +620,200 @@ void compute_kernel(const public_struct *pub, private_struct *priv) {
     if(pub->frame_no == 0) {
         compute_startup(pub, priv);
     } else {
+        __cilkrts_stack_frame sf;
+        __cilkrts_enter_frame_1(&sf);
+
         int s1, s2, s3, s4, s5, s6, s7, s8, s9, s10;
         //cilk::future<int> f1, f2, f3, f4, f5, f6, f7, f8, f9, f10;
         char handle_mem[sizeof(cilk::future<int>) * 10];
         cilk::future<int>* fhandles = (cilk::future<int>*)handle_mem;
 
-          reuse_future_inplace(int, &fhandles[0], compute_step1, pub, priv);
-          reuse_future_inplace(int, &fhandles[1], compute_step2, pub, priv);
-          reuse_future_inplace(int, &fhandles[8], compute_step9, pub, priv);
+        cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[0]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step1_helper(&fhandles[0], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[1]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step2_helper(&fhandles[1], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[8]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step9_helper(&fhandles[8], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         s2 = fhandles[1].get();
 
-          reuse_future_inplace(int, &fhandles[2], compute_step3, pub, priv);
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[2]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step3_helper(&fhandles[2], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         s1 = fhandles[0].get();
 
-          reuse_future_inplace(int, &fhandles[3], compute_step4, pub, priv);
-          reuse_future_inplace(int, &fhandles[4], compute_step5, pub, priv);
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[3]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step4_helper(&fhandles[3], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[4]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step5_helper(&fhandles[4], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         s5 = fhandles[4].get();
-          reuse_future_inplace(int, &fhandles[6], compute_step7, pub, priv);
+           
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[6]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step7_helper(&fhandles[6], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         s3 = fhandles[2].get();
         s4 = fhandles[3].get();
-          reuse_future_inplace(int, &fhandles[5], compute_step6, pub, priv);
+
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[5]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step6_helper(&fhandles[5], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         s7 = fhandles[6].get();
         s6 = fhandles[5].get();
-          reuse_future_inplace(int, &fhandles[7], compute_step8, pub, priv);
+
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[7]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step8_helper(&fhandles[7], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         s9 = fhandles[8].get();
         s8 = fhandles[7].get();
-          reuse_future_inplace(int, &fhandles[9], compute_step10, pub, priv);
+
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[9]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step10_helper(&fhandles[9], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         s10 = fhandles[9].get();
 
         assert(s1 == frame_no);
@@ -617,6 +826,9 @@ void compute_kernel(const public_struct *pub, private_struct *priv) {
         assert(s8 == frame_no);
         assert(s9 == frame_no);
         assert(s10 == frame_no);
+
+        __cilkrts_pop_frame(&sf);
+        __cilkrts_leave_frame(&sf);
     }
 }
 #endif

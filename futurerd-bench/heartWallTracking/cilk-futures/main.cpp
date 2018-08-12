@@ -20,6 +20,13 @@
 #include "../../util/util.hpp"
 #include <future.hpp>
 
+#include "internal/abi.h"
+
+extern "C" {
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
 using namespace std;
 
 // defined in compute-steps.c
@@ -490,6 +497,19 @@ static void cleanup(public_struct *pub, private_struct *priv) {
     free(pub->d_epiT);
 }
 
+void __attribute__((noinline)) for_loop_helper(const public_struct& pub, private_struct* priv) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    cilk_for(int i=0; i<pub.allPoints; i++) {
+      compute_kernel(&pub, &(priv[i]));
+    }
+
+   __cilkrts_pop_frame(&sf);
+   __cilkrts_leave_frame(&sf);
+}
+
 //==============================================================================
 //==============================================================================
 //	MAIN FUNCTION
@@ -563,7 +583,12 @@ int main(int argc, char *argv []) {
     //=====================
     //	KERNEL
     //=====================
+
     auto start = std::chrono::steady_clock::now();
+
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_1(&sf);
+
     for(pub.frame_no=0; pub.frame_no<frames_processed; pub.frame_no++) {
         //====================================================================================================
         //	GETTING FRAME
@@ -579,9 +604,17 @@ int main(int argc, char *argv []) {
         //====================================================================================================
         //	PROCESSING
         //====================================================================================================
-        cilk_for(int i=0; i<pub.allPoints; i++) {
-          compute_kernel(&pub, &(priv[i]));
+        if (!CILK_SETJMP(sf.ctx)) {
+            for_loop_helper(pub, priv);
         }
+        if (sf.flags & CILK_FRAME_UNSYNCHED) {
+            if (!CILK_SETJMP(sf.ctx)) {
+                __cilkrts_sync(&sf);
+            }
+        }
+        //cilk_for(int i=0; i<pub.allPoints; i++) {
+        //  compute_kernel(&pub, &(priv[i]));
+        //}
 
         //====================================================================================================
         //	FREE MEMORY FOR FRAME
@@ -596,6 +629,9 @@ int main(int argc, char *argv []) {
         printf("%d ", pub.frame_no);
         fflush(NULL);
     }
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 
     //=====================
     //	PRINT FRAME PROGRESS END

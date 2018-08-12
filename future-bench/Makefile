@@ -159,9 +159,19 @@ matmul-future: matmul-future.cpp ktiming.o getoptions.o
 run-matmul-future:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-future -n 1024 -c
 
+TARGETS += cilksort
+APPS += cilksort
+
 cilksort: cilksort.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c cilksort.cpp -o cilksort.o
 	$(CXX) -flto cilksort.o getoptions.o ktiming.o -o cilksort $(MY_LDFLAGS)
+
+TARGETS += cilksort-handcomp
+APPS += cilksort-handcomp
+
+cilksort-handcomp: cilksort-handcomp.cpp ktiming.o getoptions.o
+	$(CXX) $(MY_CXXFLAGS) -c cilksort-handcomp.cpp -o cilksort-handcomp.o
+	$(CXX) -flto cilksort-handcomp.o getoptions.o ktiming.o -o cilksort-handcomp $(MY_LDFLAGS)
 
 ###########################################################################
 # Though shalt not cross this line lest thou knowest what thou art doing! #

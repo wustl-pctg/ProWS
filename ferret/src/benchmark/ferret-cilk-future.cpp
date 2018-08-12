@@ -40,7 +40,6 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 using cilk::future;
 using std::list;
 
-
 static FILE *fout;
 static int top_K = 10;
 static const char *extra_params = (const char *)"-L 8 - T 20";
@@ -351,7 +350,7 @@ void *filter_rank::operator()(future<void*>* item) {
 
 filter_out::filter_out() {}
 
-void filter_out::operator()(future<bool>* prev, future<void*>* item) {
+void filter_out::operator()(future<void>* prev, future<void*>* item) {
     if (prev) {
         cilk_future_get(prev);
         delete prev;
@@ -384,9 +383,33 @@ void* s2(filter_seg& seg, void* item) {
     return seg(item);
 }
 
+void __attribute__((noinline)) s2_helper(cilk::future<void*> *fut, filter_seg& seg, void* item) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    void *__cilkrts_deque = fut->put(s2(seg, item));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+}
+
 void* s3(filter_extract& ext, future<void*>* item) {
     //printf("In s3\n");
     return ext(item);
+}
+
+void __attribute__((noinline)) s3_helper(cilk::future<void*> *fut, filter_extract& ext, cilk::future<void*>* item) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    void *__cilkrts_deque = fut->put(s3(ext, item));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
 }
 
 void* s4(filter_vec& vec, future<void*>* item) {
@@ -394,22 +417,62 @@ void* s4(filter_vec& vec, future<void*>* item) {
     return vec(item);
 }
 
+void __attribute__((noinline)) s4_helper(cilk::future<void*> *fut, filter_vec& vec, cilk::future<void*>* item) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    void *__cilkrts_deque = fut->put(s4(vec, item));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+}
+
 void* s5(filter_rank& rank, future<void*>* item) {
     //printf("In s5\n");
     return rank(item);
 }
 
-void s6(filter_out& out, future<bool>* prev, future<void*>* item) {
+void __attribute__((noinline)) s5_helper(cilk::future<void*> *fut, filter_rank& rank, cilk::future<void*>* item) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    void *__cilkrts_deque = fut->put(s5(rank, item));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+}
+
+void s6(filter_out& out, future<void>* prev, future<void*>* item) {
     //printf("In s6\n");
     out(prev, item);
     //delete prev;
     //delete item;
 }
 
+void __attribute__((noinline)) s6_helper(cilk::future<void> *fut, filter_out& out, cilk::future<void>* prev, cilk::future<void*>* item) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    s6(out, prev, item);
+    void *__cilkrts_deque = fut->put();
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+}
+
 static volatile int done = 0;
 
 int my_fancy_wrapper(int argc, char *argv[]) {
-    future<bool>* prev = NULL; 
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_1(&sf);
+
+    future<void>* prev = NULL; 
     printf("In fancy_wrapper\n");
     char *db_dir = NULL;
     const char *table_name = NULL;
@@ -478,47 +541,102 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     filter_vec     my_vec_filter;
     filter_rank    my_rank_filter;
     filter_out     my_out_filter;
-    /*
-    ferret_pipeline.add_filter(my_load_filter);
-    ferret_pipeline.add_filter(my_seg_filter);
-    ferret_pipeline.add_filter(my_extract_filter);
-    ferret_pipeline.add_filter(my_vec_filter);
-    ferret_pipeline.add_filter(my_rank_filter);
-    ferret_pipeline.add_filter(my_out_filter);
-    */
     cnt_enqueue = cnt_dequeue = 0;
 
     // Set number of threads.
     //int code = __cilkrts_set_param("nworkers", nthread_string);
     //assert(0 == code);
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
     
-    //ferret_pipeline.run( depth );
-    //list<future<bool>*> throttle;
     for (void *chunk = my_load_filter(NULL); chunk != NULL; chunk = my_load_filter(NULL)) {
-        //if (throttle.size() == depth) {
-        //    while(!throttle.front()->ready());
-        //    throttle.pop_front();
-        //}
-        //while (prev && !prev->ready());
-        //cilk_future_get(prev);
 
-        future<void*>* stage2;
-         cilk_future_create(void*, stage2, [&my_seg_filter](void* item) -> void* { return s2(my_seg_filter, item); }, chunk);
-        future<void*>* stage3;
-         cilk_future_create(void*, stage3, [&my_extract_filter](future<void*>* item) -> void* { return s3(my_extract_filter, item); }, stage2);
-        future<void*>* stage4;
-        cilk_future_create(void*, stage4, [&my_vec_filter](future<void*>* item) -> void* { return s4(my_vec_filter, item); }, stage3);
-        future<void*> *stage5;
-        cilk_future_create(void*, stage5, [&my_rank_filter](future<void*>* item) -> void* { return s5(my_rank_filter, item); }, stage4);
-        //promise<void> throttle_alert;
-        //throttle.push_back(throttle_alert.get_future());
-        future<bool> *stage6;
-        cilk_future_create(bool, stage6, [&my_out_filter](future<bool>* prev, future<void*>* item) -> bool {
-            s6(my_out_filter, prev, item); 
-            return true;
-        }, prev, stage5);
+        future<void*>* stage2 = new cilk::future<void*>();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            s2_helper(stage2, my_seg_filter, chunk);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+        future<void*>* stage3 = new cilk::future<void*>();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            s3_helper(stage3, my_extract_filter, stage2);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+        future<void*>* stage4 = new cilk::future<void*>();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            s4_helper(stage4, my_vec_filter, stage3);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+        future<void*> *stage5 = new cilk::future<void*>();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            s5_helper(stage5, my_rank_filter, stage4);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+
+        future<void> *stage6 = new cilk::future<void>();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            s6_helper(stage6, my_out_filter, prev, stage5);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         prev = stage6;
-        //throttle.push_back(stage6);
     }
     cilk_future_get(prev);
     delete prev;
@@ -536,13 +654,16 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     image_cleanup();
     fclose(fout);
     done = 1;
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
+
     return 0;
 }
 
 int __attribute__((noinline)) run(int argc, char *argv[]) {
     int result;
-    result = cilk_spawn my_fancy_wrapper(argc, argv);
-    cilk_sync;
+    result = my_fancy_wrapper(argc, argv);
 
     return result;
 }
@@ -554,124 +675,5 @@ int main(int argc, char *argv[]) {
 
     int result = run(argc, argv);
     return result;
-    //while (prev == NULL);
-    //prev->get();
-    //while (!done);
-/*
-    char *db_dir = NULL;
-    const char *table_name = NULL;
-    const char *query_dir = NULL;
-    const char *output_path = NULL;
-    cass_env_t *env;
-
-    int depth = 1;
-    int nthreads;
-    const char* nthread_string;
-
-    stimer_t tmr;
-
-    int ret, i;
-
-    if (argc < 8) {
-	printf("%s <database> <table> <query dir> <top K> <n> <out> <depth>\n",
-               argv[0]);
-	return 0;
-    }
-
-    db_dir = argv[1];
-    table_name = argv[2];
-    query_dir = argv[3];
-    top_K = atoi(argv[4]);
-
-    nthreads = atoi(argv[5]);
-    nthread_string = argv[5];
-    output_path = argv[6];
-    depth = atoi(argv[7]);
-
-    fout = fopen(output_path, "w");
-    assert(fout != NULL);
-
-    cass_init();
-
-    ret = cass_env_open(&env, db_dir, 0);
-    //fprintf(stderr, "approach the env open\n");
-    if (ret != 0) { printf("ERROR: %s\n", cass_strerror(ret)); return 0; }
-    //fprintf(stderr, "pass the env open\n");
-    vec_dist_id = cass_reg_lookup(&env->vec_dist, "L2_float");
-    assert(vec_dist_id >= 0);
- 
-    vecset_dist_id = cass_reg_lookup(&env->vecset_dist, "emd");
-    assert(vecset_dist_id >= 0);
-
-    i = cass_reg_lookup(&env->table, table_name);
-
-    table = query_table = (cass_table_t *) cass_reg_get(&env->table, i);
-    i = table->parent_id;
-    if (i >= 0) {
-	query_table = (cass_table_t *)cass_reg_get(&env->table, i);
-    }
-
-    if (query_table != table) cass_table_load(query_table);
-
-    cass_map_load(query_table->map);
-    cass_table_load(table);
-    image_init(argv[0]);
-
-    stimer_tick(&tmr);
-
-    
-    filter_load    my_load_filter(query_dir);
-    filter_seg     my_seg_filter;
-    filter_extract my_extract_filter;
-    filter_vec     my_vec_filter;
-    filter_rank    my_rank_filter;
-    filter_out     my_out_filter;
-    cnt_enqueue = cnt_dequeue = 0;
-
-    // Set number of threads.
-    //int code = __cilkrts_set_param("nworkers", nthread_string);
-    //assert(0 == code);
-    
-    //ferret_pipeline.run( depth );
-    //list<future<void>> throttle;
-    future<bool>* prev; 
-    for (void *chunk = my_load_filter(NULL); chunk != NULL; chunk = my_load_filter(NULL)) {
-        //if (throttle.size() == depth) {
-        //    throttle.front().wait();
-        //    throttle.pop_front();
-        //}
-
-        future<void*>* s1;
-         cilk_future_create(void*, s1, [&my_seg_filter](void* item) -> void* { return s2(my_seg_filter, std::move(item)); }, chunk);
-        future<void*>* s2;
-         cilk_future_create(void*, s2, [&my_extract_filter](future<void*>* item) -> void* { return s3(my_extract_filter, item); }, s1);
-        future<void*>* s3;
-        cilk_future_create(void*, s3, [&my_vec_filter](future<void*>* item) -> void* { return s4(my_vec_filter, item); }, s2);
-        future<void*> *s4;
-        cilk_future_create(void*, s4, [&my_rank_filter](future<void*>* item) -> void* { return s5(my_rank_filter, item); }, s3);
-        //promise<void> throttle_alert;
-        //throttle.push_back(throttle_alert.get_future());
-        cilk_future_create(bool, prev, [&my_out_filter](future<bool>* prev, future<void*>* item) -> bool {
-            s6(my_out_filter, prev, item); 
-            return true;
-        }, prev, s4);
-    }
-    cilk_future_get(prev);
-    
-    
-    // XXX This is where the old ROI timing ends 
-    //    ferret_pipeline.clear();
-
-    stimer_tuck(&tmr, "QUERY TIME");
-
-    ret = cass_env_close(env, 0);
-    if (ret != 0) { printf("ERROR: %s\n", cass_strerror(ret)); return 0; }
-
-    cass_cleanup();
-    image_cleanup();
-    fclose(fout);
-
-    return 0;
-*/
 }
 

@@ -6,6 +6,22 @@
 #include <stack>
 
 #include "../../../src/future.h"
+#include "../../../cilkrtssuspend/include/internal/abi.h"
+
+class cilk_fiber;
+
+void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+char* __cilkrts_switch_fibers();
+void __cilkrts_switch_fibers_back(cilk_fiber*);
+
+extern "C" {
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+cilk_fiber* cilk_fiber_get_current_fiber();
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
 
 class filter_load {
 	char m_path[BUFSIZ];
@@ -50,7 +66,7 @@ class filter_rank {
 class filter_out {
 	public:
 		filter_out();
-		/*override*/void operator()(cilk::future<bool>* prev, cilk::future<void*>* item);
+		/*override*/void operator()(cilk::future<void>* prev, cilk::future<void*>* item);
 };
 
 #endif

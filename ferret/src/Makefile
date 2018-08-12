@@ -1,7 +1,7 @@
 PROG = serial pthreads std-future cilk-future tbb parsec3-tbb cilk piper cilkview
 
-COMPILER_HOME=/home/kdsinger/porridge/llvm-cilk
-PIPER_HOME=/home/kdsinger/porridge/cilkrtssuspend
+COMPILER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/llvm-cilk
+PIPER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/cilkrtssuspend
 #RD_HOME=/home/kdsinger/pracer/rdtool
 #RD_INCLUDE=$(RD_HOME)/include 
 RTS_INCLUDE=$(PIPER_HOME)/include/
@@ -14,7 +14,7 @@ PIPER_CC=$(COMPILER_HOME)/bin/clang
 PIPER_CXX=$(COMPILER_HOME)/bin/clang++
 
 PIPER_LDLIBS=-lpthread -ldl -lrt
-LDLIBS += $(LIBS) -lrt -lm -lcass -lgsl -lgslcblas -ljpeg -lstdc++ -lpthread
+LDLIBS += $(LIBS) -lrt -lm -lcass -lgsl -lgslcblas -ljpeg -lstdc++ -lpthread -lnuma
 
 .PHONY:	all clean dirs full_clean lib tools image server \
         serial tbb parsec3-tbb pthreads std-future cilk-future piper cilk cilkview
@@ -36,13 +36,13 @@ OBJDIR = $(ROOT)/build/obj
 # calls Make.  So CFLAGS gets updated twice.
 #
 # WHY was the code structured this way to begin with??
-PIPER_FLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR)
-BASIC_CPPFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR) -I$(RTS_INCLUDE) -flto
-BASIC_CFLAGS=-g -O3 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR) -flto
-BASIC_GCCFLAGS=-g -O3 -std=gnu99 -fno-omit-frame-pointer -flto
+PIPER_FLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR)
+BASIC_CPPFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR) -I$(RTS_INCLUDE) -flto
+BASIC_CFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR) -flto
+BASIC_GCCFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -std=gnu99 -fno-omit-frame-pointer -flto
 
-CFLAGS ?= -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
-CFLAGS_S = -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
+CFLAGS ?= -DPRECOMPUTE_PEDIGREES=1 -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
+CFLAGS_S = -DPRECOMPUTE_PEDIGREES=1 -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
 
 LDFLAGS += -L/usr/lib64 -L$(LIBDIR) -flto
 

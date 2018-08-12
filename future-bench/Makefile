@@ -173,6 +173,13 @@ cilksort-handcomp: cilksort-handcomp.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c cilksort-handcomp.cpp -o cilksort-handcomp.o
 	$(CXX) -flto cilksort-handcomp.o getoptions.o ktiming.o -o cilksort-handcomp $(MY_LDFLAGS)
 
+TARGETS += cilksort-future
+APPS += cilksort-future
+
+cilksort-future: cilksort-future.cpp ktiming.o getoptions.o
+	$(CXX) $(MY_CXXFLAGS) -c cilksort-future.cpp -o cilksort-future.o
+	$(CXX) -flto cilksort-future.o getoptions.o ktiming.o -o cilksort-future $(MY_LDFLAGS)
+
 ###########################################################################
 # Though shalt not cross this line lest thou knowest what thou art doing! #
 ###########################################################################

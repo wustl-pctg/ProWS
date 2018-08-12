@@ -24,11 +24,11 @@
 #define UP   2
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 10
+#define TIMES_TO_RUN 20
 #endif
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES 1
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -609,9 +609,9 @@ int main(int argc, char *argv[]) {
   printf("Result: %d\n", result);
   //auto time = std::chrono::duration <double, std::milli> (end-start).count();
   //printf("Benchmark time: %f ms\n", time);
-  if( TIMES_TO_RUN > 10 ) 
-      print_runtime_summary(running_time, TIMES_TO_RUN); 
-  else 
+  //if( TIMES_TO_RUN > 10 ) 
+  //    print_runtime_summary(running_time, TIMES_TO_RUN); 
+  //else 
       print_runtime(running_time, TIMES_TO_RUN); 
 
   free(a1);

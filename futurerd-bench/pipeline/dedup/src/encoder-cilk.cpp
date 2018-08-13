@@ -44,13 +44,27 @@
 #include <cilk/cilk.h>
 #include <future.hpp>
 
-#define TIMING 0
+#define TIMING 1
 #if TIMING
 #define WHEN_TIMING(...) __VA_ARGS__ 
 #else
 #define WHEN_TIMING(...)
 #endif
 
+#include "internal/abi.h"
+
+class cilk_fiber;
+extern char* __cilkrts_switch_fibers();
+extern void __cilkrts_switch_fibers_back(cilk_fiber*);
+extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+cilk_fiber* cilk_fiber_get_current_fiber();
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
 
 
 #ifdef ENABLE_GZIP_COMPRESSION
@@ -425,10 +439,28 @@ int compAndWrite(cilk::future<int> *prevIterWriteFuture,
     return 0;
 }
 
+void __attribute__((noinline)) compAndWrite_helper(cilk::future<int> *fut, cilk::future<int> *prevIterWriteFuture,
+                                            int isDuplicate, chunk_t *chunk, int fd_out) {
+
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    void *__cilkrts_deque = fut->put(compAndWrite(prevIterWriteFuture, isDuplicate, chunk, fd_out));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+
+}
+
 cilk::future<int> *
 dedupAndOnward(cilk::future<cilk::future<int>*> *prevIterDedupFuture, 
                chunk_t *chunk, int fd_out) {
     
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_1(&sf);
+
     cilk::future<int> *prevIterWriteFuture = NULL;
 
     if(prevIterDedupFuture != NULL) { // not first iter
@@ -440,11 +472,45 @@ dedupAndOnward(cilk::future<cilk::future<int>*> *prevIterDedupFuture,
     // pointer to the chunk that contains the compressed data
     int isDuplicate = sub_Deduplicate(chunk);
 
-    cilk::future<int> *writeFuture;// = (cilk::future<int> *) malloc(sizeof(cilk::future<int>));
+    cilk::future<int> *writeFuture = new cilk::future<int>();// = (cilk::future<int> *) malloc(sizeof(cilk::future<int>));
     //reasync_helper<int, cilk::future<int> *, int, chunk_t *, int>
-    cilk_future_create(int, writeFuture, compAndWrite, prevIterWriteFuture, isDuplicate, chunk, fd_out);
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+        char *new_sp = __cilkrts_switch_fibers();
+        char *old_sp = NULL;
+
+        __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+        __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+        compAndWrite_helper(writeFuture, prevIterWriteFuture, isDuplicate, chunk, fd_out);
+
+        __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+        __cilkrts_switch_fibers_back(initial_fiber);
+    }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+    //cilk_future_create(int, writeFuture, compAndWrite, prevIterWriteFuture, isDuplicate, chunk, fd_out);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 
     return writeFuture;
+}
+
+void __attribute__((noinline)) dedupAndOnward_helper(cilk::future<cilk::future<int> *> *fut, cilk::future<cilk::future<int>*> *prevIterDedupFuture,
+                                                     chunk_t *chunk, int fd_out) {
+
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    void *__cilkrts_deque = fut->put(dedupAndOnward(prevIterDedupFuture, chunk, fd_out));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
 }
 
 /* 
@@ -464,6 +530,8 @@ dedupAndOnward(cilk::future<cilk::future<int>*> *prevIterDedupFuture,
  *    duplicate or not
  */
 void *SerialIntegratedPipeline(file_info_t* args) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_1(&sf);
 
     WHEN_TIMING( clockmark_t first, last; )
     WHEN_TIMING( clockmark_t begin, end; )
@@ -495,6 +563,8 @@ void *SerialIntegratedPipeline(file_info_t* args) {
     cilk::future<cilk::future<int>*> *prevDedupFuture = NULL;
     cilk::future<cilk::future<int>*> *dedupFuture = NULL;
 
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+
     while( (chunk = get_next_chunk(args, rabintab, rabinwintab)) != NULL ) {
 
         assert(chunk->len > 0);
@@ -509,7 +579,24 @@ void *SerialIntegratedPipeline(file_info_t* args) {
         //                  malloc(sizeof(cilk::future<cilk::future<int>*>));
         //reasync_helper<cilk::future<int> *,
         //               cilk::future<cilk::future<int>*> *, chunk_t *, int>
-        cilk_future_create(cilk::future<int>*, dedupFuture, dedupAndOnward, prevDedupFuture, chunk, args->fd_out);
+        dedupFuture = new cilk::future<cilk::future<int>*>();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            dedupAndOnward_helper(dedupFuture, prevDedupFuture, chunk, args->fd_out);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+        //cilk_future_create(cilk::future<int>*, dedupFuture, dedupAndOnward, prevDedupFuture, chunk, args->fd_out);
     }
 
     // finish the last iter
@@ -527,6 +614,9 @@ void *SerialIntegratedPipeline(file_info_t* args) {
         pipe_time = ktiming_diff_usec(&first, &last);
     })
     
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
+
     return NULL;
 }
 

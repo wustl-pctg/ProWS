@@ -11,7 +11,7 @@ dsize=simsmall
 if [ $# -ge 1 ]; then dsize=$1; fi
 outputBMP=1
 model=4
-nproc=32
+nproc=4
 
 # args = <data path> <# camera> <# frames> <# particles> <annealing layers>
 # <thread model> <nproc> <output>

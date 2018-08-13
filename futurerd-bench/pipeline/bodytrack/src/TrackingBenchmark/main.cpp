@@ -28,6 +28,7 @@
 #include <fstream>
 #include <chrono>
 #include <iomanip>
+#include <cilk/cilk_api.h>
 
 //Add defines USE_OPENMP, USE_THREADS or USE_TBB for threaded versions if not using config file (Windows).
 //#define USE_TBB
@@ -634,6 +635,7 @@ int main(int argc, char **argv)
 #if defined(USE_CILK_FUTURE)
             //Cilk with futures
             //threads = 1; // have to run single threaded
+            __cilkrts_set_param("nworkers", argv[7]);
             mainCilkFuture(path, cameras, frames, particles, layers, threads, OutputBMP);
 #else
             cout << "Not compiled with Cilk future support. " << endl;

@@ -14,7 +14,12 @@
 #endif
 
 #include "../util/getoptions.hpp"
+#include "../util/ktiming.h"
 #include "../util/util.hpp"
+
+#ifndef TIMES_TO_RUN
+#define TIMES_TO_RUN 10
+#endif
 
 #include "internal/abi.h"
 
@@ -376,7 +381,6 @@ int main(int argc, char *argv[]) {
   // str len is n-1, but allocated n to have the last char be \0
   char *a1 = (char *)malloc(n * sizeof(char));
   char *b1 = (char *)malloc(n * sizeof(char));
-  int *stor1 = (int *) malloc(sizeof(int) * n * n);
   int result = 0;
 
   /* Generate random inputs; a/b[n-1] not used */
@@ -395,20 +399,31 @@ int main(int argc, char *argv[]) {
          bSize, bSize);
 #endif
 
-  auto start = std::chrono::steady_clock::now();
+  uint64_t running_time[TIMES_TO_RUN];
+
+  __cilkrts_init();
+  int *stor1 = NULL;
+  for (int i = 0; i < TIMES_TO_RUN; i++) {
+    stor1 = (int *) malloc(sizeof(int) * n * n);
+  //auto start = std::chrono::steady_clock::now();
+    auto start = ktiming_getmark();
 #if SERIAL
-  result = simple_seq_sw(stor1, a1, b1, n);
+    result = simple_seq_sw(stor1, a1, b1, n);
 #else
-  result = wave_sw_with_futures(stor1, a1, b1, n);
+    result = wave_sw_with_futures(stor1, a1, b1, n);
 #endif
-  auto end = std::chrono::steady_clock::now();
-    
-  if(check) { do_check(stor1, a1, b1, n, result); }
+    //auto end = std::chrono::steady_clock::now();
+    auto end = ktiming_getmark();
+    running_time[i] = ktiming_diff_usec(&start, &end);
+    if (i < TIMES_TO_RUN-1) free(stor1);
+  } 
+  if(check && stor1) { do_check(stor1, a1, b1, n, result); }
     
   printf("Result: %d\n", result);
     
-  auto time = std::chrono::duration <double, std::milli> (end-start).count();
-  printf("Benchmark time: %f ms\n", time);
+  print_runtime(running_time, TIMES_TO_RUN);
+  //auto time = std::chrono::duration <double, std::milli> (end-start).count();
+  //printf("Benchmark time: %f ms\n", time);
 
   free(a1);
   free(b1);

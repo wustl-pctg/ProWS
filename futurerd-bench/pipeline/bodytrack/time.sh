@@ -5,13 +5,13 @@ bindir='./build'
 datadir='./data'
 
 btypes=(base reach inst rd)
-iter=1
+iter=10
 log=times.csv
 dsize=simsmall
 if [ $# -ge 1 ]; then dsize=$1; fi
 outputBMP=1
 model=4
-nproc=1
+nproc=32
 
 # args = <data path> <# camera> <# frames> <# particles> <annealing layers>
 # <thread model> <nproc> <output>
@@ -47,11 +47,11 @@ done
 printf "\n" >> $log
 
 
-for btype in ${btypes[@]}; do
-    printf "Running bt-$btype $dsize $iter times\n"
+#for btype in ${btypes[@]}; do
+    printf "Running bt $dsize $iter times\n"
 
     for i in $(seq 1 $iter); do
-        cmd="/usr/bin/time -o ${log} $bindir/bt-$btype $args 2>&1"
+        cmd="/usr/bin/time -o ${log} $bindir/bt $args 2>&1"
         # printf "$cmd\n"
         tmp=$(eval $cmd)
 
@@ -73,7 +73,7 @@ for btype in ${btypes[@]}; do
         # fi
         cat $log
     done
-done
+#done
 
 # printf -- "-------------------- Results --------------------\n"
 # cat $log #| column -s $SEP -t

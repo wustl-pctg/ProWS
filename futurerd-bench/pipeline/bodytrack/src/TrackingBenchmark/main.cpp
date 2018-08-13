@@ -396,14 +396,14 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
 
     cout << "Running with Cilk with future" << endl;
 
-    if(threads > 1) {
-        cout << "Currently Cilk with futures can only run with single thread.\n" << endl;
-    }
-    ensure_serial_execution();
+    //if(threads > 1) {
+    //    cout << "Currently Cilk with futures can only run with single thread.\n" << endl;
+    //}
+    //ensure_serial_execution();
 
-#if (!RACE_DETECT) && REACH_MAINT
-  futurerd_disable_shadowing();
-#endif
+//#if (!RACE_DETECT) && REACH_MAINT
+//  futurerd_disable_shadowing();
+//#endif
 
     TrackingModelCilk model;
     if(!model.Initialize(path, cameras, layers)) { //Initialize model parameters

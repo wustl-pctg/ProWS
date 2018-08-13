@@ -925,8 +925,9 @@ void compute_kernel(const public_struct *pub, private_struct *priv) {
         
         int s10 = 0;
         //cilk::future<int> fhandles[10];
-        char handle_mem[sizeof(cilk::future<int>) * 10];
-        cilk::future<int>* fhandles = (cilk::future<int>*)handle_mem;
+        //char handle_mem[sizeof(cilk::future<int>) * 10];
+        //cilk::future<int>* fhandles = (cilk::future<int>*)handle_mem;
+        cilk::future<int>* fhandles = new cilk::future<int>[10];
         compute_func_ptr_t func_ptr[10] = { compute_step1_with_get, compute_step2_with_get, 
             compute_step3_with_get, compute_step4_with_get, compute_step5_with_get, 
             compute_step6_with_get, compute_step7_with_get, compute_step8_with_get, 
@@ -936,9 +937,10 @@ void compute_kernel(const public_struct *pub, private_struct *priv) {
         cilk_for(int i=0; i < 10; i++) {
           cilk::future<int> *f = &fhandles[i];
             // reuse_future(int, f, func_ptr[i], pub, priv, fhandles, frame_no); 
-              reuse_future_inplace(int, f, func_ptr[i], pub, priv, fhandles, frame_no);
+              use_future_inplace(int, f, func_ptr[i], pub, priv, fhandles, frame_no);
         }
         s10 = fhandles[9].get(); // make sure we finish the last step before returning
+        delete [] fhandles;
         assert(s10 == frame_no);
     }
 }

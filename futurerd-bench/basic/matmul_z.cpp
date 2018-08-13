@@ -23,6 +23,21 @@
 #define RAND_MAX 32767
 #endif
 
+#include "internal/abi.h"
+
+class cilk_fiber;
+extern char* __cilkrts_switch_fibers();
+extern void __cilkrts_switch_fibers_back(cilk_fiber*);
+extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+cilk_fiber* cilk_fiber_get_current_fiber();
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+}
+
 #undef STRUCTURED_FUTURES
 #define NONBLOCKING_FUTURES
 
@@ -165,20 +180,6 @@ static int fh_index(int kB, int iB, int jB, int nBlocks) {
 
 #ifdef STRUCTURED_FUTURES
 
-#include "internal/abi.h"
-
-class cilk_fiber;
-extern char* __cilkrts_switch_fibers();
-extern void __cilkrts_switch_fibers_back(cilk_fiber*);
-extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
-
-extern "C" {
-void __cilkrts_detach(__cilkrts_stack_frame*);
-void __cilkrts_pop_frame(__cilkrts_stack_frame*);
-cilk_fiber* cilk_fiber_get_current_fiber();
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
-void cilk_fiber_do_post_switch_actions(cilk_fiber*);
-}
 
 // C[i,j] = A[i,k] x B[k,j]
 // iB = block index in dimension i
@@ -369,6 +370,31 @@ int matmul_rec(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
   return 0;
 }
 
+void matmul_rec_helper(cilk::future<int> *fut, DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    void *__cilkrts_deque = fut->put(matmul_rec(A, B, C, n, iB, kB, jB));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+}
+
+int matmul(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB);
+
+void matmul_helper(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    matmul(A, B, C, n, iB, kB, jB);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_frame(&sf);
+}
+
 // matmul using unstructured future; divide and conquer untill we reach base case,
 // C[i,j] = A[i,k] x B[k,j]
 // n = current block size
@@ -386,42 +412,85 @@ int matmul(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
 
   //   return 0;
   // }
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_1(&sf);
+
   if (n == REC_BASE_CASE) {
     auto f = &(g_fhandles[fh_index(kB, iB, jB, g_nBlocks)]);
-      use_future_inplace(int, f, matmul_rec, A, B, C, n, iB, kB, jB);
-    return 0;
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+      char *new_sp = __cilkrts_switch_fibers();
+      char *old_sp = NULL;
+
+      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+      matmul_rec_helper(f, A, B, C, n, iB, kB, jB);
+
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+      __cilkrts_switch_fibers_back(initial_fiber);
+    }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+      //use_future_inplace(int, f, matmul_rec, A, B, C, n, iB, kB, jB);
+  } else {
+
+    int block_inc = (n >> REC_POWER) >> 1;
+
+    // partition each matrix into 4 sub matrices
+    // each sub-matrix points to the start of the z pattern
+    DATA *A1 = &A[block_convert(0,0)];
+    DATA *A2 = &A[block_convert(0, n >> 1)]; //bit shift to divide by 2
+    DATA *A3 = &A[block_convert(n >> 1,0)];
+    DATA *A4 = &A[block_convert(n >> 1, n >> 1)];
+
+    DATA *B1 = &B[block_convert(0,0)];
+    DATA *B2 = &B[block_convert(0, n >> 1)];
+    DATA *B3 = &B[block_convert(n >> 1, 0)];
+    DATA *B4 = &B[block_convert(n >> 1, n >> 1)];
+
+    DATA *C1 = &C[block_convert(0,0)];
+    DATA *C2 = &C[block_convert(0, n >> 1)];
+    DATA *C3 = &C[block_convert(n >> 1,0)];
+    DATA *C4 = &C[block_convert(n >> 1, n >> 1)];
+
+    // recrusively call the sub-matrices for evaluation in parallel
+    if (!CILK_SETJMP(sf.ctx)) {
+        matmul_helper(A1, B1, C1, n>>1, iB, kB, jB);
+    }
+    if (!CILK_SETJMP(sf.ctx)) {
+       matmul_helper(A1, B2, C2, n >> 1, iB, kB, jB + block_inc);
+    }
+    if (!CILK_SETJMP(sf.ctx)) {
+       matmul_helper(A3, B1, C3, n >> 1, iB + block_inc, kB, jB);
+    }
+    if (!CILK_SETJMP(sf.ctx)) {
+       matmul_helper(A3, B2, C4, n >> 1, iB + block_inc, kB, jB + block_inc);
+    }
+
+    if (!CILK_SETJMP(sf.ctx)) {
+       matmul_helper(A2, B3, C1, n >> 1, iB, kB + block_inc, jB);
+    }
+    if (!CILK_SETJMP(sf.ctx)) {
+       matmul_helper(A2, B4, C2, n >> 1, iB, kB + block_inc, jB + block_inc);
+    }
+    if (!CILK_SETJMP(sf.ctx)) {
+       matmul_helper(A4, B3, C3, n >> 1, iB + block_inc, kB + block_inc, jB);
+    }
+    if (!CILK_SETJMP(sf.ctx)) {
+       matmul_helper(A4, B4, C4, n >> 1, iB + block_inc, kB + block_inc, jB + block_inc);
+    }
+    if (sf.flags & CILK_FRAME_UNSYNCHED) {
+      if (!CILK_SETJMP(sf.ctx)) {
+        __cilkrts_sync(&sf);
+      }
+    }
   }
 
-  int block_inc = (n >> REC_POWER) >> 1;
-
-  // partition each matrix into 4 sub matrices
-  // each sub-matrix points to the start of the z pattern
-  DATA *A1 = &A[block_convert(0,0)];
-  DATA *A2 = &A[block_convert(0, n >> 1)]; //bit shift to divide by 2
-  DATA *A3 = &A[block_convert(n >> 1,0)];
-  DATA *A4 = &A[block_convert(n >> 1, n >> 1)];
-
-  DATA *B1 = &B[block_convert(0,0)];
-  DATA *B2 = &B[block_convert(0, n >> 1)];
-  DATA *B3 = &B[block_convert(n >> 1, 0)];
-  DATA *B4 = &B[block_convert(n >> 1, n >> 1)];
-
-  DATA *C1 = &C[block_convert(0,0)];
-  DATA *C2 = &C[block_convert(0, n >> 1)];
-  DATA *C3 = &C[block_convert(n >> 1,0)];
-  DATA *C4 = &C[block_convert(n >> 1, n >> 1)];
-
-  // recrusively call the sub-matrices for evaluation in parallel
-  cilk_spawn matmul(A1, B1, C1, n >> 1, iB, kB, jB);
-  cilk_spawn matmul(A1, B2, C2, n >> 1, iB, kB, jB + block_inc);
-  cilk_spawn matmul(A3, B1, C3, n >> 1, iB + block_inc, kB, jB);
-  cilk_spawn matmul(A3, B2, C4, n >> 1, iB + block_inc, kB, jB + block_inc);
-
-  cilk_spawn matmul(A2, B3, C1, n >> 1, iB, kB + block_inc, jB);
-  cilk_spawn matmul(A2, B4, C2, n >> 1, iB, kB + block_inc, jB + block_inc);
-  cilk_spawn matmul(A4, B3, C3, n >> 1, iB + block_inc, kB + block_inc, jB);
-  cilk_spawn matmul(A4, B4, C4, n >> 1, iB + block_inc, kB + block_inc, jB + block_inc);
-  cilk_sync; // this just sync for the spawning of futures but don't wait for them to finish
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_frame(&sf);
 
   return 0;
 }
@@ -442,9 +511,9 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
 
 
   // make sure we get the last kB layer of futures before we return
-  cilk_for(int i = 0; i < (g_nBlocks * g_nBlocks); i++) {
-    g_fhandles[(g_nBlocks-1)*(g_nBlocks * g_nBlocks) + i].get();
-  }
+  //cilk_for(int i = 0; i < (g_nBlocks * g_nBlocks); i++) {
+  //  g_fhandles[(g_nBlocks-1)*(g_nBlocks * g_nBlocks) + i].get();
+  //}
   auto end = std::chrono::steady_clock::now();
   auto time = std::chrono::duration <double, std::milli> (end-start).count();
   printf("Benchmark time: %f ms\n", time);
@@ -452,6 +521,7 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
   //free(g_fhandles);
   delete [] g_fhandles;
   g_fhandles = NULL;
+
 }
 #endif // NONBLOCKING_FUTURES
 

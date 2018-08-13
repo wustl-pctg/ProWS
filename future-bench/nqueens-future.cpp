@@ -69,12 +69,24 @@ int ok (int n, char *a) {
 
 int nqueens (int n, int j, char *a);
 
-void __attribute__((noinline)) nqueens_helper(cilk::future<int> *fut, int n, int j, char *a) {
+int nqueens_iter_body(int j, char *a, int i, int n) {
+    char *b = (char *) alloca((j + 1) * sizeof (char));
+    memcpy(b, a, j * sizeof (char));
+    b[j] = i;
+
+    if(ok (j + 1, b)) {
+        return nqueens(n, j+1, b);
+    } else {
+        return 0;
+    }
+}
+
+void __attribute__((noinline)) nqueens_iter_body_helper(cilk::future<int> *fut, int j, char *a, int i, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   __cilkrts_detach(&sf);
 
-  void *__cilkrts_deque = fut->put(nqueens(n, j, a));
+  void *__cilkrts_deque = fut->put(nqueens_iter_body(j, a, i, n));
   if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
   __cilkrts_pop_frame(&sf);
@@ -83,7 +95,6 @@ void __attribute__((noinline)) nqueens_helper(cilk::future<int> *fut, int n, int
 
 int nqueens (int n, int j, char *a) {
 
-  char *b;
   int i;
   cilk::future<int> *count;
   int solNum = 0;
@@ -96,44 +107,27 @@ int nqueens (int n, int j, char *a) {
   __cilkrts_enter_frame_1(&sf);
 
   count = (cilk::future<int> *) alloca(n * sizeof(cilk::future<int>));
-  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
   //(void) memset(count, 0, n * sizeof (int));
 
   for (i = 0; i < n; i++) {
 
-    /***
-     * ANGE: strictly speaking, this (alloca after spawn) is frowned 
-     * up on, but in this case, this is ok, because b returned by 
-     * alloca is only used in this iteration; later spawns don't 
-     * need to be able to access copies of b from previous iterations 
-     ***/
-    b = (char *) alloca((j + 1) * sizeof (char));
-    memcpy(b, a, j * sizeof (char));
-    b[j] = i;
-
     new (&count[i]) cilk::future<int>();
-    if(ok (j + 1, b)) {
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+      char *new_sp = __cilkrts_switch_fibers();
+      char *old_sp = NULL;
 
-      sf.flags |= CILK_FRAME_FUTURE_PARENT;
-      if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-        char *new_sp = __cilkrts_switch_fibers();
-        char *old_sp = NULL;
+      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
 
-        __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-        __asm__ volatile ("mov %%rsp, %0" : : "r" (new_sp));
+      nqueens_iter_body_helper(&count[i], j, a, i, n);
 
-        nqueens_helper(&count[i], n, j+1, b);
-
-        __asm__ volatile ("mov %%rsp, %0" : : "r" (old_sp));
-        __cilkrts_switch_fibers_back(initial_fiber);
-      }
-      cilk_fiber_do_post_switch_actions(initial_fiber);
-      sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
-    } else {
-        // This should be safe as it happens serially before the get loop below
-        count[i].put(0);
+      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+      __cilkrts_switch_fibers_back(initial_fiber);
     }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
   }
 
   for(i = 0; i < n; i++) {

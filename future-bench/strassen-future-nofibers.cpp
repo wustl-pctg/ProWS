@@ -28,15 +28,7 @@
 #include "internal/abi.h"
 #include "future.hpp"
 
-class cilk_fiber;
-void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
-char* __cilkrts_switch_fibers();
-void __cilkrts_switch_fibers_back(cilk_fiber*);
-
 extern "C" {
-cilk_fiber* cilk_fiber_get_current_fiber();
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
-void cilk_fiber_do_post_switch_actions(cilk_fiber*);
 void __cilkrts_detach(__cilkrts_stack_frame*);
 void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 }
@@ -445,10 +437,10 @@ void __attribute__((noinline)) mm_dac_z_fut_helper(cilk::future<void> *fut, cilk
 
     mm_dac_z(output_dep, C, A, B, n, add);
     void *__cilkrts_deque = fut->put();
-    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+    if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
 
     __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 }
 
 void __attribute__((noinline)) mm_dac_z_helper(cilk::future<void> *output_dep, REAL *C, REAL *A, REAL *B, int n, bool add) {
@@ -487,72 +479,22 @@ void mm_dac_z(cilk::future<void> *output_dep, REAL *C, REAL *A, REAL *B, int n, 
 
   cilk::future<void> fhandles[4];
 
-  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-
   // recrusively call the sub-matrices for evaluation in parallel
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     mm_dac_z_fut_helper(&fhandles[0], NULL, C11, A11, B11, n >> 1, add);
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     mm_dac_z_fut_helper(&fhandles[1], NULL, C12, A11, B12, n >> 1, add);
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     mm_dac_z_fut_helper(&fhandles[2], NULL, C21, A21, B11, n >> 1, add);
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     mm_dac_z_fut_helper(&fhandles[3], NULL, C22, A21, B12, n >> 1, add);
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
   if (!CILK_SETJMP(sf.ctx)) {
     mm_dac_z_helper(&fhandles[0], C11, A12, B21, n >> 1, true);
@@ -777,10 +719,10 @@ void __attribute__((noinline)) strassen_z_fut_helper(cilk::future<void> *fut, RE
 
     strassen_z(C, A, B, n);
     void *__cilkrts_deque = fut->put();
-    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+    if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
 
     __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 }
 
 void __attribute__((noinline)) strassen_z_helper(REAL *C, REAL *A, REAL *B, int n) {
@@ -856,121 +798,35 @@ void strassen_z(REAL *C, REAL *A, REAL *B, int n) {
   */
   setup_add(S1,S2,S3,S4,S5,S6,S7,S8,A11,A12,A21,A22,B11,B12,B21,B22, new_n);
   
-  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-
   cilk::future<void> fhandles[7];
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     strassen_z_fut_helper(&fhandles[0], M2, A11, B11, new_n);  // P1, store in M2
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     strassen_z_fut_helper(&fhandles[1], M5, S1, S5, new_n);    // P5, store in M5 
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     strassen_z_fut_helper(&fhandles[2], T1, S2, S6, new_n);    // P6, store in T1 
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     strassen_z_fut_helper(&fhandles[3], C22, S3, S7, new_n);   // P7, store in C22 
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     strassen_z_fut_helper(&fhandles[4], C11, A12, B21, new_n); // P2, store in C11
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     strassen_z_fut_helper(&fhandles[5], C12, S4, B22, new_n);  // P3, store in C12
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  if (!CILK_SETJMP(sf.ctx)) {
     strassen_z_fut_helper(&fhandles[6], C21, A22, S8, new_n);  // P4, store in C21
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
   }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
   //if (sf.flags & CILK_FRAME_UNSYNCHED) {
   //  if (!CILK_SETJMP(sf.ctx)) {
@@ -981,6 +837,12 @@ void strassen_z(REAL *C, REAL *A, REAL *B, int n) {
   final_add(C11, C12, C21, C22, M2, M5, T1, new_n,
             fhandles);
   
+  if (sf.flags & CILK_FRAME_UNSYNCHED) {
+    if (!CILK_SETJMP(sf.ctx)) {
+      __cilkrts_sync(&sf);
+    }
+  }
+
   free(old_tmp);
 
   __cilkrts_pop_frame(&sf);

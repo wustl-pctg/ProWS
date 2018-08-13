@@ -120,11 +120,14 @@ run-strass-fut:
 
 TARGETS += strass-fut-nofibers
 APPS += strassen-future-nofibers
-
+    
 strass-fut-nofibers: ktiming.o getoptions.o strassen-future-nofibers.cpp
 	$(CXX) $(MY_CXXFLAGS) -c strassen-future-nofibers.cpp -o strassen-future-nofibers.o
 	$(CXX) -flto strassen-future-nofibers.o getoptions.o ktiming.o -o strassen-future-nofibers $(MY_LDFLAGS)
-	
+	make run-strass-fut-nofibers
+
+run-strass-fut-nofibers:
+	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future-nofibers -n 1024 -c
 
 TARGETS += matmul
 APPS += matmul

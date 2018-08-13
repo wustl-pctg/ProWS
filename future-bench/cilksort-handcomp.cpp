@@ -63,7 +63,7 @@
 #include <string.h>
 
 #ifndef TIMING_COUNT
-#define TIMING_COUNT 1
+#define TIMING_COUNT 10
 #endif 
 
 #if TIMING_COUNT

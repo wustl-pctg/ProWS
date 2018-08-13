@@ -18,6 +18,9 @@
 
 #define SIZE_OF_ALPHABETS 4
 
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
+
 static int base_case_log;
 #define MIN_BASE_CASE 32
 #define NUM_BLOCKS(n) (n >> base_case_log)
@@ -94,7 +97,40 @@ process_sw_tile(int *stor, char *a, char *b, int n, int iB, int jB) {
 }
 
 #ifdef STRUCTURED_FUTURES 
+
+#include "internal/abi.h"
+
+class cilk_fiber;
+extern char* __cilkrts_switch_fibers();
+extern void __cilkrts_switch_fibers_back(cilk_fiber*);
+extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+cilk_fiber* cilk_fiber_get_current_fiber();
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
+void __attribute__((noinline)) process_sw_tile_helper(cilk::future<int> *fut, cilk::future<int> *up_dep, cilk::future<int> *left_dep, int *stor, char *a, char *b, int n, int iB, int jB) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    if (up_dep) up_dep->get();
+    if (left_dep) left_dep->get();
+
+    void *__cilkrts_deque = fut->put(process_sw_tile(stor, a, b, n, iB, jB));
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+}
+
 static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_1(&sf);
 
   int nBlocks = NUM_BLOCKS(n);
 
@@ -103,16 +139,44 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
     malloc(sizeof(cilk::future<int>) * nBlocks * nBlocks);
 
 
+  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+  cilk::future<int> *up_dep = NULL;
+  cilk::future<int> *left_dep = NULL;
+
   // walk the upper half of triangle, including the diagonal (we assume square NxN LCS) 
   for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
     for(int jB = 0; jB <= wave_front; jB++) {
       int iB = wave_front - jB;
       if(iB > 0) { // up dependency
-        farray[(iB-1)*nBlocks + jB].get();
-      } 
+        up_dep = &farray[(iB-1)*nBlocks + jB];
+      } else {
+        up_dep = NULL;
+      }
+      if (jB > 0) {
+        left_dep = &farray[iB*nBlocks + jB - 1];
+      } else {
+        left_dep = NULL;
+      }
+
+      new (&farray[iB*nBlocks+jB]) cilk::future<int>();
+      sf.flags |= CILK_FRAME_FUTURE_PARENT;
+      if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+         char *new_sp = __cilkrts_switch_fibers();
+         char *old_sp = NULL;
+
+         __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+         __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+         process_sw_tile_helper(&farray[iB*nBlocks+jB], up_dep, left_dep, stor, a, b, n, iB, jB);
+
+         __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+         __cilkrts_switch_fibers_back(initial_fiber);
+      }
+      cilk_fiber_do_post_switch_actions(initial_fiber);
+      sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
       // since we are walking the wavefront serially, no need to get
       // left dependency --- already gotten by previous square.
-        reuse_future_inplace(int,&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
+      //reuse_future_inplace(int,&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
     }
   }
 
@@ -124,18 +188,42 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
       // need to get both up and left dependencies for the last row, 
       // but otherwise just the up dependency. 
       if(iB == (nBlocks - 1) && jB > 0) { // left dependency
-        farray[iB*nBlocks + jB - 1].get();
+        left_dep = &farray[iB*nBlocks + jB - 1];
+      } else {
+        left_dep = NULL;
       } 
       if(iB > 0) { // up dependency
-        farray[(iB-1)*nBlocks + jB].get();
-      } 
-        reuse_future_inplace(int,&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
+        up_dep = &farray[(iB-1)*nBlocks + jB];
+      } else {
+        up_dep = NULL;
+      }
+
+      new (&farray[iB*nBlocks+jB]) cilk::future<int>();
+      sf.flags |= CILK_FRAME_FUTURE_PARENT;
+      if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+         char *new_sp = __cilkrts_switch_fibers();
+         char *old_sp = NULL;
+
+         __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+         __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+         process_sw_tile_helper(&farray[iB*nBlocks+jB], up_dep, left_dep, stor, a, b, n, iB, jB);
+
+         __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+         __cilkrts_switch_fibers_back(initial_fiber);
+      }
+      cilk_fiber_do_post_switch_actions(initial_fiber);
+      sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+        //reuse_future_inplace(int,&farray[iB*nBlocks+jB], process_sw_tile, stor, a, b, n, iB, jB);
 
     }
   }
   // make sure the last square finishes before we move onto returning
   farray[nBlocks * nBlocks - 1].get();
   free(farray);
+
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_frame(&sf);
 
   return stor[n*(n-1) + n-1];
 }

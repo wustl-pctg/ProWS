@@ -23,6 +23,9 @@
 #define RAND_MAX 32767
 #endif
 
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES
+
 // Don't make base case too large --- tmp matrices allocated on stack
 static int ITER_BASE_CASE, REC_BASE_CASE; // 2^POWER
 static int ITER_POWER, REC_POWER;

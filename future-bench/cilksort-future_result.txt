@@ -1,0 +1,120 @@
+Sun Aug 12 14:06:01 CDT 2018
+32
+Running time 1: 0.436839s
+Running time 2: 0.37909s
+Running time 3: 0.354502s
+Running time 4: 0.360933s
+Running time 5: 0.344835s
+Running time 6: 0.351212s
+Running time 7: 0.347042s
+Running time 8: 0.350359s
+Running time 9: 0.348065s
+Running time 10: 0.353471s
+Running time average: 0.362635 s
+Std. dev: 0.0278555 s (7.681%)
+
+Cilk Example: cilksort
+options: number of elements = 41000000
+
+24
+Running time 1: 0.454607s
+Running time 2: 0.419856s
+Running time 3: 0.412971s
+Running time 4: 0.408677s
+Running time 5: 0.405486s
+Running time 6: 0.404142s
+Running time 7: 0.413932s
+Running time 8: 0.404114s
+Running time 9: 0.404499s
+Running time 10: 0.391667s
+Running time average: 0.411995 s
+Std. dev: 0.0167627 s (4.069%)
+
+Cilk Example: cilksort
+options: number of elements = 41000000
+
+16
+Running time 1: 0.563141s
+Running time 2: 0.550727s
+Running time 3: 0.544965s
+Running time 4: 0.55837s
+Running time 5: 0.560479s
+Running time 6: 0.535994s
+Running time 7: 0.526479s
+Running time 8: 0.564525s
+Running time 9: 0.548386s
+Running time 10: 0.535873s
+Running time average: 0.548894 s
+Std. dev: 0.013033 s (2.374%)
+
+Cilk Example: cilksort
+options: number of elements = 41000000
+
+8
+Running time 1: 0.805631s
+Running time 2: 0.783218s
+Running time 3: 0.777303s
+Running time 4: 0.775139s
+Running time 5: 0.778194s
+Running time 6: 0.785453s
+Running time 7: 0.777264s
+Running time 8: 0.776794s
+Running time 9: 0.783747s
+Running time 10: 0.784088s
+Running time average: 0.782683 s
+Std. dev: 0.00886772 s (1.133%)
+
+Cilk Example: cilksort
+options: number of elements = 41000000
+
+4
+Running time 1: 1.53933s
+Running time 2: 1.51269s
+Running time 3: 1.50923s
+Running time 4: 1.51209s
+Running time 5: 1.5106s
+Running time 6: 1.51087s
+Running time 7: 1.51004s
+Running time 8: 1.51015s
+Running time 9: 1.51012s
+Running time 10: 1.51023s
+Running time average: 1.51353 s
+Std. dev: 0.00912232 s (0.603%)
+
+Cilk Example: cilksort
+options: number of elements = 41000000
+
+2
+Running time 1: 3.06043s
+Running time 2: 3.01486s
+Running time 3: 3.01449s
+Running time 4: 3.01564s
+Running time 5: 3.01429s
+Running time 6: 3.01342s
+Running time 7: 3.01302s
+Running time 8: 3.01312s
+Running time 9: 3.01396s
+Running time 10: 3.01292s
+Running time average: 3.01861 s
+Std. dev: 0.0147175 s (0.488%)
+
+Cilk Example: cilksort
+options: number of elements = 41000000
+
+1
+Running time 1: 6.12117s
+Running time 2: 6.02961s
+Running time 3: 6.02849s
+Running time 4: 6.02634s
+Running time 5: 6.02682s
+Running time 6: 6.02847s
+Running time 7: 6.01647s
+Running time 8: 6.02708s
+Running time 9: 6.02618s
+Running time 10: 6.02755s
+Running time average: 6.03582 s
+Std. dev: 0.0302105 s (0.501%)
+
+Cilk Example: cilksort
+options: number of elements = 41000000
+

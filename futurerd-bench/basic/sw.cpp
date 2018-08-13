@@ -38,8 +38,8 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 
 #define SIZE_OF_ALPHABETS 4
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -126,8 +126,8 @@ void __attribute__((noinline)) process_sw_tile_helper(cilk::future<void> *fut, c
 
     if (up_dep) up_dep->get();
     if (left_dep) left_dep->get();
-
-    void *__cilkrts_deque = fut->put(process_sw_tile(stor, a, b, n, iB, jB));
+    process_sw_tile(stor, a, b, n, iB, jB);
+    void *__cilkrts_deque = fut->put();
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
     __cilkrts_pop_frame(&sf);

@@ -511,9 +511,9 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
 
 
   // make sure we get the last kB layer of futures before we return
-  //cilk_for(int i = 0; i < (g_nBlocks * g_nBlocks); i++) {
-  //  g_fhandles[(g_nBlocks-1)*(g_nBlocks * g_nBlocks) + i].get();
-  //}
+  cilk_for(int i = 0; i < (g_nBlocks * g_nBlocks); i++) {
+    g_fhandles[(g_nBlocks-1)*(g_nBlocks * g_nBlocks) + i].get();
+  }
   auto end = std::chrono::steady_clock::now();
   auto time = std::chrono::duration <double, std::milli> (end-start).count();
   printf("Benchmark time: %f ms\n", time);

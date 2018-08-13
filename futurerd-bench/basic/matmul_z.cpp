@@ -164,13 +164,29 @@ static int fh_index(int kB, int iB, int jB, int nBlocks) {
 }
 
 #ifdef STRUCTURED_FUTURES
+
+#include "internal/abi.h"
+
+class cilk_fiber;
+extern char* __cilkrts_switch_fibers();
+extern void __cilkrts_switch_fibers_back(cilk_fiber*);
+extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+cilk_fiber* cilk_fiber_get_current_fiber();
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+}
+
 // C[i,j] = A[i,k] x B[k,j]
 // iB = block index in dimension i
 // kB = block index in dimension k
 // jB = block index in dimension j
 static int
 matmul_base_structured(DATA *A, DATA *B, DATA *C,
-                       int iB, int kB, int jB, cilk::future<int> *f) {
+                       int iB, int kB, int jB, cilk::future<void> *f) {
   int n = REC_BASE_CASE;
   int block_index_A = z_convert(iB, kB);
   int block_index_B = z_convert(kB, jB);
@@ -207,26 +223,61 @@ matmul_base_structured(DATA *A, DATA *B, DATA *C,
   return 0;
 }
 
+void __attribute__((noinline)) matmul_base_structured_helper(cilk::future<void> *fut, DATA *A, DATA *B, DATA *C,
+                                                            int iB, int kB, int jB, cilk::future<void> *f) {
+    __cilkrts_stack_frame sf;
+    __cilkrts_enter_frame_fast_1(&sf);
+    __cilkrts_detach(&sf);
+
+    matmul_base_structured(A, B, C, iB, kB, jB, f);
+    void *__cilkrts_deque = fut->put();
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    __cilkrts_pop_frame(&sf);
+    __cilkrts_leave_future_frame(&sf);
+
+}
+
 // Structured
 static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_1(&sf);
 
   printf("Performing structured matmul with z-layout, %d x %d with base case %d x %d.\n",
          n, n, REC_BASE_CASE, REC_BASE_CASE);
 
   int nBlocks = n >> REC_POWER; // number of blocks per dimension
   int num_futures = nBlocks * nBlocks * nBlocks;
-  auto fhandles = (cilk::future<int>*)
-    malloc(sizeof(cilk::future<int>) * num_futures);
+  auto fhandles = (cilk::future<void>*)
+    malloc(sizeof(cilk::future<void>) * num_futures);
 
   auto start = std::chrono::steady_clock::now();
-  cilk_for(int iB = 0; iB < nBlocks; iB++) {
-    cilk_for(int jB = 0; jB < nBlocks; jB++) {
-      cilk::future<int> *f = NULL;
-      cilk::future<int> *prevf = NULL;
+  for(int iB = 0; iB < nBlocks; iB++) {
+    for(int jB = 0; jB < nBlocks; jB++) {
+      cilk::future<void> *f = NULL;
+      cilk::future<void> *prevf = NULL;
       for(int kB = 0; kB < nBlocks; kB++) {
         prevf = f; // first is NULL
         f = &(fhandles[fh_index(kB, iB, jB, nBlocks)]);
-          reuse_future_inplace(int, f, matmul_base_structured, A, B, C, iB, kB, jB, prevf);
+        cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+        new (f) cilk::future<void>();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            matmul_base_structured_helper(f, A, B, C, iB, kB, jB, prevf);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+          //reuse_future_inplace(int, f, matmul_base_structured, A, B, C, iB, kB, jB, prevf);
       }
     }
   }
@@ -241,6 +292,8 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
   auto time = std::chrono::duration <double, std::milli> (end-start).count();
   printf("Benchmark time: %f ms\n", time);
 
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_frame(&sf);
   free(fhandles);
 }
 #endif // STRUCTURED_FUTURES
@@ -248,7 +301,7 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
 #ifdef NONBLOCKING_FUTURES
 // use static global to avoid parameter proliferation
 static int g_nBlocks; // number of blocks in the original matrices
-static cilk::future<int> *g_fhandles; // future handles
+static cilk::future<void> *g_fhandles; // future handles
 
 static int __attribute__ ((noinline))
 matmul_iter(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
@@ -382,7 +435,7 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
   // initialize the static global vars
   g_nBlocks = n >> REC_POWER; // number of blocks per dimension
   int num_futures = g_nBlocks * g_nBlocks * g_nBlocks;
-  g_fhandles = (cilk::future<int>*) malloc(sizeof(cilk::future<int>) * num_futures);
+  g_fhandles = (cilk::future<void>*) malloc(sizeof(cilk::future<void>) * num_futures);
 
   auto start = std::chrono::steady_clock::now();
   matmul(A, B, C, n, 0, 0, 0);

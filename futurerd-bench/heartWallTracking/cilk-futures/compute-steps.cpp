@@ -8,6 +8,9 @@
 
 #include "internal/abi.h"
 
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES
+
 class cilk_fiber;
 
 char* __cilkrts_switch_fibers();

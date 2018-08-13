@@ -18,8 +18,8 @@
 
 #define SIZE_OF_ALPHABETS 4
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES 1
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -252,17 +252,20 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   int nBlocks = NUM_BLOCKS(n);
   int blocks = nBlocks * nBlocks;
     
-  auto *farray = (cilk::future<int>*)
-    malloc(sizeof(cilk::future<int>) * blocks);
+  //auto *farray = (cilk::future<int>*)
+  //  malloc(sizeof(cilk::future<int>) * blocks);
+  cilk::future<int>* farray = new cilk::future<int>[blocks];
 
   cilk_for(int i=0; i < blocks; i++) {
     int iB = i / nBlocks; // row block index 
     int jB = i % nBlocks; // col block index
-      reuse_future_inplace(int,&farray[i], process_sw_tile_with_get, farray, stor, a, b, n, iB, jB);
+      use_future_inplace(int,&farray[i], process_sw_tile_with_get, farray, stor, a, b, n, iB, jB);
   }
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
-  free(farray);
+
+  //free(farray);
+  delete [] farray;
     
 
   return stor[n*(n-1) + n-1];

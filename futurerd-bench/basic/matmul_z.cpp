@@ -23,8 +23,8 @@
 #define RAND_MAX 32767
 #endif
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES
 
 // Don't make base case too large --- tmp matrices allocated on stack
 static int ITER_BASE_CASE, REC_BASE_CASE; // 2^POWER
@@ -301,7 +301,7 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
 #ifdef NONBLOCKING_FUTURES
 // use static global to avoid parameter proliferation
 static int g_nBlocks; // number of blocks in the original matrices
-static cilk::future<void> *g_fhandles; // future handles
+static cilk::future<int> *g_fhandles; // future handles
 
 static int __attribute__ ((noinline))
 matmul_iter(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
@@ -388,7 +388,7 @@ int matmul(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
   // }
   if (n == REC_BASE_CASE) {
     auto f = &(g_fhandles[fh_index(kB, iB, jB, g_nBlocks)]);
-      reuse_future_inplace(int, f, matmul_rec, A, B, C, n, iB, kB, jB);
+      use_future_inplace(int, f, matmul_rec, A, B, C, n, iB, kB, jB);
     return 0;
   }
 
@@ -435,8 +435,8 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
   // initialize the static global vars
   g_nBlocks = n >> REC_POWER; // number of blocks per dimension
   int num_futures = g_nBlocks * g_nBlocks * g_nBlocks;
-  g_fhandles = (cilk::future<void>*) malloc(sizeof(cilk::future<void>) * num_futures);
-
+  g_fhandles = //(cilk::future<void>*) malloc(sizeof(cilk::future<void>) * num_futures);
+                new cilk::future<int>[num_futures];
   auto start = std::chrono::steady_clock::now();
   matmul(A, B, C, n, 0, 0, 0);
 
@@ -449,7 +449,8 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
   auto time = std::chrono::duration <double, std::milli> (end-start).count();
   printf("Benchmark time: %f ms\n", time);
 
-  free(g_fhandles);
+  //free(g_fhandles);
+  delete [] g_fhandles;
   g_fhandles = NULL;
 }
 #endif // NONBLOCKING_FUTURES

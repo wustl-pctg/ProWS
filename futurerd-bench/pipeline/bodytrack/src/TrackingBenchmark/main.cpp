@@ -359,7 +359,7 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
         // calling 2nd stage, ret val, the future to use, function, its args 
         //reasync_helper<int, int, cilk::future<int> *, 
         //               ParticleFilterCilk<TrackingModelCilk>&, ofstream &, bool>
-        reuse_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwoIter0, frameNum, 
+        use_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwoIter0, frameNum, 
              stageTwoFutures, pf, outputFileAvg, OutputBMP);
     } else {
 
@@ -381,7 +381,7 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
         //               TrackingModelCilk&,
         //               ParticleFilterCilk<TrackingModelCilk>&, ofstream &, 
         //               bool, vector<BinaryImage> *, vector<FlexImage8u> * >
-        reuse_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwo, frameNum, 
+        use_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwo, frameNum, 
              &stageTwoFutures[frameNum-1], stageTwoFutures, model, pf,
              outputFileAvg, OutputBMP, iter_mFGMaps, iter_mEdgeMaps);
 
@@ -431,9 +431,11 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
     auto start = std::chrono::steady_clock::now();
 
     cilk::future<int> *stageOneFutures =
-        (cilk::future<int>*) malloc(sizeof(cilk::future<int>) * frames);
+        //(cilk::future<int>*) malloc(sizeof(cilk::future<int>) * frames);
+        new cilk::future<int>[frames];
     cilk::future<int> *stageTwoFutures =
-        (cilk::future<int>*) malloc(sizeof(cilk::future<int>) * frames);
+        //(cilk::future<int>*) malloc(sizeof(cilk::future<int>) * frames);
+        new cilk::future<int>[frames];
 
     // Create the pipeline - one stage for image processing, one for particle filter update
     for(int i = 0; i < frames; i++) {//process each set of frames
@@ -443,7 +445,7 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
             //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
             //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
             //            ofstream &, bool>
-            reuse_future_inplace(int, &stageOneFutures[i], processFrame, i, nullptr,
+            use_future_inplace(int, &stageOneFutures[i], processFrame, i, nullptr,
                  stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
         } else {
             // reuse_future(int, &stageOneFutures[i], processFrame,
@@ -452,14 +454,14 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
             //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
             //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
             //            ofstream &, bool>
-            reuse_future_inplace(int, &stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
+            use_future_inplace(int, &stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
                  stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
         }
     }
     stageTwoFutures[frames-1].get(); // wait for last frame's stage two to complete
 
-    free(stageOneFutures);
-    free(stageTwoFutures);
+    delete [] stageOneFutures;
+    delete [] stageTwoFutures;
 
     // this is where timing should end
     auto end = std::chrono::steady_clock::now();

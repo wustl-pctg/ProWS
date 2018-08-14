@@ -38,8 +38,8 @@ void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
 void cilk_fiber_do_post_switch_actions(cilk_fiber*);
 }
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES
 
 // Don't make base case too large --- tmp matrices allocated on stack
 static int ITER_BASE_CASE, REC_BASE_CASE; // 2^POWER
@@ -239,6 +239,61 @@ void __attribute__((noinline)) matmul_base_structured_helper(cilk::future<void> 
 
 }
 
+typedef struct inner_loop_body_ctx_t {
+  int nBlocks;
+  cilk::future<void> *fhandles;
+  DATA *A;
+  DATA *B;
+  DATA *C;
+  int iB;
+} inner_loop_body_ctx_t;
+
+void inner_loop_body(void* context, uint32_t start, uint32_t end) {
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_1(&sf);
+
+  inner_loop_body_ctx_t *ctx = (inner_loop_body_ctx_t*)context;
+
+  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+  for (int jB = start; jB < end; jB++) {
+    cilk::future<void> *f = NULL;
+    cilk::future<void> *prevf = NULL;
+    for(int kB = 0; kB < ctx->nBlocks; kB++) {
+      prevf = f; // first is NULL
+      f = &(ctx->fhandles[fh_index(kB, ctx->iB, jB, ctx->nBlocks)]);
+      new (f) cilk::future<void>();
+      sf.flags |= CILK_FRAME_FUTURE_PARENT;
+      if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+        char *new_sp = __cilkrts_switch_fibers();
+        char *old_sp = NULL;
+
+        __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+        __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+        matmul_base_structured_helper(f, ctx->A, ctx->B, ctx->C, ctx->iB, kB, jB, prevf);
+
+        __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+        __cilkrts_switch_fibers_back(initial_fiber);
+      }
+      cilk_fiber_do_post_switch_actions(initial_fiber);
+      sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    }
+  }
+
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_frame(&sf);
+}
+
+void outer_loop_body(void* context, uint32_t start, uint32_t end) {
+  inner_loop_body_ctx_t *ctx = (inner_loop_body_ctx_t*)context;
+  for (int iB = start; iB < end; iB++) {
+    inner_loop_body_ctx_t new_ctx = *ctx;
+    new_ctx.iB = iB;
+    __cilkrts_cilk_for_32(inner_loop_body, &new_ctx, ctx->nBlocks, 0); 
+  }
+}
+
 // Structured
 static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
   __cilkrts_stack_frame sf;
@@ -253,35 +308,18 @@ static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
     malloc(sizeof(cilk::future<void>) * num_futures);
 
   auto start = std::chrono::steady_clock::now();
-  for(int iB = 0; iB < nBlocks; iB++) {
-    for(int jB = 0; jB < nBlocks; jB++) {
-      cilk::future<void> *f = NULL;
-      cilk::future<void> *prevf = NULL;
-      for(int kB = 0; kB < nBlocks; kB++) {
-        prevf = f; // first is NULL
-        f = &(fhandles[fh_index(kB, iB, jB, nBlocks)]);
-        cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-        new (f) cilk::future<void>();
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
-            matmul_base_structured_helper(f, A, B, C, iB, kB, jB, prevf);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-          //reuse_future_inplace(int, f, matmul_base_structured, A, B, C, iB, kB, jB, prevf);
-      }
-    }
-  }
+  inner_loop_body_ctx_t ctx = {
+    .nBlocks = nBlocks,
+    .fhandles = fhandles,
+    .A = A,
+    .B = B,
+    .C = C
+  };
+  __cilkrts_cilk_for_32(outer_loop_body, &ctx, nBlocks, 0);
+  //for(int iB = 0; iB < nBlocks; iB++) {
+  //  for(int jB = 0; jB < nBlocks; jB++) {
+  //  }
+  //}
 
   // wait for the very last kB blocks to finish
   cilk_for(int iB = 0; iB < nBlocks; iB++) {

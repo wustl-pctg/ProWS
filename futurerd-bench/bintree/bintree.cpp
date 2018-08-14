@@ -8,8 +8,8 @@
 #define spawn cilk_spawn
 #define sync cilk_sync
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
 
 #include "internal/abi.h"
 
@@ -31,7 +31,7 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
   sf.flags |= CILK_FRAME_FUTURE_PARENT;\
   cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();\
   if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {\
-    printf("Using a future!\n");\
+    printf("Using a future\n");\
     char *new_sp = __cilkrts_switch_fibers();\
     char *old_sp = NULL;\
     __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));\
@@ -277,17 +277,18 @@ static node* split(node* n, key_t s,
         return n;
       }
 
-      auto next_res_right = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
+      //auto next_res_right = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
+      auto next_res_right = new cilk::future<node*>();
       SET_FUTPTR(&n->left, next_res_right);
 
       if (s < next->key) { // left-left case
-        new (next_res_right) cilk::future<node*>();
+        //new (next_res_right) cilk::future<node*>();
         START_FUTURE_SPAWN;
         split_helper(next_res_right, next, s, res_left, next_res_right, depth+1);
         END_FUTURE_SPAWN;
         //async_split(next_res_right, next, s, res_left, next_res_right, depth+1);
       } else { // left-right case
-        new (next_res_right) cilk::future<node*>();
+        //new (next_res_right) cilk::future<node*>();
         START_FUTURE_SPAWN;
         split_helper(res_left, next, s, res_left, next_res_right, depth+1);
         END_FUTURE_SPAWN;
@@ -310,17 +311,18 @@ static node* split(node* n, key_t s,
         return n;
       }
 
-      auto next_res_left = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
+      //auto next_res_left = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
+      auto next_res_left = new cilk::future<node*>();
       SET_FUTPTR(&n->right, next_res_left);
 
       if (s < next->key) { // right-left case
-        new (res_right) cilk::future<node*>();
+        //new (res_right) cilk::future<node*>();
         START_FUTURE_SPAWN;
         split_helper(res_right, next, s, next_res_left, res_right, depth+1);
         END_FUTURE_SPAWN;
         //async_split(res_right, next, s, next_res_left, res_right, depth+1);
       } else { // right-right case
-        new (next_res_left) cilk::future<node*>();
+        //new (next_res_left) cilk::future<node*>();
         START_FUTURE_SPAWN;
         split_helper(next_res_left, next, s, next_res_left, res_right, depth+1);
         END_FUTURE_SPAWN;
@@ -336,18 +338,20 @@ static node* split(node* n, key_t s,
 static futpair_t split2(node* n, key_t s) {
   CILK_FUNC_PREAMBLE;
 
-  auto left = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
-  auto right = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
+  //auto left = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
+  //auto right = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
 
+  //new (right) cilk::future<node*>();
+  //new (left) cilk::future<node*>();
+  auto left = new cilk::future<node*>();
+  auto right = new cilk::future<node*>();
   // lookahead
   if (s < n->key) {
-    new (right) cilk::future<node*>();
     START_FUTURE_SPAWN;
     split_helper(right, n, s, left, right, 0);
     END_FUTURE_SPAWN;
     //async_split(right, n, s, left, right, 0);
   } else {
-    new (left) cilk::future<node*>();
     START_FUTURE_SPAWN;
     split_helper(left, n, s, left, right, 0);
     END_FUTURE_SPAWN;

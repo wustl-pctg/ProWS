@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
   }
 
   auto time = std::chrono::duration <double, std::milli> (end-start).count();
-  printf("%s: s1=%d s2=%d\n", argv[0], t1_size, t2_size);
+  printf("%s: s1=%zu s2=%zu\n", argv[0], t1_size, t2_size);
   printf("Benchmark time: %f ms\n", time);
 
   delete t1; // The merge takes care of t2

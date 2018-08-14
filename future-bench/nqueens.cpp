@@ -1,5 +1,5 @@
 #ifndef TIMING_COUNT
-#define TIMING_COUNT 0
+#define TIMING_COUNT 10
 #endif
 
 #if TIMING_COUNT

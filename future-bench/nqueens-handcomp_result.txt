@@ -1,0 +1,106 @@
+Mon Aug 13 18:22:23 CDT 2018
+32
+Running ./nqueens-handcomp with n = 14.
+Running time 1: 1.33549s
+Running time 2: 1.27084s
+Running time 3: 1.27087s
+Running time 4: 1.27034s
+Running time 5: 1.26938s
+Running time 6: 1.27137s
+Running time 7: 1.27038s
+Running time 8: 1.27088s
+Running time 9: 1.27257s
+Running time 10: 1.26985s
+Running time average: 1.2772 s
+Std. dev: 0.0204984 s (1.605%)
+Total number of solutions : 365596
+24
+Running ./nqueens-handcomp with n = 14.
+Running time 1: 1.79285s
+Running time 2: 1.69643s
+Running time 3: 1.69509s
+Running time 4: 1.69316s
+Running time 5: 1.69228s
+Running time 6: 1.69259s
+Running time 7: 1.69015s
+Running time 8: 1.69065s
+Running time 9: 1.69221s
+Running time 10: 1.69269s
+Running time average: 1.70281 s
+Std. dev: 0.0316903 s (1.861%)
+Total number of solutions : 365596
+16
+Running ./nqueens-handcomp with n = 14.
+Running time 1: 2.58716s
+Running time 2: 2.53559s
+Running time 3: 2.53712s
+Running time 4: 2.53586s
+Running time 5: 2.5365s
+Running time 6: 2.53696s
+Running time 7: 2.53614s
+Running time 8: 2.53425s
+Running time 9: 2.53668s
+Running time 10: 2.53758s
+Running time average: 2.54138 s
+Std. dev: 0.0161122 s (0.634%)
+Total number of solutions : 365596
+8
+Running ./nqueens-handcomp with n = 14.
+Running time 1: 5.01975s
+Running time 2: 5.00387s
+Running time 3: 5.00626s
+Running time 4: 5.00691s
+Running time 5: 5.00525s
+Running time 6: 5.00155s
+Running time 7: 5.00041s
+Running time 8: 5.00384s
+Running time 9: 5.0041s
+Running time 10: 5.00568s
+Running time average: 5.00576 s
+Std. dev: 0.00531015 s (0.106%)
+Total number of solutions : 365596
+4
+Running ./nqueens-handcomp with n = 14.
+Running time 1: 9.99259s
+Running time 2: 9.97796s
+Running time 3: 9.97715s
+Running time 4: 9.97681s
+Running time 5: 9.97607s
+Running time 6: 9.97484s
+Running time 7: 9.97509s
+Running time 8: 9.97706s
+Running time 9: 9.98244s
+Running time 10: 9.97985s
+Running time average: 9.97899 s
+Std. dev: 0.00528646 s (0.053%)
+Total number of solutions : 365596
+2
+Running ./nqueens-handcomp with n = 14.
+Running time 1: 19.9685s
+Running time 2: 19.9646s
+Running time 3: 19.9643s
+Running time 4: 19.9605s
+Running time 5: 19.9631s
+Running time 6: 19.9625s
+Running time 7: 19.9602s
+Running time 8: 19.9655s
+Running time 9: 19.9609s
+Running time 10: 19.964s
+Running time average: 19.9634 s
+Std. dev: 0.00255525 s (0.013%)
+Total number of solutions : 365596
+1
+Running ./nqueens-handcomp with n = 14.
+Running time 1: 40.0316s
+Running time 2: 39.9855s
+Running time 3: 39.9821s
+Running time 4: 39.966s
+Running time 5: 39.9929s
+Running time 6: 39.9874s
+Running time 7: 40.0123s
+Running time 8: 39.9945s
+Running time 9: 40.0093s
+Running time 10: 39.9707s
+Running time average: 39.9932 s
+Std. dev: 0.0199051 s (0.050%)
+Total number of solutions : 365596

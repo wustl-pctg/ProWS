@@ -1,119 +1,84 @@
-Sat Aug 11 17:56:58 CDT 2018
+Mon Aug 13 20:21:03 CDT 2018
 32
-Running time 1: 2.17069s
-Running time 2: 2.24286s
-Running time 3: 2.05295s
-Running time 4: 2.13395s
-Running time 5: 2.02279s
-Running time 6: 2.02623s
-Running time 7: 2.00689s
-Running time 8: 1.94317s
-Running time 9: 2.00551s
-Running time 10: 1.97155s
-Running time average: 2.05766 s
-Std. dev: 0.0948333 s (4.609%)
+Running time 1: 1.30465s
+Running time 2: 1.32862s
+Running time 3: 1.25525s
+Running time 4: 1.25678s
+Running time 5: 1.25332s
+Running time average: 1.27972 s
+Std. dev: 0.0347637 s (2.716%)
 
 Cilk Example: strassen
 Options: n = 4096
 
 24
-Running time 1: 2.33456s
-Running time 2: 2.11738s
-Running time 3: 2.10228s
-Running time 4: 2.05703s
-Running time 5: 2.04788s
-Running time 6: 2.01256s
-Running time 7: 2.10073s
-Running time 8: 2.03906s
-Running time 9: 2.06339s
-Running time 10: 2.0139s
-Running time average: 2.08888 s
-Std. dev: 0.0935508 s (4.479%)
+Running time 1: 1.39474s
+Running time 2: 1.35563s
+Running time 3: 1.37108s
+Running time 4: 1.38766s
+Running time 5: 1.3013s
+Running time average: 1.36208 s
+Std. dev: 0.0372091 s (2.732%)
 
 Cilk Example: strassen
 Options: n = 4096
 
 16
-Running time 1: 2.37636s
-Running time 2: 2.28896s
-Running time 3: 2.21419s
-Running time 4: 2.22284s
-Running time 5: 2.21294s
-Running time 6: 2.21826s
-Running time 7: 2.19846s
-Running time 8: 2.24316s
-Running time 9: 2.21885s
-Running time 10: 2.18042s
-Running time average: 2.23744 s
-Std. dev: 0.0565933 s (2.529%)
+Running time 1: 1.75136s
+Running time 2: 1.67649s
+Running time 3: 1.65684s
+Running time 4: 1.61757s
+Running time 5: 1.64319s
+Running time average: 1.66909 s
+Std. dev: 0.0507406 s (3.040%)
 
 Cilk Example: strassen
 Options: n = 4096
 
 8
-Running time 1: 3.30859s
-Running time 2: 3.44075s
-Running time 3: 3.25156s
-Running time 4: 3.35296s
-Running time 5: 3.31033s
-Running time 6: 3.27576s
-Running time 7: 3.31736s
-Running time 8: 3.36195s
-Running time 9: 3.27612s
-Running time 10: 3.3512s
-Running time average: 3.32466 s
-Std. dev: 0.0547535 s (1.647%)
+Running time 1: 2.9143s
+Running time 2: 2.72021s
+Running time 3: 2.7483s
+Running time 4: 2.87278s
+Running time 5: 2.76222s
+Running time average: 2.80356 s
+Std. dev: 0.0847995 s (3.025%)
 
 Cilk Example: strassen
 Options: n = 4096
 
 4
-Running time 1: 5.59506s
-Running time 2: 5.6212s
-Running time 3: 5.59351s
-Running time 4: 5.53999s
-Running time 5: 5.574s
-Running time 6: 5.56999s
-Running time 7: 5.52539s
-Running time 8: 5.55315s
-Running time 9: 5.56396s
-Running time 10: 5.58258s
-Running time average: 5.57188 s
-Std. dev: 0.0281887 s (0.506%)
+Running time 1: 5.17067s
+Running time 2: 5.14768s
+Running time 3: 5.11542s
+Running time 4: 5.11841s
+Running time 5: 5.20107s
+Running time average: 5.15065 s
+Std. dev: 0.0361677 s (0.702%)
 
 Cilk Example: strassen
 Options: n = 4096
 
 2
-Running time 1: 10.445s
-Running time 2: 10.4231s
-Running time 3: 10.4314s
-Running time 4: 10.4699s
-Running time 5: 10.4091s
-Running time 6: 10.4387s
-Running time 7: 10.3984s
-Running time 8: 10.4014s
-Running time 9: 10.4088s
-Running time 10: 10.4164s
-Running time average: 10.4242 s
-Std. dev: 0.0223667 s (0.215%)
+Running time 1: 10.1337s
+Running time 2: 10.1012s
+Running time 3: 10.0526s
+Running time 4: 10.0733s
+Running time 5: 10.0606s
+Running time average: 10.0843 s
+Std. dev: 0.0332155 s (0.329%)
 
 Cilk Example: strassen
 Options: n = 4096
 
 1
-Running time 1: 20.197s
-Running time 2: 20.1402s
-Running time 3: 20.1462s
-Running time 4: 20.1429s
-Running time 5: 20.1502s
-Running time 6: 20.1426s
-Running time 7: 20.1399s
-Running time 8: 20.1404s
-Running time 9: 20.1254s
-Running time 10: 20.1493s
-Running time average: 20.1474 s
-Std. dev: 0.0187349 s (0.093%)
+Running time 1: 19.7533s
+Running time 2: 19.7055s
+Running time 3: 19.7107s
+Running time 4: 19.7054s
+Running time 5: 19.7112s
+Running time average: 19.7172 s
+Std. dev: 0.0203653 s (0.103%)
 
 Cilk Example: strassen
 Options: n = 4096

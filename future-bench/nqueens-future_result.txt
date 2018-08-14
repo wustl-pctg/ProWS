@@ -1,0 +1,106 @@
+Mon Aug 13 18:22:23 CDT 2018
+32
+Running ./nqueens-future with n = 14.
+Running time 1: 1.96441s
+Running time 2: 1.89483s
+Running time 3: 1.89191s
+Running time 4: 1.88999s
+Running time 5: 1.88435s
+Running time 6: 1.88766s
+Running time 7: 1.88246s
+Running time 8: 1.88349s
+Running time 9: 1.88308s
+Running time 10: 1.88302s
+Running time average: 1.89452 s
+Std. dev: 0.0249294 s (1.316%)
+Total number of solutions : 365596
+24
+Running ./nqueens-future with n = 14.
+Running time 1: 2.63716s
+Running time 2: 2.50776s
+Running time 3: 2.50771s
+Running time 4: 2.50564s
+Running time 5: 2.49953s
+Running time 6: 2.50147s
+Running time 7: 2.49888s
+Running time 8: 2.50607s
+Running time 9: 2.50343s
+Running time 10: 2.50461s
+Running time average: 2.51723 s
+Std. dev: 0.0422557 s (1.679%)
+Total number of solutions : 365596
+16
+Running ./nqueens-future with n = 14.
+Running time 1: 3.76514s
+Running time 2: 3.73451s
+Running time 3: 3.73239s
+Running time 4: 3.73619s
+Running time 5: 3.73185s
+Running time 6: 3.73637s
+Running time 7: 3.72496s
+Running time 8: 3.72683s
+Running time 9: 3.73329s
+Running time 10: 3.73298s
+Running time average: 3.73545 s
+Std. dev: 0.0110614 s (0.296%)
+Total number of solutions : 365596
+8
+Running ./nqueens-future with n = 14.
+Running time 1: 7.45095s
+Running time 2: 7.42084s
+Running time 3: 7.42425s
+Running time 4: 7.42407s
+Running time 5: 7.42121s
+Running time 6: 7.43959s
+Running time 7: 7.44925s
+Running time 8: 7.45445s
+Running time 9: 7.43779s
+Running time 10: 7.43664s
+Running time average: 7.4359 s
+Std. dev: 0.0128463 s (0.173%)
+Total number of solutions : 365596
+4
+Running ./nqueens-future with n = 14.
+Running time 1: 14.8051s
+Running time 2: 14.7256s
+Running time 3: 14.7601s
+Running time 4: 14.739s
+Running time 5: 14.7422s
+Running time 6: 14.7281s
+Running time 7: 14.7465s
+Running time 8: 14.7507s
+Running time 9: 14.7296s
+Running time 10: 14.7457s
+Running time average: 14.7472 s
+Std. dev: 0.0230086 s (0.156%)
+Total number of solutions : 365596
+2
+Running ./nqueens-future with n = 14.
+Running time 1: 29.4654s
+Running time 2: 29.4037s
+Running time 3: 29.5232s
+Running time 4: 29.4688s
+Running time 5: 29.3636s
+Running time 6: 29.4263s
+Running time 7: 29.3646s
+Running time 8: 29.4107s
+Running time 9: 29.4818s
+Running time 10: 29.3562s
+Running time average: 29.4264 s
+Std. dev: 0.0569764 s (0.194%)
+Total number of solutions : 365596
+1
+Running ./nqueens-future with n = 14.
+Running time 1: 59.3238s
+Running time 2: 59.3093s
+Running time 3: 59.3199s
+Running time 4: 59.3462s
+Running time 5: 59.3143s
+Running time 6: 59.3319s
+Running time 7: 59.3146s
+Running time 8: 59.3076s
+Running time 9: 59.337s
+Running time 10: 59.3499s
+Running time average: 59.3254 s
+Std. dev: 0.0151247 s (0.025%)
+Total number of solutions : 365596

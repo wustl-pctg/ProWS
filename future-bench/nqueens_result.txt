@@ -1,0 +1,106 @@
+Mon Aug 13 18:22:23 CDT 2018
+32
+Running ./nqueens with n = 14.
+Running time 1: 1.39123s
+Running time 2: 1.28847s
+Running time 3: 1.28818s
+Running time 4: 1.28977s
+Running time 5: 1.2902s
+Running time 6: 1.28874s
+Running time 7: 1.28805s
+Running time 8: 1.28837s
+Running time 9: 1.28825s
+Running time 10: 1.28848s
+Running time average: 1.29897 s
+Std. dev: 0.032423 s (2.496%)
+Total number of solutions : 365596
+24
+Running ./nqueens with n = 14.
+Running time 1: 1.77399s
+Running time 2: 1.71453s
+Running time 3: 1.71183s
+Running time 4: 1.71218s
+Running time 5: 1.71129s
+Running time 6: 1.71146s
+Running time 7: 1.71154s
+Running time 8: 1.71208s
+Running time 9: 1.71253s
+Running time 10: 1.71241s
+Running time average: 1.71838 s
+Std. dev: 0.0195604 s (1.138%)
+Total number of solutions : 365596
+16
+Running ./nqueens with n = 14.
+Running time 1: 2.6253s
+Running time 2: 2.56807s
+Running time 3: 2.56941s
+Running time 4: 2.56956s
+Running time 5: 2.5677s
+Running time 6: 2.56765s
+Running time 7: 2.56746s
+Running time 8: 2.56844s
+Running time 9: 2.56938s
+Running time 10: 2.57109s
+Running time average: 2.57441 s
+Std. dev: 0.0179197 s (0.696%)
+Total number of solutions : 365596
+8
+Running ./nqueens with n = 14.
+Running time 1: 5.11447s
+Running time 2: 5.09332s
+Running time 3: 5.09351s
+Running time 4: 5.08293s
+Running time 5: 5.07676s
+Running time 6: 5.07587s
+Running time 7: 5.08008s
+Running time 8: 5.082s
+Running time 9: 5.08921s
+Running time 10: 5.08646s
+Running time average: 5.08746 s
+Std. dev: 0.0113438 s (0.223%)
+Total number of solutions : 365596
+4
+Running ./nqueens with n = 14.
+Running time 1: 10.091s
+Running time 2: 10.077s
+Running time 3: 10.0767s
+Running time 4: 10.0718s
+Running time 5: 10.0745s
+Running time 6: 10.0728s
+Running time 7: 10.0743s
+Running time 8: 10.0698s
+Running time 9: 10.0756s
+Running time 10: 10.078s
+Running time average: 10.0762 s
+Std. dev: 0.00578593 s (0.057%)
+Total number of solutions : 365596
+2
+Running ./nqueens with n = 14.
+Running time 1: 20.1407s
+Running time 2: 20.1278s
+Running time 3: 20.127s
+Running time 4: 20.1275s
+Running time 5: 20.1294s
+Running time 6: 20.1402s
+Running time 7: 20.1399s
+Running time 8: 20.14s
+Running time 9: 20.1272s
+Running time 10: 20.1268s
+Running time average: 20.1326 s
+Std. dev: 0.00652894 s (0.032%)
+Total number of solutions : 365596
+1
+Running ./nqueens with n = 14.
+Running time 1: 40.3967s
+Running time 2: 40.372s
+Running time 3: 40.3751s
+Running time 4: 40.3993s
+Running time 5: 40.4039s
+Running time 6: 40.4s
+Running time 7: 40.3731s
+Running time 8: 40.3699s
+Running time 9: 40.3693s
+Running time 10: 40.3692s
+Running time average: 40.3828 s
+Std. dev: 0.0149559 s (0.037%)
+Total number of solutions : 365596

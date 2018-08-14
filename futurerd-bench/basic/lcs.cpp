@@ -24,7 +24,7 @@
 #define UP   2
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 20
+#define TIMES_TO_RUN 10
 #endif
 
 #undef STRUCTURED_FUTURES
@@ -391,13 +391,12 @@ void process_lcs_tile_with_get_helper(cilk::future<int> *fut, cilk::future<int> 
 }
 
 typedef struct wave_lcs_loop_context_t {
+  int nBlocks;
   cilk::future<int> *farray;
   int *stor;
   char *a;
   char *b;
   int n;
-  int nBlocks;
-  int blocks;
 } wave_lcs_loop_context_t;
 
 void wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
@@ -405,13 +404,12 @@ void wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
   __cilkrts_enter_frame_fast_1(&sf);
 
   wave_lcs_loop_context_t *ctx = (wave_lcs_loop_context_t*) context;
-  cilk_fiber *initial_fiber = NULL;
 
   for (uint32_t i = start; i < end; i++) {
     int iB = i / ctx->nBlocks;
     int jB = i % ctx->nBlocks;
 
-    initial_fiber = cilk_fiber_get_current_fiber();
+    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
     sf.flags |= CILK_FRAME_FUTURE_PARENT;
     if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
         char *new_sp = __cilkrts_switch_fibers();
@@ -428,7 +426,6 @@ void wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
     }
     cilk_fiber_do_post_switch_actions(initial_fiber);
     sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-    sf.flags &= ~(CILK_FRAME_SF_PEDIGREE_UNSYNCHED);
     //use_future_inplace(int,&ctx->farray[i], process_lcs_tile_with_get, ctx->farray, ctx->stor, ctx->a, ctx->b, ctx->n, iB, jB);
   }
 
@@ -467,28 +464,14 @@ int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
   wave_lcs_loop_context_t ctx = {
     .nBlocks = nBlocks,
     .farray = farray,
+    .stor = stor,
     .a = a,
     .b = b,
     .n = n,
-    .blocks = blocks,
-    .stor = stor
   };
-  // now we spawn off the function that will call get
-  //cilk_for(int i=0; i < blocks; i++) {
-  
-    //int iB = i / nBlocks; // row block index
-    //int jB = i % nBlocks; // col block index
-    //  use_future_inplace(int,&farray[i], process_lcs_tile_with_get, farray, stor, a, b, n, iB, jB);
-  //}
+  __cilkrts_cilk_for_32(wave_lcs_loop_body, &ctx, blocks, 0);
+
   // make sure the last square finishes before we move onto returning
-  if (!CILK_SETJMP(sf.ctx)) {
-    cilk_for_helper(&ctx, blocks);
-  }
-  if (sf.flags & CILK_FRAME_UNSYNCHED) {
-    if (!CILK_SETJMP(sf.ctx)) {
-      __cilkrts_sync(&sf);
-    }
-  }
   farray[blocks-1].get();
 
   __cilkrts_pop_frame(&sf);

@@ -317,7 +317,7 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
     .n = n
   };
   __cilkrts_cilk_for_32(wave_sw_with_futures_loop_body, &ctx, blocks, 0);
-  //for(int i=0; i < blocks; i++) 
+  
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
 

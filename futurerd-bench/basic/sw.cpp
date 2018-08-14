@@ -38,8 +38,8 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 
 #define SIZE_OF_ALPHABETS 4
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES 1
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -268,6 +268,49 @@ void __attribute__((noinline)) process_sw_tile_with_get_helper(cilk::future<void
   __cilkrts_leave_future_frame(&sf);
 }
 
+typedef struct wave_sw_context_t {
+  int nBlocks;
+  cilk::future<void> *farray;
+  int *stor;
+  char *a;
+  char *b;
+  int n;
+} wave_sw_context_t;
+
+void wave_sw_with_futures_loop_body(void *context, uint32_t start, uint32_t end) {
+  __cilkrts_stack_frame sf;
+  __cilkrts_enter_frame_1(&sf);
+
+  wave_sw_context_t *ctx = (wave_sw_context_t*)context;
+
+  for (int i = start; i < end; i++) {
+    int iB = i / ctx->nBlocks; // row block index 
+    int jB = i % ctx->nBlocks; // col block index
+    cilk_fiber* initial_fiber = cilk_fiber_get_current_fiber();
+    sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+        char *new_sp = __cilkrts_switch_fibers();
+        char *old_sp = NULL;
+
+        __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+        __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+        process_sw_tile_with_get_helper(&ctx->farray[i], ctx->farray, ctx->stor, ctx->a, ctx->b, ctx->n, iB, jB);
+
+        __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+
+        __cilkrts_switch_fibers_back(initial_fiber);
+    }
+    cilk_fiber_do_post_switch_actions(initial_fiber);
+    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+      //use_future_inplace(int,&farray[i], process_sw_tile_with_get, farray, stor, a, b, n, iB, jB);
+  }
+
+  __cilkrts_pop_frame(&sf);
+  __cilkrts_leave_frame(&sf);
+}
+
 static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
@@ -279,29 +322,16 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   //  malloc(sizeof(cilk::future<void>) * blocks);
   cilk::future<void>* farray = new cilk::future<void>[blocks];
 
-  for(int i=0; i < blocks; i++) {
-    int iB = i / nBlocks; // row block index 
-    int jB = i % nBlocks; // col block index
-    cilk_fiber* initial_fiber = cilk_fiber_get_current_fiber();
-    sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-        char *new_sp = __cilkrts_switch_fibers();
-        char *old_sp = NULL;
-
-        __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-        __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
-        process_sw_tile_with_get_helper(&farray[i], farray, stor, a, b, n, iB, jB);
-
-        __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-
-        __cilkrts_switch_fibers_back(initial_fiber);
-    }
-    cilk_fiber_do_post_switch_actions(initial_fiber);
-    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
-      //use_future_inplace(int,&farray[i], process_sw_tile_with_get, farray, stor, a, b, n, iB, jB);
-  }
+  wave_sw_context_t ctx = {
+    .nBlocks = nBlocks,
+    .farray = farray,
+    .stor = stor,
+    .a = a,
+    .b = b,
+    .n = n
+  };
+  __cilkrts_cilk_for_32(wave_sw_with_futures_loop_body, &ctx, blocks, 0);
+  //for(int i=0; i < blocks; i++) 
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
 

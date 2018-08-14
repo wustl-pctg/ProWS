@@ -9,11 +9,87 @@
 #define sync cilk_sync
 
 #undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES
+#define NONBLOCKING_FUTURES 1
+
+#include "internal/abi.h"
+
+class cilk_fiber;
+
+extern char* __cilkrts_switch_fibers();
+extern void __cilkrts_switch_fibers_back(cilk_fiber*);
+extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+cilk_fiber* cilk_fiber_get_current_fiber();
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
+#define START_FUTURE_SPAWN \
+  sf.flags |= CILK_FRAME_FUTURE_PARENT;\
+  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();\
+  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {\
+    printf("Using a future!\n");\
+    char *new_sp = __cilkrts_switch_fibers();\
+    char *old_sp = NULL;\
+    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));\
+    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+#define END_FUTURE_SPAWN \
+    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));\
+    __cilkrts_switch_fibers_back(initial_fiber);\
+  }\
+  cilk_fiber_do_post_switch_actions(initial_fiber);\
+  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+#define SPAWN_FUTURE(helper, args...)\
+  START_FUTURE_SPAWN\
+  helper ( ##args );\
+  END_FUTURE_SPAWN
+
+#define FUTURE_HELPER_PREAMBLE\
+  __cilkrts_stack_frame sf;\
+  __cilkrts_enter_frame_fast_1(&sf);\
+  __cilkrts_detach(&sf);
+
+#define FUTURE_HELPER_EPILOGUE\
+  __cilkrts_pop_frame(&sf);\
+  __cilkrts_leave_future_frame(&sf);
+
+#define SPAWN_HELPER_PREAMBLE   FUTURE_HELPER_PREAMBLE
+
+#define SPAWN_HELPER_EPILOGUE\
+  __cilkrts_pop_frame(&sf);\
+  __cilkrts_leave_frame(&sf);
+
+#define CILK_FUNC_PREAMBLE\
+  __cilkrts_stack_frame sf;\
+  __cilkrts_enter_frame_1(&sf);
+
+#define CILK_FUNC_EPILOGUE\
+  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
+    if (!CILK_SETJMP(sf.ctx)) {\
+      __cilkrts_sync(&sf);\
+    }\
+  }\
+  SPAWN_HELPER_EPILOGUE;
+
+#define SPAWN(helper, args...)\
+  if (!CILK_SETJMP(sf.ctx)) {\
+    helper ( ##args );\
+  }
+
+#define SYNC\
+  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
+    if (!CILK_SETJMP(sf.ctx)) {\
+      __cilkrts_sync(&sf);\
+    }\
+  }
 
 using key_t = bintree::key_t;
 using node = bintree::node;
-using fut_t = bintree::fut_t;
 using futpair_t = bintree::futpair_t;
 
 // Helper macros for dealing with pointers that may or may not be
@@ -42,8 +118,15 @@ using futpair_t = bintree::futpair_t;
 
 // We don't actually support put/get style, but this makes things clearer.
 static node* immediate(node *n) { return n; }
+void immediate_helper(cilk::future<node*>* fut, node *n) {
+  FUTURE_HELPER_PREAMBLE;
+  void *__cilkrts_deque = fut->put(immediate(n));
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  FUTURE_HELPER_EPILOGUE;
+}
 //#define put(fut,res) reasync_helper<node*,node*>((fut), immediate, (res))
-#define place(fut,res) (fut)->put((res))
+#define place(fut,res) START_FUTURE_SPAWN immediate_helper(fut,res); END_FUTURE_SPAWN
+
 
 #else
 #define IS_FUTPTR(f) false
@@ -153,11 +236,28 @@ std::pair<node*,node*> bintree::split(node* n, key_t s) {
 // Pipelined splitting
 #ifdef NONBLOCKING_FUTURES
 //#define async_split(fut, args...)                                     \
-  reasync_helper<node*,node*,key_t,fut_t*,fut_t*>((fut), split, args)
+//  reasync_helper<node*,node*,key_t,cilk::future<node*>*,cilk::future<node*>*>((fut), split, args)
 
-static node* a_split(node* n, key_t s,
-                   fut_t* res_left, fut_t* res_right,
+static node* split(node* n, key_t s,
+                   cilk::future<node*>* res_left, cilk::future<node*>* res_right,
+                   int depth);
+
+void __attribute__((noinline)) split_helper(cilk::future<node*> *fut,
+    node *n, key_t s, cilk::future<node*>* res_left, cilk::future<node*>* res_right,
+    int depth) {
+  FUTURE_HELPER_PREAMBLE;
+
+  void *__cilkrts_deque = fut->put(split(n, s, res_left, res_right, depth));
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+  FUTURE_HELPER_EPILOGUE;
+}
+
+static node* split(node* n, key_t s,
+                   cilk::future<node*>* res_left, cilk::future<node*>* res_right,
                    int depth) {
+  CILK_FUNC_PREAMBLE;
+
   assert(!IS_FUTPTR(n));
   assert(n);
 
@@ -166,23 +266,32 @@ static node* a_split(node* n, key_t s,
     auto next = n->left;
 
     if (!next) {
-      place((cilk::future<node*>*)res_left, nullptr);
+      place(res_left, nullptr);
     } else { // lookahead
 
       if (depth >= bintree::DEPTH_LIMIT) {
         auto res = bintree::split(next, s);
-        place((cilk::future<node*>*)res_left, res.first);
+        place(res_left, res.first);
         n->left = res.second;
+        CILK_FUNC_EPILOGUE;
         return n;
       }
 
-      auto next_res_right = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
+      auto next_res_right = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
       SET_FUTPTR(&n->left, next_res_right);
 
       if (s < next->key) { // left-left case
-        reuse_future_inplace(node*, (cilk::future<node*>*)next_res_right, a_split, next, s, res_left, next_res_right, (depth+1));
+        new (next_res_right) cilk::future<node*>();
+        START_FUTURE_SPAWN;
+        split_helper(next_res_right, next, s, res_left, next_res_right, depth+1);
+        END_FUTURE_SPAWN;
+        //async_split(next_res_right, next, s, res_left, next_res_right, depth+1);
       } else { // left-right case
-        reuse_future_inplace(node*, (cilk::future<node*>*)res_left, a_split, next, s, res_left, next_res_right, (depth+1));
+        new (next_res_right) cilk::future<node*>();
+        START_FUTURE_SPAWN;
+        split_helper(res_left, next, s, res_left, next_res_right, depth+1);
+        END_FUTURE_SPAWN;
+        //async_split(res_left, next, s, res_left, next_res_right, depth+1);
       }
     }
   } else { // go right
@@ -190,41 +299,62 @@ static node* a_split(node* n, key_t s,
     auto next = n->right;
 
     if (!next) {
-      place((cilk::future<node*>*)res_right, nullptr);
+      place(res_right, nullptr);
     } else { // lookahead
 
       if (depth >= bintree::DEPTH_LIMIT) {
         auto res = bintree::split(next, s);
         n->right = res.first;
-        place((cilk::future<node*>*)res_right, res.second);
+        place(res_right, res.second);
+        CILK_FUNC_EPILOGUE;
         return n;
       }
 
-      auto next_res_left = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
+      auto next_res_left = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
       SET_FUTPTR(&n->right, next_res_left);
 
       if (s < next->key) { // right-left case
-        reuse_future_inplace(node*, (cilk::future<node*>*)res_right, a_split, next, s, next_res_left, res_right, (depth+1));
+        new (res_right) cilk::future<node*>();
+        START_FUTURE_SPAWN;
+        split_helper(res_right, next, s, next_res_left, res_right, depth+1);
+        END_FUTURE_SPAWN;
+        //async_split(res_right, next, s, next_res_left, res_right, depth+1);
       } else { // right-right case
-        reuse_future_inplace(node*, (cilk::future<node*>*)next_res_left, a_split, next, s, next_res_left, res_right, (depth+1));
+        new (next_res_left) cilk::future<node*>();
+        START_FUTURE_SPAWN;
+        split_helper(next_res_left, next, s, next_res_left, res_right, depth+1);
+        END_FUTURE_SPAWN;
+        //async_split(next_res_left, next, s, next_res_left, res_right, depth+1);
       }
     }
   }
+  CILK_FUNC_EPILOGUE;
   return n;
 }
 
 // Helper to "launch" two futures for splitting
 static futpair_t split2(node* n, key_t s) {
-  auto left = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
-  auto right = new fut_t();//(fut_t*) malloc(sizeof(fut_t));
+  CILK_FUNC_PREAMBLE;
+
+  auto left = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
+  auto right = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
 
   // lookahead
   if (s < n->key) {
-    reuse_future_inplace(node*, (cilk::future<node*>*)right, a_split, n, s, left, right, 0);
+    new (right) cilk::future<node*>();
+    START_FUTURE_SPAWN;
+    split_helper(right, n, s, left, right, 0);
+    END_FUTURE_SPAWN;
+    //async_split(right, n, s, left, right, 0);
   } else {
-    reuse_future_inplace(node*, (cilk::future<node*>*)left, a_split, n, s, left, right, 0);
+    new (left) cilk::future<node*>();
+    START_FUTURE_SPAWN;
+    split_helper(left, n, s, left, right, 0);
+    END_FUTURE_SPAWN;
+    //async_split(left, n, s, left, right, 0);
   }
 
+  CILK_FUNC_EPILOGUE;
   return {left, right};
 }
 #endif
@@ -234,12 +364,31 @@ static futpair_t split2(node* n, key_t s) {
 // If I don't give this a unique name (not "merge"), for some reason
 // the compiler will not consider it as a possible candidate for the
 // spawns below, even though it has a different signature...
-static node* merge_helper(node* lr, fut_t* rr, int depth) {
+static node* merge_helper(node* lr, cilk::future<node*>* rr, int depth) {
   auto res = bintree::merge(lr, rr->get(), depth);
   free(rr);
   return res;
 }
 #endif
+
+
+
+#ifdef STRUCTURED_FUTURES
+#define split2 split
+#define merge_helper bintree::merge
+#endif
+
+#ifdef NONBLOCKING_FUTURES
+void help_merge(node** res, node* lf, cilk::future<node*>* rr, int depth) {
+#else
+void help_merge(node** res, node* lf, node* rr, int depth) {
+#endif
+  SPAWN_HELPER_PREAMBLE;
+
+  *res = merge_helper(lf, rr, depth);
+
+  SPAWN_HELPER_EPILOGUE;
+}
 
 node* bintree::merge(node* lr, node* rr, int depth) {
   if (!lr) return rr;
@@ -254,20 +403,22 @@ node* bintree::merge(node* lr, node* rr, int depth) {
     lr->right = merge(lr->right, res.second, depth+1);
     return lr;
   }
+  CILK_FUNC_PREAMBLE;
 
-#ifdef STRUCTURED_FUTURES
-#pragma message ("Structured Futures")
-#define split2 a_split
-#define merge_helper merge
-#endif
 
   auto res = split2(rr, lr->key);
   auto left = res.first;
   auto right = res.second;
 
-  lr->left  = spawn merge_helper(lr->left, left, depth+1);
-  lr->right =       merge_helper(lr->right, right, depth+1);
-  sync;
+  //lr->left  = spawn merge_helper(lr->left, left, depth+1);
+  if (!CILK_SETJMP(sf.ctx)) {
+    help_merge(&lr->left, lr->left, left, depth+1);
+  }
+  //SPAWN(help_merge, (&lr->left), lr->left, left, depth+1);
+  lr->right = merge_helper(lr->right, right, depth+1);
+  //sync;
+
+  CILK_FUNC_EPILOGUE;
 
   return lr;
 }

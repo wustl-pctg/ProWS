@@ -69,7 +69,9 @@ int main(int argc, char* argv[]) {
   }
 
   auto start = std::chrono::steady_clock::now();
+  __asm__ volatile ("" ::: "memory");
   t1->merge(t2);
+  __asm__ volatile ("" ::: "memory");
   auto end = std::chrono::steady_clock::now();
 
   // fprintf(stderr, "merged: ");
@@ -90,6 +92,7 @@ int main(int argc, char* argv[]) {
   }
 
   auto time = std::chrono::duration <double, std::milli> (end-start).count();
+  printf("%s: s1=%d s2=%d\n", argv[0], t1_size, t2_size);
   printf("Benchmark time: %f ms\n", time);
 
   delete t1; // The merge takes care of t2

@@ -12,6 +12,7 @@
 #include <time.h>
 #include <chrono>
 #include <cilk/cilk.h>
+#include <cilk/cilk_api.h>
 
 #include "avilib.hpp"
 #include "avimod.hpp"
@@ -542,6 +543,7 @@ int main(int argc, char *argv []) {
     }
 
 //    ensure_serial_execution();
+    __cilkrts_set_param("nworkers", argv[3]);
 
     char* video_file_name;
     video_file_name = argv[1];

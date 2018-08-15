@@ -454,7 +454,7 @@ void __attribute__((noinline)) processFrameStageTwo_helper(cilk::future<int> *fu
 }
 // this function process the first stage of the pipeline and spawn off the
 // second stage with future (but does not wait for it to return)
-static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
+static int __attribute__((noinline)) processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
                         cilk::future<int> *stageTwoFutures,
                         TrackingModelCilk *model,
                         ParticleFilterCilk<TrackingModelCilk> *pf,
@@ -469,12 +469,14 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
         //reasync_helper<int, int, cilk::future<int> *, 
         //               ParticleFilterCilk<TrackingModelCilk>&, ofstream &, bool>
         cout << "Processing frame " << frameNum << endl;
+
         START_FUTURE_SPAWN;
         processFrameStageTwoIter0_helper(&stageTwoFutures[frameNum], frameNum, stageTwoFutures, pf, outputFileAvg, OutputBMP);
         END_FUTURE_SPAWN;
         //use_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwoIter0, frameNum, 
         //     stageTwoFutures, pf, outputFileAvg, OutputBMP);
     } else {
+        assert(frameNum > 0);
 
         // same type as the member fields used by this iteration;
         // we will set it back into the member field in the 2nd stage.
@@ -526,7 +528,7 @@ void __attribute__((noinline)) processFrame_helper(cilk::future<int> *fut,
   FUTURE_HELPER_EPILOGUE;
 }
 
-int mainCilkFuture(string path, int cameras, int frames, int particles,
+int __attribute__((noinline)) mainCilkFuture(string path, int cameras, int frames, int particles,
                    int layers, int threads, bool OutputBMP) {
 
 

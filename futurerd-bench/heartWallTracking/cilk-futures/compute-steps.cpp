@@ -595,7 +595,7 @@ int compute_step10(const public_struct *pub, private_struct *priv) {
 }
 
 #define COMPUTE_HELPER(__compute_step) \
-void CONCAT3(compute_step,__compute_step,_helper) (cilk::future<int> *fut, const public_struct *pub, private_struct *priv) {\
+void __attribute__((noinline)) CONCAT3(compute_step,__compute_step,_helper) (cilk::future<int> *fut, const public_struct *pub, private_struct *priv) {\
   __cilkrts_stack_frame sf;\
   __cilkrts_enter_frame_fast_1(&sf);\
   __cilkrts_detach(&sf);\
@@ -617,7 +617,7 @@ COMPUTE_HELPER(9)
 COMPUTE_HELPER(10)
 
 #ifdef STRUCTURED_FUTURES
-void compute_kernel(const public_struct *pub, private_struct *priv) {
+void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_struct *priv) {
     int frame_no = pub->frame_no;
 
     if(pub->frame_no == 0) {
@@ -839,7 +839,7 @@ void compute_kernel(const public_struct *pub, private_struct *priv) {
 #ifdef NONBLOCKING_FUTURES
 
 #define COMPUTE_WITH_GET_HELPER(__compute_step) \
-void CONCAT3(compute_step,__compute_step,_with_get_helper) (cilk::future<int> *fut, const public_struct *pub, private_struct *priv, cilk::future<int> *fhandles, int frameno) {\
+void __attribute__((noinline)) CONCAT3(compute_step,__compute_step,_with_get_helper) (cilk::future<int> *fut, const public_struct *pub, private_struct *priv, cilk::future<int> *fhandles, int frameno) {\
   __cilkrts_stack_frame sf;\
   __cilkrts_enter_frame_fast_1(&sf);\
   __cilkrts_detach(&sf);\
@@ -938,7 +938,7 @@ COMPUTE_WITH_GET_HELPER(8)
 COMPUTE_WITH_GET_HELPER(9)
 COMPUTE_WITH_GET_HELPER(10)
 
-void compute_kernel(const public_struct *pub, private_struct *priv) {
+void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_struct *priv) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
     

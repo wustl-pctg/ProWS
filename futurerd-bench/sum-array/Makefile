@@ -8,8 +8,8 @@ all: $(TARGETS)
 
 INC += -I../util
 CFLAGS += $(APPFLAGS) $(RDFLAGS) $(INC)
-CXXFLAGS += $(APPFLAGS) $(RDFLAGS) $(INC) -std=c++11
-LDFLAGS += -flto $(RTS_LIB) -lnuma
+CXXFLAGS += $(APPFLAGS) $(RDFLAGS) $(INC) -fcilk-no-inline -std=c++11
+LDFLAGS += -flto -fcilk-no-inline $(RTS_LIB) -lnuma
 
 sum: sum.o
 	$(CXX) $^ $(LDFLAGS) $(LIB) -o $@

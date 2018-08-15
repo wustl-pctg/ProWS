@@ -38,8 +38,8 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 
 #define SIZE_OF_ALPHABETS 4
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES 1
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32

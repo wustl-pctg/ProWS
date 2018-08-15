@@ -38,8 +38,8 @@ void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
 void cilk_fiber_do_post_switch_actions(cilk_fiber*);
 }
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES
 
 // Don't make base case too large --- tmp matrices allocated on stack
 static int ITER_BASE_CASE, REC_BASE_CASE; // 2^POWER
@@ -248,7 +248,7 @@ typedef struct inner_loop_body_ctx_t {
   int iB;
 } inner_loop_body_ctx_t;
 
-void inner_loop_body(void* context, uint32_t start, uint32_t end) {
+void __attribute__((noinline)) inner_loop_body(void* context, uint32_t start, uint32_t end) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
 
@@ -295,7 +295,7 @@ void outer_loop_body(void* context, uint32_t start, uint32_t end) {
 }
 
 // Structured
-static void do_matmul(DATA *A, DATA *B, DATA *C, int n) {
+static void __attribute__((noinline)) do_matmul(DATA *A, DATA *B, DATA *C, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
 
@@ -408,7 +408,7 @@ int matmul_rec(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
   return 0;
 }
 
-void matmul_rec_helper(cilk::future<int> *fut, DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
+void __attribute__((noinline)) matmul_rec_helper(cilk::future<int> *fut, DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
@@ -422,7 +422,7 @@ void matmul_rec_helper(cilk::future<int> *fut, DATA *A, DATA *B, DATA *C, int n,
 
 int matmul(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB);
 
-void matmul_helper(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
+void __attribute__((noinline)) matmul_helper(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
@@ -439,7 +439,7 @@ void matmul_helper(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
 // iB: block index for the i dimension
 // kB: block index for the k dimension
 // jB: block index for the j dimension
-int matmul(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
+int __attribute__((noinline)) matmul(DATA *A, DATA *B, DATA *C, int n, int iB, int kB, int jB) {
   // the last two could have been global var
 
   // Base case uses row-major order; switch to iterative traversalw

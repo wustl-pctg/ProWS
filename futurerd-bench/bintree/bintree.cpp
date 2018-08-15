@@ -8,8 +8,8 @@
 #define spawn cilk_spawn
 #define sync cilk_sync
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES 1
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES 1
 
 #include "internal/abi.h"
 
@@ -64,10 +64,13 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
   __cilkrts_leave_frame(&sf);
 
 #define CILK_FUNC_PREAMBLE\
+  __asm__ volatile ("" ::: "memory");\
   __cilkrts_stack_frame sf;\
-  __cilkrts_enter_frame_1(&sf);
+  __cilkrts_enter_frame_1(&sf);\
+  __asm__ volatile ("" ::: "memory");
 
 #define CILK_FUNC_EPILOGUE\
+  __asm__ volatile ("" ::: "memory");\
   if (sf.flags & CILK_FRAME_UNSYNCHED) {\
     if (!CILK_SETJMP(sf.ctx)) {\
       __cilkrts_sync(&sf);\
@@ -117,7 +120,7 @@ using futpair_t = bintree::futpair_t;
 
 // We don't actually support put/get style, but this makes things clearer.
 static node* immediate(node *n) { return n; }
-void immediate_helper(cilk::future<node*>* fut, node *n) {
+void __attribute__((noinline)) immediate_helper(cilk::future<node*>* fut, node *n) {
   FUTURE_HELPER_PREAMBLE;
   void *__cilkrts_deque = fut->put(immediate(n));
   if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
@@ -252,7 +255,7 @@ void __attribute__((noinline)) split_helper(cilk::future<node*> *fut,
   FUTURE_HELPER_EPILOGUE;
 }
 
-static node* split(node* n, key_t s,
+static node* __attribute__((noinline)) split(node* n, key_t s,
                    cilk::future<node*>* res_left, cilk::future<node*>* res_right,
                    int depth) {
   CILK_FUNC_PREAMBLE;
@@ -334,7 +337,7 @@ static node* split(node* n, key_t s,
 }
 
 // Helper to "launch" two futures for splitting
-static futpair_t split2(node* n, key_t s) {
+static futpair_t __attribute__((noinline)) split2(node* n, key_t s) {
   CILK_FUNC_PREAMBLE;
 
   //auto left = (cilk::future<node*>*) malloc(sizeof(cilk::future<node*>));
@@ -382,9 +385,9 @@ static node* merge_helper(node* lr, cilk::future<node*>* rr, int depth) {
 #endif
 
 #ifdef NONBLOCKING_FUTURES
-void help_merge(node** res, node* lf, cilk::future<node*>* rr, int depth) {
+void __attribute__((noinline)) help_merge(node** res, node* lf, cilk::future<node*>* rr, int depth) {
 #else
-void help_merge(node** res, node* lf, node* rr, int depth) {
+void __attribute__((noinline)) help_merge(node** res, node* lf, node* rr, int depth) {
 #endif
   SPAWN_HELPER_PREAMBLE;
 
@@ -393,7 +396,7 @@ void help_merge(node** res, node* lf, node* rr, int depth) {
   SPAWN_HELPER_EPILOGUE;
 }
 
-node* bintree::merge(node* lr, node* rr, int depth) {
+node* __attribute__((noinline)) bintree::merge(node* lr, node* rr, int depth) {
   if (!lr) return rr;
   if (!rr) return lr;
 
@@ -406,6 +409,7 @@ node* bintree::merge(node* lr, node* rr, int depth) {
     lr->right = merge(lr->right, res.second, depth+1);
     return lr;
   }
+
   CILK_FUNC_PREAMBLE;
 
 
@@ -421,6 +425,7 @@ node* bintree::merge(node* lr, node* rr, int depth) {
   lr->right = merge_helper(lr->right, right, depth+1);
   //sync;
 
+  __asm__ volatile ("" ::: "memory");
   CILK_FUNC_EPILOGUE;
 
   return lr;

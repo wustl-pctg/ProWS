@@ -27,8 +27,8 @@
 #define TIMES_TO_RUN 10
 #endif
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -190,7 +190,7 @@ int structured_future_process_lcs_tile(int *stor, char *a, char *b, int n, int i
   return process_lcs_tile(stor, a, b, n, iB, jB);
 }
 
-void structured_future_process_lcs_tile_helper(cilk::future<int> *fut, int *stor, char *a, char *b, int n, int iB, int jB, cilk::future<int> *up_dependency, cilk::future<int> *left_dependency) {
+void __attribute__((noinline)) structured_future_process_lcs_tile_helper(cilk::future<int> *fut, int *stor, char *a, char *b, int n, int iB, int jB, cilk::future<int> *up_dependency, cilk::future<int> *left_dependency) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   __cilkrts_detach(&sf);
@@ -219,7 +219,7 @@ void populate_column() {
 
 }
 
-int populate_row(int section, int nBlocks, cilk::future<int> *farray, int *stor, char *a, char *b, int n) {
+int __attribute__((noinline)) populate_row(int section, int nBlocks, cilk::future<int> *farray, int *stor, char *a, char *b, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
 
@@ -271,7 +271,7 @@ void __attribute__((noinline)) populate_row_helper(int section, int nBlock, cilk
   __cilkrts_leave_frame(&sf);
 }
 
-int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
+int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
   int nBlocks = NUM_BLOCKS(n);
@@ -376,7 +376,7 @@ static int process_lcs_tile_with_get(cilk::future<int> *farray, int *stor,
   return 0;
 }
 
-void process_lcs_tile_with_get_helper(cilk::future<int> *fut, cilk::future<int> *farray,
+void __attribute__((noinline)) process_lcs_tile_with_get_helper(cilk::future<int> *fut, cilk::future<int> *farray,
                                       int *stor, char *a, char *b, int n, int iB, int jB) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
@@ -399,7 +399,7 @@ typedef struct wave_lcs_loop_context_t {
   int n;
 } wave_lcs_loop_context_t;
 
-void wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
+void __attribute__((noinline)) wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
 
@@ -438,7 +438,7 @@ extern "C" {
       void *context, uint32_t count, int grain);
 }
 
-void cilk_for_helper(wave_lcs_loop_context_t* ctx, int blocks) {
+void __attribute__((noinline)) cilk_for_helper(wave_lcs_loop_context_t* ctx, int blocks) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_fast_1(&sf);
   __cilkrts_detach(&sf);
@@ -449,7 +449,7 @@ void cilk_for_helper(wave_lcs_loop_context_t* ctx, int blocks) {
   __cilkrts_leave_frame(&sf);
 }
 
-int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
+int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
 

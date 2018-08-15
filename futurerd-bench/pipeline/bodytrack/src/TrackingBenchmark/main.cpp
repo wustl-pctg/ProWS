@@ -69,6 +69,82 @@ using namespace tbb;
 #include "system.h"
 
 
+#include "internal/abi.h"
+
+class cilk_fiber;
+
+extern char* __cilkrts_switch_fibers();
+extern void __cilkrts_switch_fibers_back(cilk_fiber*);
+extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
+
+extern "C" {
+cilk_fiber* cilk_fiber_get_current_fiber();
+void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
+void cilk_fiber_do_post_switch_actions(cilk_fiber*);
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
+#define START_FUTURE_SPAWN \
+  sf.flags |= CILK_FRAME_FUTURE_PARENT;\
+  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();\
+  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {\
+    char *new_sp = __cilkrts_switch_fibers();\
+    char *old_sp = NULL;\
+    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));\
+    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+#define END_FUTURE_SPAWN \
+    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));\
+    __cilkrts_switch_fibers_back(initial_fiber);\
+  }\
+  cilk_fiber_do_post_switch_actions(initial_fiber);\
+  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
+#define SPAWN_FUTURE(helper, args...)\
+  START_FUTURE_SPAWN\
+  helper ( ##args );\
+  END_FUTURE_SPAWN
+
+#define FUTURE_HELPER_PREAMBLE\
+  __cilkrts_stack_frame sf;\
+  __cilkrts_enter_frame_fast_1(&sf);\
+  __cilkrts_detach(&sf);
+
+#define FUTURE_HELPER_EPILOGUE\
+  __cilkrts_pop_frame(&sf);\
+  __cilkrts_leave_future_frame(&sf);
+
+#define SPAWN_HELPER_PREAMBLE   FUTURE_HELPER_PREAMBLE
+
+#define SPAWN_HELPER_EPILOGUE\
+  __cilkrts_pop_frame(&sf);\
+  __cilkrts_leave_frame(&sf);
+
+#define CILK_FUNC_PREAMBLE\
+  __cilkrts_stack_frame sf;\
+  __cilkrts_enter_frame_1(&sf);
+
+#define CILK_FUNC_EPILOGUE\
+  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
+    if (!CILK_SETJMP(sf.ctx)) {\
+      __cilkrts_sync(&sf);\
+    }\
+  }\
+  SPAWN_HELPER_EPILOGUE;
+
+#define SPAWN(helper, args...)\
+  if (!CILK_SETJMP(sf.ctx)) {\
+    helper ( ##args );\
+  }
+
+#define SYNC\
+  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
+    if (!CILK_SETJMP(sf.ctx)) {\
+      __cilkrts_sync(&sf);\
+    }\
+  }
+
 using namespace std;
 
 //templated conversion from string
@@ -326,6 +402,8 @@ static int processFrameStageTwo(int frameNum,
         prevFrameStageTwo->get();
         model->SetObservation(iter_mFGMaps, iter_mEdgeMaps); 
     }
+    delete iter_mFGMaps;
+    delete iter_mEdgeMaps;
 
     if(!pf->Update((float)frameNum)) { //Run particle filter step
         cout << "Error loading observation data" << endl;
@@ -344,6 +422,36 @@ static int processFrameStageTwo(int frameNum,
 }
 
 
+void __attribute__((noinline)) processFrameStageTwoIter0_helper(cilk::future<int> *fut, int frameNum, 
+                                                                cilk::future<int> *stageTwoFutures,
+                                                                ParticleFilterCilk<TrackingModelCilk> *pf, 
+                                                                ofstream *outputFileAvg, bool OutputBMP) {
+  FUTURE_HELPER_PREAMBLE;
+  
+  void *__cilkrts_deque = fut->put(processFrameStageTwoIter0(frameNum, stageTwoFutures, pf, outputFileAvg, OutputBMP));
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+  FUTURE_HELPER_EPILOGUE;
+}
+
+void __attribute__((noinline)) processFrameStageTwo_helper(cilk::future<int> *fut, int frameNum, 
+                                                           cilk::future<int> *prevFrameStageTwo, 
+                                                           cilk::future<int> *stageTwoFutures,
+                                                           TrackingModelCilk *model,
+                                                           ParticleFilterCilk<TrackingModelCilk> *pf, 
+                                                           ofstream *outputFileAvg, bool OutputBMP,
+                                                           vector<BinaryImage> *iter_mFGMaps, 
+                                                           vector<FlexImage8u> *iter_mEdgeMaps) {
+  FUTURE_HELPER_PREAMBLE;
+
+  void *__cilkrts_deque = fut->put(processFrameStageTwo(frameNum, prevFrameStageTwo, stageTwoFutures,
+                                                        model, pf, outputFileAvg, OutputBMP,
+                                                        iter_mFGMaps, iter_mEdgeMaps));
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+  FUTURE_HELPER_EPILOGUE;
+
+}
 // this function process the first stage of the pipeline and spawn off the
 // second stage with future (but does not wait for it to return)
 static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
@@ -352,15 +460,20 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
                         ParticleFilterCilk<TrackingModelCilk> *pf,
                         ofstream *outputFileAvg, bool OutputBMP) {
 
-    cout << "Processing frame " << frameNum << endl;
+    CILK_FUNC_PREAMBLE;
+
 
     if(prevFrameStageOne == nullptr) {
         assert(frameNum == 0);
         // calling 2nd stage, ret val, the future to use, function, its args 
         //reasync_helper<int, int, cilk::future<int> *, 
         //               ParticleFilterCilk<TrackingModelCilk>&, ofstream &, bool>
-        use_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwoIter0, frameNum, 
-             stageTwoFutures, pf, outputFileAvg, OutputBMP);
+        cout << "Processing frame " << frameNum << endl;
+        START_FUTURE_SPAWN;
+        processFrameStageTwoIter0_helper(&stageTwoFutures[frameNum], frameNum, stageTwoFutures, pf, outputFileAvg, OutputBMP);
+        END_FUTURE_SPAWN;
+        //use_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwoIter0, frameNum, 
+        //     stageTwoFutures, pf, outputFileAvg, OutputBMP);
     } else {
 
         // same type as the member fields used by this iteration;
@@ -374,6 +487,7 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
         // otherwise, we wait for the first stage of the previous frame to
         // finish before we proceed with this frame
         prevFrameStageOne->get();
+        cout << "Processing frame " << frameNum << endl;
         model->GetObservationCilk(frameNum, iter_mFGMaps, iter_mEdgeMaps);
 
         // could have done this at the beginning of second stage
@@ -381,19 +495,40 @@ static int processFrame(int frameNum, cilk::future<int> *prevFrameStageOne,
         //               TrackingModelCilk&,
         //               ParticleFilterCilk<TrackingModelCilk>&, ofstream &, 
         //               bool, vector<BinaryImage> *, vector<FlexImage8u> * >
-        use_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwo, frameNum, 
-             &stageTwoFutures[frameNum-1], stageTwoFutures, model, pf,
-             outputFileAvg, OutputBMP, iter_mFGMaps, iter_mEdgeMaps);
+        START_FUTURE_SPAWN;
+        processFrameStageTwo_helper(&stageTwoFutures[frameNum], frameNum, &stageTwoFutures[frameNum-1],
+                                    stageTwoFutures, model, pf, outputFileAvg, OutputBMP, iter_mFGMaps,
+                                    iter_mEdgeMaps);
+        END_FUTURE_SPAWN;
+        //use_future_inplace(int, &stageTwoFutures[frameNum], processFrameStageTwo, frameNum, 
+        //     &stageTwoFutures[frameNum-1], stageTwoFutures, model, pf,
+        //     outputFileAvg, OutputBMP, iter_mFGMaps, iter_mEdgeMaps);
 
-        delete iter_mFGMaps;
-        delete iter_mEdgeMaps;
     }
+
+    CILK_FUNC_EPILOGUE;
 
     return 1;
 }
 
+void __attribute__((noinline)) processFrame_helper(cilk::future<int> *fut,
+                                                   int frameNum, cilk::future<int> *prevFrameStageOne,
+                                                   cilk::future<int> *stageTwoFutures,
+                                                   TrackingModelCilk *model,
+                                                   ParticleFilterCilk<TrackingModelCilk> *pf,
+                                                   ofstream *outputFileAvg, bool OutputBMP) {
+  FUTURE_HELPER_PREAMBLE;
+
+  void *__cilkrts_deque = fut->put(processFrame(frameNum, prevFrameStageOne, stageTwoFutures,
+                                                model, pf, outputFileAvg, OutputBMP));
+  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+  FUTURE_HELPER_EPILOGUE;
+}
+
 int mainCilkFuture(string path, int cameras, int frames, int particles,
                    int layers, int threads, bool OutputBMP) {
+
 
     cout << "Running with Cilk with future" << endl;
 
@@ -411,6 +546,8 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
         cout << endl << "Error loading initialization data." << endl;
         return 0;
     }
+
+    CILK_FUNC_PREAMBLE;
 
     model.SetNumThreads(particles);
     // load data for first frame
@@ -445,8 +582,11 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
             //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
             //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
             //            ofstream &, bool>
-            use_future_inplace(int, &stageOneFutures[i], processFrame, i, nullptr,
-                 stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
+            START_FUTURE_SPAWN;
+            processFrame_helper(&stageOneFutures[i], i, nullptr, stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
+            END_FUTURE_SPAWN;
+            //use_future_inplace(int, &stageOneFutures[i], processFrame, i, nullptr,
+            //     stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
         } else {
             // reuse_future(int, &stageOneFutures[i], processFrame,
             //              i, &stageOneFutures[i-1], stageTwoFutures,
@@ -454,8 +594,11 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
             //reasync_helper<int, int, cilk::future<int> *, cilk::future<int> *,
             //            TrackingModelCilk &, ParticleFilterCilk<TrackingModelCilk> &,
             //            ofstream &, bool>
-            use_future_inplace(int, &stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
-                 stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
+            START_FUTURE_SPAWN;
+            processFrame_helper(&stageOneFutures[i], i, &stageOneFutures[i-1], stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
+            END_FUTURE_SPAWN;
+            //use_future_inplace(int, &stageOneFutures[i], processFrame, i, &stageOneFutures[i-1],
+            //     stageTwoFutures, &model, &pf, &outputFileAvg, OutputBMP);
         }
     }
     stageTwoFutures[frames-1].get(); // wait for last frame's stage two to complete
@@ -467,6 +610,8 @@ int mainCilkFuture(string path, int cameras, int frames, int particles,
     auto end = std::chrono::steady_clock::now();
     auto time = std::chrono::duration <double, std::milli> (end-start).count();
     std::cout << "Benchmark time: " << time << " ms" << std::endl;
+
+    CILK_FUNC_EPILOGUE;
 
     return 1;
 }

@@ -31,7 +31,6 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
   sf.flags |= CILK_FRAME_FUTURE_PARENT;\
   cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();\
   if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {\
-    printf("Using a future\n");\
     char *new_sp = __cilkrts_switch_fibers();\
     char *old_sp = NULL;\
     __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));\

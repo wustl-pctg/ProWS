@@ -1,7 +1,7 @@
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 include ../bench.mk
 
-BENCH = lcs sw matmul_z
+BENCH = lcs lcs-spawn sw matmul_z
 ALLTARGETS = $(BENCH:=-rd) $(BENCH:=-inst) $(BENCH:=-reach) $(BENCH:=-base)
 TARGETS = $(BENCH)
 

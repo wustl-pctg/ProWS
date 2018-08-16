@@ -38,8 +38,8 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 
 #define SIZE_OF_ALPHABETS 4
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -93,8 +93,8 @@ process_sw_tile(int *stor, char *a, char *b, int n, int iB, int jB) {
   for(int i = 0; i < bSize; i++) {
     for(int j = 0; j < bSize; j++) {
 
-      int i_ind = BLOCK_IND_TO_IND(iB) + i;
-      int j_ind = BLOCK_IND_TO_IND(jB) + j;
+      int i_ind = iB+i;//BLOCK_IND_TO_IND(iB) + i;
+      int j_ind = jB+j;//BLOCK_IND_TO_IND(jB) + j;
 
       if(i_ind == 0 || j_ind == 0) {
         stor[i_ind*n + j_ind] = 0;
@@ -119,12 +119,27 @@ process_sw_tile(int *stor, char *a, char *b, int n, int iB, int jB) {
 #ifdef STRUCTURED_FUTURES 
 
 
-void __attribute__((noinline)) process_sw_tile_helper(cilk::future<void> *fut, int *stor, char *a, char *b, int n, int iB, int jB) {
+void process_sw_tile_dac(int *stor, char *a, char *b, int n, int iB, int jB, int size) {
+  int bSize = 1 << base_case_log;
+  if (size <= bSize) {
+    assert(size == bSize);
+    process_sw_tile(stor, a, b, n, iB, jB);
+    return;
+  } 
+
+  process_sw_tile_dac(stor, a, b, n, iB, jB, size/2);
+  /*spawn*/ process_sw_tile_dac(stor, a, b, n, iB+size/2, jB, size/2);
+  process_sw_tile_dac(stor, a, b, n, iB, jB+size/2, size/2);
+  // sync
+  process_sw_tile_dac(stor, a, b, n, iB+size/2, jB+size/2, size/2);
+}
+
+void __attribute__((noinline)) process_sw_tile_helper(cilk::future<void> *fut, int *stor, char *a, char *b, int n, int iB, int jB, int size) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_fast_1(&sf);
     __cilkrts_detach(&sf);
 
-    process_sw_tile(stor, a, b, n, iB, jB);
+    process_sw_tile_dac(stor, a, b, n, iB, jB, size);
     void *__cilkrts_deque = fut->put();
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
@@ -137,12 +152,12 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   __cilkrts_enter_frame_1(&sf);
 
   int nBlocks = NUM_BLOCKS(n);
+  nBlocks = (nBlocks < 32 ? nBlocks : 32);
+  int size = n / nBlocks;
 
   // create an array of future objects
   auto farray = (cilk::future<void>*)
     malloc(sizeof(cilk::future<void>) * nBlocks * nBlocks);
-
-
 
   // walk the upper half of triangle, including the diagonal (we assume square NxN LCS) 
   for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
@@ -162,7 +177,7 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
          __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
          __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
 
-         process_sw_tile_helper(&farray[iB*nBlocks+jB], stor, a, b, n, iB, jB);
+         process_sw_tile_helper(&farray[iB*nBlocks+jB], stor, a, b, n, iB*size, jB*size, size);
 
          __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
          __cilkrts_switch_fibers_back(initial_fiber);
@@ -199,7 +214,7 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
          __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
          __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
 
-         process_sw_tile_helper(&farray[iB*nBlocks+jB], stor, a, b, n, iB, jB);
+         process_sw_tile_helper(&farray[iB*nBlocks+jB], stor, a, b, n, iB*size, jB*size, size);
 
          __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
          __cilkrts_switch_fibers_back(initial_fiber);

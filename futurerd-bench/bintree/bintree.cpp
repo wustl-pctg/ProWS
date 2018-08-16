@@ -2,14 +2,15 @@
 #include <cstdlib> // malloc
 #include <cstdint> // uintptr_t
 
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES 1
+
 #include "bintree.hpp"
 
 #include <cilk/cilk.h>
 #define spawn cilk_spawn
 #define sync cilk_sync
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
 
 #include "internal/abi.h"
 
@@ -28,20 +29,24 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 }
 
 #define START_FUTURE_SPAWN \
+  __asm__ volatile ("" ::: "memory");\
   sf.flags |= CILK_FRAME_FUTURE_PARENT;\
   cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();\
   if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {\
     char *new_sp = __cilkrts_switch_fibers();\
     char *old_sp = NULL;\
     __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));\
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));\
+    __asm__ volatile ("" ::: "memory");
 
 #define END_FUTURE_SPAWN \
+    __asm__ volatile ("" ::: "memory");\
     __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));\
     __cilkrts_switch_fibers_back(initial_fiber);\
   }\
   cilk_fiber_do_post_switch_actions(initial_fiber);\
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);\
+  __asm__ volatile ("" ::: "memory");
 
 #define SPAWN_FUTURE(helper, args...)\
   START_FUTURE_SPAWN\
@@ -51,15 +56,18 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 #define FUTURE_HELPER_PREAMBLE\
   __cilkrts_stack_frame sf;\
   __cilkrts_enter_frame_fast_1(&sf);\
-  __cilkrts_detach(&sf);
+  __cilkrts_detach(&sf);\
+  __asm__ volatile ("" ::: "memory");
 
 #define FUTURE_HELPER_EPILOGUE\
+  __asm__ volatile ("" ::: "memory");\
   __cilkrts_pop_frame(&sf);\
   __cilkrts_leave_future_frame(&sf);
 
 #define SPAWN_HELPER_PREAMBLE   FUTURE_HELPER_PREAMBLE
 
 #define SPAWN_HELPER_EPILOGUE\
+  __asm__ volatile ("" ::: "memory");\
   __cilkrts_pop_frame(&sf);\
   __cilkrts_leave_frame(&sf);
 
@@ -76,19 +84,24 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
       __cilkrts_sync(&sf);\
     }\
   }\
+  __asm__ volatile ("" ::: "memory");\
   SPAWN_HELPER_EPILOGUE;
 
 #define SPAWN(helper, args...)\
+  __asm__ volatile ("" ::: "memory");\
   if (!CILK_SETJMP(sf.ctx)) {\
     helper ( ##args );\
-  }
+  }\
+  __asm__ volatile ("" ::: "memory");
 
 #define SYNC\
+  __asm__ volatile ("" ::: "memory");\
   if (sf.flags & CILK_FRAME_UNSYNCHED) {\
     if (!CILK_SETJMP(sf.ctx)) {\
       __cilkrts_sync(&sf);\
     }\
-  }
+  }\
+  __asm__ volatile ("" ::: "memory");\
 
 using key_t = bintree::key_t;
 using node = bintree::node;
@@ -361,6 +374,7 @@ static futpair_t __attribute__((noinline)) split2(node* n, key_t s) {
   }
 
   CILK_FUNC_EPILOGUE;
+
   return {left, right};
 }
 #endif
@@ -425,7 +439,6 @@ node* __attribute__((noinline)) bintree::merge(node* lr, node* rr, int depth) {
   lr->right = merge_helper(lr->right, right, depth+1);
   //sync;
 
-  __asm__ volatile ("" ::: "memory");
   CILK_FUNC_EPILOGUE;
 
   return lr;

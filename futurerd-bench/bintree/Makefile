@@ -7,8 +7,7 @@ TARGETS = merge
 all: $(TARGETS)
 
 INC += -I../util
-CFLAGS += $(APPFLAGS) $(INC)
-CXXFLAGS += $(APPFLAGS) $(INC) -std=c++11
+CXXFLAGS += -g -O0 -fcilkplus -fcilk-no-inline $(INC) -std=c++11
 LDFLAGS += -flto $(RTS_LIB) -lnuma
 
 merge-all:

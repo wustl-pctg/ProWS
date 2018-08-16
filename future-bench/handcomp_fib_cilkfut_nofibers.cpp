@@ -54,11 +54,7 @@ void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
     
     void *__cilk_deque = x->put(fib(n));
     if (__builtin_expect(__cilk_deque != NULL, 0)) {
-        if (__builtin_expect(!sf->call_parent, 1)) {
-            __cilkrts_resume_suspended(__cilk_deque, 2);
-        } else {
-            __cilkrts_make_resumable(__cilk_deque);
-        }
+       __cilkrts_make_resumable(__cilk_deque);
     }
 
     __cilkrts_pop_frame(sf);

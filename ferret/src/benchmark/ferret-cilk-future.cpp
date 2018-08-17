@@ -473,7 +473,6 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     __cilkrts_enter_frame_1(&sf);
 
     future<void>* prev = NULL; 
-    printf("In fancy_wrapper\n");
     char *db_dir = NULL;
     const char *table_name = NULL;
     const char *query_dir = NULL;

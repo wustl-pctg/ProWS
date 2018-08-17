@@ -1,7 +1,9 @@
 PROG = serial pthreads std-future cilk-future tbb parsec3-tbb cilk piper cilkview
 
-COMPILER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/llvm-cilk
-PIPER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/cilkrtssuspend
+#COMPILER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/llvm-cilk
+#PIPER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/cilkrtssuspend
+COMPILER_HOME=/home/kdsinger/cilk-plus-futures/llvm-cilk
+PIPER_HOME=/home/kdsinger/cilk-plus-futures/cilkrtssuspend
 #RD_HOME=/home/kdsinger/pracer/rdtool
 #RD_INCLUDE=$(RD_HOME)/include 
 RTS_INCLUDE=$(PIPER_HOME)/include/

@@ -14,15 +14,11 @@ echo 8
 for i in $(seq 1 10); do
 taskset -c 0-7 ./run.sh cilk-future native cilk-future-8-native.out 8 32 
 done
+echo 12
+for i in $(seq 1 10); do
+taskset -c 0-11 ./run.sh cilk-future native cilk-future-16-native.out 12 48
+done
 echo 16
 for i in $(seq 1 10); do
 taskset -c 0-15 ./run.sh cilk-future native cilk-future-16-native.out 16 64
-done
-echo 24
-for i in $(seq 1 10); do
-taskset -c 0-23 ./run.sh cilk-future native cilk-future-24-native.out 24 96
-done
-echo 32
-for i in $(seq 1 10); do
-taskset -c 0-31 ./run.sh cilk-future native cilk-future-32-native.out 32 128
 done

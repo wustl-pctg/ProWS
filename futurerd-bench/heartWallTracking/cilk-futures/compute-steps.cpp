@@ -8,9 +8,9 @@
 
 #include "internal/abi.h"
 
-#undef STRUCTURED_FUTURES
+//#undef STRUCTURED_FUTURES
 //#define NO_FUTURES
-#define NONBLOCKING_FUTURES
+//#define NONBLOCKING_FUTURES
 
 #define CONCAT3(X,Y,Z) X##Y##Z
 #define CONCAT(X,Y) X##Y

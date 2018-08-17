@@ -15,7 +15,7 @@ else
 endif
 
 SERIALFLAGS = -DSERIAL=1 -USTRUCTURED_FUTURES -UNONBLOCKING_FUTURES
-BASEFLAGS = -g -fcilkplus -fcilk-no-inline -O3 -flto
+BASEFLAGS = -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fcilkplus -fcilk-no-inline -O3 #-flto
 REACHFLAGS = -fcilktool -DREACH_MAINT
 INSTFLAGS = -fsanitize=thread -fno-omit-frame-pointer
 

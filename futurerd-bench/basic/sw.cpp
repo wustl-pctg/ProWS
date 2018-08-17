@@ -38,8 +38,8 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 
 #define SIZE_OF_ALPHABETS 4
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -125,6 +125,7 @@ void __attribute__((noinline)) process_sw_tile_helper(cilk::future<void> *fut, i
     __cilkrts_detach(&sf);
 
     process_sw_tile(stor, a, b, n, iB, jB);
+    __asm__ volatile ("" ::: "memory");
     void *__cilkrts_deque = fut->put();
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
@@ -132,17 +133,16 @@ void __attribute__((noinline)) process_sw_tile_helper(cilk::future<void> *fut, i
     __cilkrts_leave_future_frame(&sf);
 }
 
-static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
+static int __attribute__((noinline)) wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   __cilkrts_stack_frame sf;
   __cilkrts_enter_frame_1(&sf);
 
   int nBlocks = NUM_BLOCKS(n);
 
   // create an array of future objects
-  auto farray = (cilk::future<void>*)
-    malloc(sizeof(cilk::future<void>) * nBlocks * nBlocks);
-
-
+  //auto farray = (cilk::future<void>*)
+  //  malloc(sizeof(cilk::future<void>) * nBlocks * nBlocks);
+  cilk::future<void> *farray = new cilk::future<void>[nBlocks*nBlocks];
 
   // walk the upper half of triangle, including the diagonal (we assume square NxN LCS) 
   for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
@@ -153,7 +153,6 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
       }
 
       cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-      new (&farray[iB*nBlocks+jB]) cilk::future<void>();
       sf.flags |= CILK_FRAME_FUTURE_PARENT;
       if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
          char *new_sp = __cilkrts_switch_fibers();
@@ -189,7 +188,6 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
         farray[(iB-1)*nBlocks + jB].get();
       }
 
-      new (&farray[iB*nBlocks+jB]) cilk::future<void>();
       cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
       sf.flags |= CILK_FRAME_FUTURE_PARENT;
       if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
@@ -212,10 +210,11 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   }
   // make sure the last square finishes before we move onto returning
   farray[nBlocks * nBlocks - 1].get();
-  free(farray);
 
   __cilkrts_pop_frame(&sf);
   __cilkrts_leave_frame(&sf);
+
+  delete [] farray;
 
   return stor[n*(n-1) + n-1];
 }
@@ -248,7 +247,7 @@ void __attribute__((noinline)) process_sw_tile_with_get_helper(cilk::future<void
 
   process_sw_tile_with_get(farray, stor, a, b, n, iB, jB);
   void* __cilkrts_deque = fut->put();
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
 
   __cilkrts_pop_frame(&sf);
   __cilkrts_leave_future_frame(&sf);
@@ -417,7 +416,7 @@ int main(int argc, char *argv[]) {
 
   uint64_t running_time[TIMES_TO_RUN];
 
-  __cilkrts_init();
+  //__cilkrts_init();
   int *stor1 = NULL;
   for (int i = 0; i < TIMES_TO_RUN; i++) {
     stor1 = (int *) malloc(sizeof(int) * n * n);

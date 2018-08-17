@@ -223,12 +223,15 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
 
     // Following the suggestion from above,
     // because setjmp/longjmp isn't fast.
-    register uint64_t frame_size;
+    uintptr_t frame_size = NULL;
+    char *stack_pointer = NULL;
+    __asm__ volatile ("movq %%rsp, %0" : "=r" (stack_pointer));
 
+    //__asm__ volatile ("mov %%rsp,%0" : "=r" (frame_size));
+    //printf("%p\n", frame_size);
     // equivalent to: frame_size = rbp - rsp;
-    __asm__ volatile ("mov %%rbp,%0\n" 
-                      "sub %%rsp,%0"
-                      : "=r" (frame_size));
+    __asm__ volatile ("movq %%rbp,%0" : "=r" (frame_size));
+    frame_size = frame_size - (uintptr_t)stack_pointer;
 
     // Make sure the frame size 16-byte aligned
     frame_size += ((16 - (frame_size & (0xF))) & 0xF);
@@ -238,9 +241,7 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
     char *new_sp = m_stack_base - frame_size;
 
     // equivalent to: rsp = new_sp;
-    __asm__ volatile ("mov %0,%%rsp"
-                      :
-                      : "r" (new_sp));
+    __asm__ volatile ("movq %0,%%rsp" :: "r" (new_sp));
 
 	// Note: our resetting of the stack pointer is valid only if the
 	// compiler has not saved any temporaries onto the stack for this

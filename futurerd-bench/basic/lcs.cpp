@@ -27,7 +27,9 @@
 #define TIMES_TO_RUN 10
 #endif
 
-//#undef STRUCTURED_FUTURES
+#undef STRUCTURED_FUTURES
+#undef NONBLOCKING_FUTURES
+#define NO_FUTURES
 //#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
@@ -209,6 +211,8 @@ simple_seq_solve(int* stor, int *where, char *a, char *b, char *res, int n) {
 
 static int process_lcs_tile(int *stor, char *a, char *b, int n, int iB, int jB) {
 
+  //printf("Processing block (%d, %d)\n", iB, jB);
+
   int bSize = 1 << base_case_log;
 
   for(int i = 0; i < bSize; i++) {
@@ -245,6 +249,77 @@ static int process_lcs_tile(int *stor, char *a, char *b, int n, int iB, int jB) 
    return stor[n*(n-1) + n-1];
    }
 */
+
+
+#ifdef NO_FUTURES
+
+
+int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
+  //CILK_FUNC_PREAMBLE;
+  int nBlocks = NUM_BLOCKS(n);
+  //printf("nblocks: %d\n", nBlocks);
+
+  // create an array of future objects
+  //auto farray = (cilk::future<int>*)
+  //  malloc(sizeof(cilk::future<int>) * nBlocks * nBlocks);
+  //cilk::future<int>* farray = new cilk::future<int>[nBlocks*nBlocks];
+
+  // walk the upper half of triangle, including the diagonal (we assume square NxN LCS)
+  for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
+    #pragma cilk grainsize = 1
+    cilk_for(int jB = 0; jB <= wave_front; jB++) {
+      int iB = wave_front - jB;
+
+      //if(iB > 0) { farray[(iB-1)*nBlocks + jB].get(); } // up dependency
+
+      // since we are walking the wavefront serially, no need to get
+      // left dependency --- already gotten by previous square.
+
+      //START_FUTURE_SPAWN;
+      process_lcs_tile(stor, a, b, n, iB, jB);
+      //END_FUTURE_SPAWN;
+      //reasync_helper<int,int*,char*,char*,int,int,int>
+      //  (&farray[iB*nBlocks+jB], process_lcs_tile, stor, a, b, n, iB, jB);
+
+      // process_lcs_tile(stor, a, b, n, iB, jB);
+
+    }
+  }
+
+  // walk the lower half of triangle
+  for(int wave_front = 1; wave_front < nBlocks; wave_front++) {
+    int iBase = nBlocks + wave_front - 1;
+    #pragma cilk grainsize = 1
+    cilk_for(int jB = wave_front; jB < nBlocks; jB++) {
+      int iB = iBase - jB;
+      // need to get both up and left dependencies for the last row,
+      // but otherwise just the up dependency.
+
+      //if(iB == (nBlocks - 1) && jB > 0) // left dependency
+      //  farray[iB*nBlocks + jB - 1].get();
+      //if(iB > 0) // up dependency
+      //  farray[(iB-1)*nBlocks + jB].get();
+
+      //START_FUTURE_SPAWN;
+      process_lcs_tile(stor, a, b, n, iB, jB);
+      //END_FUTURE_SPAWN;
+
+      //reasync_helper<int,int*,char*,char*,int,int,int>
+      //  (&farray[iB*nBlocks+jB], process_lcs_tile, stor, a, b, n, iB, jB);
+
+      // process_lcs_tile(stor, a, b, n, iB, jB);
+
+    }
+  }
+
+  //SYNC;
+
+  //CILK_FUNC_EPILOGUE;
+
+  return stor[n*(n-1) + n-1];
+}
+
+#endif
 
 #ifdef STRUCTURED_FUTURES
 
@@ -345,7 +420,7 @@ void __attribute__((noinline)) process_lcs_tile_with_get_helper(cilk::future<int
 
   void *__cilkrts_deque = fut->put(process_lcs_tile_with_get(farray, stor, a, b, n, iB, jB));
 
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
 
   __cilkrts_pop_frame(&sf);
   __cilkrts_leave_future_frame(&sf);
@@ -397,17 +472,6 @@ void __attribute__((noinline)) wave_lcs_loop_body(void* context, uint32_t start,
 extern "C" {
   void __cilkrts_cilk_for_32(void (*body) (void *, uint32_t, uint32_t),
       void *context, uint32_t count, int grain);
-}
-
-void __attribute__((noinline)) cilk_for_helper(wave_lcs_loop_context_t* ctx, int blocks) {
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_fast_1(&sf);
-  __cilkrts_detach(&sf);
-
-  __cilkrts_cilk_for_32(wave_lcs_loop_body, ctx, blocks, 0);
-
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_frame(&sf);
 }
 
 int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
@@ -529,8 +593,11 @@ int main(int argc, char *argv[]) {
 #elif NONBLOCKING_FUTURES
   printf("Performing LCS with non-structured futures and %d x %d base case.\n",
          bSize, bSize);
-#else // STRUCTURED_FUTURES
+#elif defined(STRUCTURED_FUTURES) // STRUCTURED_FUTURES
   printf("Performing LCS with structured futures and %d x %d base case.\n",
+         bSize, bSize);
+#else
+  printf("Performing LCS with cilk_for and %d x %d base case.\n",
          bSize, bSize);
 #endif
 
@@ -540,7 +607,6 @@ int main(int argc, char *argv[]) {
   int *stor1;// = (int *) malloc(sizeof(int) * n * n);
   for (int i = 0; i < TIMES_TO_RUN; i++) {
     stor1 = (int *) malloc(sizeof(int) * n * n);
-    __cilkrts_init();
     __asm__ volatile ("" ::: "memory");
     auto start = ktiming_getmark();
     result = wave_lcs_with_futures(stor1, a1, b1, n);

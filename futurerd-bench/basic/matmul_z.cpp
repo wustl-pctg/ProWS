@@ -38,8 +38,8 @@ void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
 void cilk_fiber_do_post_switch_actions(cilk_fiber*);
 }
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES
 
 // Don't make base case too large --- tmp matrices allocated on stack
 static int ITER_BASE_CASE, REC_BASE_CASE; // 2^POWER
@@ -414,7 +414,7 @@ void __attribute__((noinline)) matmul_rec_helper(cilk::future<int> *fut, DATA *A
     __cilkrts_detach(&sf);
 
     void *__cilkrts_deque = fut->put(matmul_rec(A, B, C, n, iB, kB, jB));
-    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+    if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
 
     __cilkrts_pop_frame(&sf);
     __cilkrts_leave_future_frame(&sf);

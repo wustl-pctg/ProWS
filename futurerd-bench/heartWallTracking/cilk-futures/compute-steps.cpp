@@ -9,10 +9,23 @@
 #include "internal/abi.h"
 
 #undef STRUCTURED_FUTURES
+//#define NO_FUTURES
 #define NONBLOCKING_FUTURES
 
 #define CONCAT3(X,Y,Z) X##Y##Z
 #define CONCAT(X,Y) X##Y
+
+void __attribute__((constructor)) print_type() {
+    #ifdef STRUCTURED_FUTURES
+        printf("Using structured futures\n");
+    #endif
+    #ifdef NONBLOCKING_FUTURES
+        printf("Using unstructured futures\n");
+    #endif
+    #ifdef NO_FUTURED
+        printf("Using spawn (no futures)\n");
+    #endif
+}
 
 class cilk_fiber;
 
@@ -594,6 +607,110 @@ int compute_step10(const public_struct *pub, private_struct *priv) {
     return pub->frame_no;
 }
 
+
+#ifdef NO_FUTURES
+
+#define COMPUTE_SPAWN_HELPER(__compute_step) \
+void __attribute__((noinline)) CONCAT3(compute_step,__compute_step,_spawn_helper) (int *out, const public_struct *pub, private_struct *priv) {\
+  __cilkrts_stack_frame sf;\
+  __cilkrts_enter_frame_fast_1(&sf);\
+  __cilkrts_detach(&sf);\
+  *out = CONCAT(compute_step,__compute_step)(pub, priv);\
+  __cilkrts_pop_frame(&sf);\
+  __cilkrts_leave_frame(&sf);\
+}
+
+#define SPAWN(stmt) \
+  if (!CILK_SETJMP(sf.ctx)) {\
+    stmt;\
+  }
+
+#define SYNC \
+  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
+    if (!CILK_SETJMP(sf.ctx)) {\
+        __cilkrts_sync(&sf);\
+    }\
+  }
+
+COMPUTE_SPAWN_HELPER(1)
+COMPUTE_SPAWN_HELPER(2)
+COMPUTE_SPAWN_HELPER(3)
+COMPUTE_SPAWN_HELPER(4)
+COMPUTE_SPAWN_HELPER(5)
+COMPUTE_SPAWN_HELPER(6)
+COMPUTE_SPAWN_HELPER(7)
+COMPUTE_SPAWN_HELPER(8)
+COMPUTE_SPAWN_HELPER(9)
+COMPUTE_SPAWN_HELPER(10)
+
+void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_struct *priv) {
+    int frame_no = pub->frame_no;
+
+    if(pub->frame_no == 0) {
+        compute_startup(pub, priv);
+    } else {
+        __cilkrts_stack_frame sf;
+        __cilkrts_enter_frame_1(&sf);
+
+        int s1 = 0, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0, s7 = 0, s8 = 0, s9 = 0, s10 = 0;
+
+        SPAWN(compute_step1_spawn_helper(&s1, pub, priv));
+
+
+        SPAWN(compute_step9_spawn_helper(&s9, pub, priv));
+
+        s2 = compute_step2(pub, priv);
+        //s2 = fhandles[1].get();
+
+        s3 = compute_step3(pub, priv);
+
+        //s1 = fhandles[0].get();
+        SYNC;
+
+        SPAWN(compute_step4_spawn_helper(&s4, pub, priv));
+
+        s5 = compute_step5(pub, priv);
+        //s5 = fhandles[4].get();
+           
+
+        SYNC;
+        //s3 = fhandles[2].get();
+        //s4 = fhandles[3].get();
+
+        SPAWN(compute_step7_spawn_helper(&s7, pub, priv));
+        s6 = compute_step6(pub, priv);
+
+        SYNC;
+        //s7 = fhandles[6].get();
+        //s6 = fhandles[5].get();
+
+        s8 = compute_step8(pub, priv);
+
+        //s9 = fhandles[8].get();
+        //s8 = fhandles[7].get();
+
+        s10 = compute_step10(pub, priv);
+
+        assert(s1 == frame_no);
+        assert(s2 == frame_no);
+        assert(s3 == frame_no);
+        assert(s4 == frame_no);
+        assert(s5 == frame_no);
+        assert(s6 == frame_no);
+        assert(s7 == frame_no);
+        assert(s8 == frame_no);
+        assert(s9 == frame_no);
+        assert(s10 == frame_no);
+
+        __cilkrts_pop_frame(&sf);
+        __cilkrts_leave_frame(&sf);
+    }
+}
+
+#endif
+
+#ifdef STRUCTURED_FUTURES
+
 #define COMPUTE_HELPER(__compute_step) \
 void __attribute__((noinline)) CONCAT3(compute_step,__compute_step,_helper) (cilk::future<int> *fut, const public_struct *pub, private_struct *priv) {\
   __cilkrts_stack_frame sf;\
@@ -616,7 +733,6 @@ COMPUTE_HELPER(8)
 COMPUTE_HELPER(9)
 COMPUTE_HELPER(10)
 
-#ifdef STRUCTURED_FUTURES
 void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_struct *priv) {
     int frame_no = pub->frame_no;
 
@@ -632,6 +748,23 @@ void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_
         cilk::future<int>* fhandles = (cilk::future<int>*)handle_mem;
 
         cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+        sf.flags |= CILK_FRAME_FUTURE_PARENT;
+        new (&fhandles[1]) cilk::future<int>();
+        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+            char *new_sp = __cilkrts_switch_fibers();
+            char *old_sp = NULL;
+
+            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+
+            compute_step2_helper(&fhandles[1], pub, priv);
+
+            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+            __cilkrts_switch_fibers_back(initial_fiber);
+        }
+        cilk_fiber_do_post_switch_actions(initial_fiber);
+        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+
         sf.flags |= CILK_FRAME_FUTURE_PARENT;
         new (&fhandles[0]) cilk::future<int>();
         if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
@@ -649,22 +782,6 @@ void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_
         cilk_fiber_do_post_switch_actions(initial_fiber);
         sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        new (&fhandles[1]) cilk::future<int>();
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
-            compute_step2_helper(&fhandles[1], pub, priv);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
         sf.flags |= CILK_FRAME_FUTURE_PARENT;
         new (&fhandles[8]) cilk::future<int>();
@@ -721,24 +838,8 @@ void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_
         cilk_fiber_do_post_switch_actions(initial_fiber);
         sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
 
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        new (&fhandles[4]) cilk::future<int>();
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
-            compute_step5_helper(&fhandles[4], pub, priv);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
-        s5 = fhandles[4].get();
+        s5 = compute_step5(pub, priv);
+        //s5 = fhandles[4].get();
            
         sf.flags |= CILK_FRAME_FUTURE_PARENT;
         new (&fhandles[6]) cilk::future<int>();
@@ -800,24 +901,8 @@ void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_
         s9 = fhandles[8].get();
         s8 = fhandles[7].get();
 
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        new (&fhandles[9]) cilk::future<int>();
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
-            compute_step10_helper(&fhandles[9], pub, priv);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
-        s10 = fhandles[9].get();
+        s10 = compute_step10(pub, priv);
+        // s10 = fhandles[9].get()
 
         assert(s1 == frame_no);
         assert(s2 == frame_no);
@@ -938,6 +1023,11 @@ COMPUTE_WITH_GET_HELPER(8)
 COMPUTE_WITH_GET_HELPER(9)
 COMPUTE_WITH_GET_HELPER(10)
 
+const compute_helper_func_ptr_t func_ptr[10] = { compute_step1_with_get_helper, compute_step2_with_get_helper, 
+            compute_step3_with_get_helper, compute_step4_with_get_helper, compute_step5_with_get_helper, 
+            compute_step6_with_get_helper, compute_step7_with_get_helper, compute_step8_with_get_helper, 
+            compute_step9_with_get_helper, compute_step10_with_get_helper };
+
 void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_struct *priv) {
     __cilkrts_stack_frame sf;
     __cilkrts_enter_frame_1(&sf);
@@ -957,10 +1047,6 @@ void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_
         //    compute_step3_with_get, compute_step4_with_get, compute_step5_with_get, 
         //    compute_step6_with_get, compute_step7_with_get, compute_step8_with_get, 
         //    compute_step9_with_get, compute_step10_with_get };
-        compute_helper_func_ptr_t func_ptr[10] = { compute_step1_with_get_helper, compute_step2_with_get_helper, 
-            compute_step3_with_get_helper, compute_step4_with_get_helper, compute_step5_with_get_helper, 
-            compute_step6_with_get_helper, compute_step7_with_get_helper, compute_step8_with_get_helper, 
-            compute_step9_with_get_helper, compute_step10_with_get_helper };
 
         // spawn off the computation; could be a sequential loop
         for(int i=0; i < 10; i++) {

@@ -136,7 +136,8 @@ static node* immediate(node *n) { return n; }
 void __attribute__((noinline)) immediate_helper(cilk::future<node*>* fut, node *n) {
   FUTURE_HELPER_PREAMBLE;
   void *__cilkrts_deque = fut->put(immediate(n));
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  //if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
   FUTURE_HELPER_EPILOGUE;
 }
 //#define put(fut,res) reasync_helper<node*,node*>((fut), immediate, (res))
@@ -263,7 +264,8 @@ void __attribute__((noinline)) split_helper(cilk::future<node*> *fut,
   FUTURE_HELPER_PREAMBLE;
 
   void *__cilkrts_deque = fut->put(split(n, s, res_left, res_right, depth));
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  //if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
 
   FUTURE_HELPER_EPILOGUE;
 }

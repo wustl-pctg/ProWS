@@ -844,7 +844,7 @@ void __attribute__((noinline)) CONCAT3(compute_step,__compute_step,_with_get_hel
   __cilkrts_enter_frame_fast_1(&sf);\
   __cilkrts_detach(&sf);\
   void *__cilkrts_deque = fut->put(CONCAT3(compute_step,__compute_step,_with_get)(pub, priv, fhandles, frameno));\
-  if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);\
+  if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);\
   __cilkrts_pop_frame(&sf);\
   __cilkrts_leave_future_frame(&sf);\
 }

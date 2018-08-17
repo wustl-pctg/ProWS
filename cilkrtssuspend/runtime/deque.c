@@ -452,6 +452,9 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     __cilkrts_mutex_lock(w, &w->l->lock);
     int size = w->l->resumable_deques.size;
     if (size > 0) {
+        #ifdef COLLECT_STEAL_STATS
+            w->l->ks_stats.deques_mugged_on_suspend++;
+        #endif
       new_deque = w->l->resumable_deques.array[size-1];
       deque_mug(w, new_deque);
     }
@@ -514,6 +517,9 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
     extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber*);
     w->l->work_stolen = 0;
     if (attempt_steal && can_steal_from(w,d)) {
+        #ifdef COLLECT_STEAL_STATS
+            w->l->ks_stats.steal_on_suspend_attempts++;
+        #endif
         cilk_fiber *steal_fiber = NULL;
         int proceed_with_steal = 0;
         // Only allocate a new fiber if it isn't a future
@@ -528,6 +534,9 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
         }
 
         if (proceed_with_steal) {
+            #ifdef COLLECT_STEAL_STATS
+                w->l->ks_stats.successful_steal_on_suspend++;
+            #endif
             dekker_protocol(w, d);
             cilkg_increment_active_workers(w->g);
             detach_for_steal(w, w, d, steal_fiber);

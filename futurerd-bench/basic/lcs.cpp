@@ -255,34 +255,14 @@ static int process_lcs_tile(int *stor, char *a, char *b, int n, int iB, int jB) 
 
 
 int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
-  //CILK_FUNC_PREAMBLE;
   int nBlocks = NUM_BLOCKS(n);
-  //printf("nblocks: %d\n", nBlocks);
-
-  // create an array of future objects
-  //auto farray = (cilk::future<int>*)
-  //  malloc(sizeof(cilk::future<int>) * nBlocks * nBlocks);
-  //cilk::future<int>* farray = new cilk::future<int>[nBlocks*nBlocks];
-
+  
   // walk the upper half of triangle, including the diagonal (we assume square NxN LCS)
   for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
     #pragma cilk grainsize = 1
     cilk_for(int jB = 0; jB <= wave_front; jB++) {
       int iB = wave_front - jB;
-
-      //if(iB > 0) { farray[(iB-1)*nBlocks + jB].get(); } // up dependency
-
-      // since we are walking the wavefront serially, no need to get
-      // left dependency --- already gotten by previous square.
-
-      //START_FUTURE_SPAWN;
       process_lcs_tile(stor, a, b, n, iB, jB);
-      //END_FUTURE_SPAWN;
-      //reasync_helper<int,int*,char*,char*,int,int,int>
-      //  (&farray[iB*nBlocks+jB], process_lcs_tile, stor, a, b, n, iB, jB);
-
-      // process_lcs_tile(stor, a, b, n, iB, jB);
-
     }
   }
 
@@ -292,29 +272,9 @@ int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b,
     #pragma cilk grainsize = 1
     cilk_for(int jB = wave_front; jB < nBlocks; jB++) {
       int iB = iBase - jB;
-      // need to get both up and left dependencies for the last row,
-      // but otherwise just the up dependency.
-
-      //if(iB == (nBlocks - 1) && jB > 0) // left dependency
-      //  farray[iB*nBlocks + jB - 1].get();
-      //if(iB > 0) // up dependency
-      //  farray[(iB-1)*nBlocks + jB].get();
-
-      //START_FUTURE_SPAWN;
       process_lcs_tile(stor, a, b, n, iB, jB);
-      //END_FUTURE_SPAWN;
-
-      //reasync_helper<int,int*,char*,char*,int,int,int>
-      //  (&farray[iB*nBlocks+jB], process_lcs_tile, stor, a, b, n, iB, jB);
-
-      // process_lcs_tile(stor, a, b, n, iB, jB);
-
     }
   }
-
-  //SYNC;
-
-  //CILK_FUNC_EPILOGUE;
 
   return stor[n*(n-1) + n-1];
 }

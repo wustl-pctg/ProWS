@@ -108,6 +108,20 @@ typedef enum cilk_worker_type
     WORKER_USER     ///< User thread - able to steal only from team members
 	} cilk_worker_type;
 
+#ifdef COLLECT_STEAL_STATS
+
+typedef struct kyles_steal_stats {
+    uint64_t random_steal_attempts;
+    uint64_t successful_random_steals;
+    uint64_t failed_random_steals_due_to_empty_suspended_deque;
+    uint64_t random_steal_deque_muggings;
+    uint64_t steal_on_suspend_attempts;
+    uint64_t successful_steal_on_suspend;
+    uint64_t deques_mugged_on_suspend;
+} kyles_steal_stats;
+
+#endif
+
 
 /**
  * @brief The local_state structure contains additional OS-independent
@@ -378,6 +392,10 @@ struct local_state  /* COMMON_PORTABLE */
 	 * [local read/write]
 	 */
 	unsigned int steal_failure_count;
+
+    #ifdef COLLECT_STEAL_STATS
+    kyles_steal_stats ks_stats;
+    #endif
 
 	/**
 	 * 1 if work was stolen from another worker.  When true, this will flag

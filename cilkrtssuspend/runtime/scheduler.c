@@ -802,6 +802,10 @@ static void random_steal(__cilkrts_worker *w)
     int success = 0;
     int32_t victim_id;
 
+    
+    #ifdef COLLECT_STEAL_STATS
+        w->l->ks_stats.random_steal_attempts++;
+    #endif
     NOTE_INTERVAL(w, INTERVAL_STEAL_ATTEMPT);
 
     // Nothing's been stolen yet. When true, this will flag
@@ -859,6 +863,9 @@ static void random_steal(__cilkrts_worker *w)
     
     // We own victim lock, so it can't change its active deque
     if (d != victim->l->active_deque && d->resumable) {
+            #ifdef COLLECT_STEAL_STATS
+                w->l->ks_stats.random_steal_deque_muggings++;
+            #endif
         return jump_to_suspended_fiber(w, victim, d); // will release lock
     }
 
@@ -867,6 +874,9 @@ static void random_steal(__cilkrts_worker *w)
 
     if (!can_steal_from(victim, d)) {
         if (d != victim->l->active_deque) {
+            #ifdef COLLECT_STEAL_STATS
+                w->l->ks_stats.failed_random_steals_due_to_empty_suspended_deque++;
+            #endif
             deque_mug(w, d);
             CILK_ASSERT(!d->resumable);
         }
@@ -979,6 +989,9 @@ done:
             CILK_ASSERT(0 == ref_count);
         } STOP_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE);
     } else {
+        #ifdef COLLECT_STEAL_STATS
+            w->l->ks_stats.successful_random_steals++;
+        #endif
         if (w->l->next_frame_ff->call_stack->flags & CILK_FRAME_FUTURE_PARENT) {
             START_INTERVAL(w, INTERVAL_FIBER_DEALLOCATE) {
                 int ref_count = cilk_fiber_remove_reference(fiber, &w->l->fiber_pool);
@@ -2093,6 +2106,7 @@ static void worker_scheduler_function(__cilkrts_worker *w)
         }
     }
 
+
     // Finish the scheduling loop.
     worker_scheduler_terminate_function(w);
 }
@@ -2708,6 +2722,39 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         w->g->exit_frame = NULL;
     //    unset_sync_master(__cilkrts_get_tls_worker_fast(), *(w->l->frame_ff));
     //}
+    #ifdef COLLECT_STEAL_STATS
+    __cilkrts_worker *bkup_w = w;
+    for (int i = 0; i < w->g->total_workers; i++) {
+        w = w->g->workers[i];
+        kyles_steal_stats ks = w->l->ks_stats;
+        printf("worker %d steal stats:\n"
+               "    --raw counts--\n"
+               "      %llu random steal attempts\n"
+               "      %llu successful random steals\n"
+               "      %llu random steals failed because of empty susp deque\n"
+               "      %llu deques mugged on random steal\n"
+               "      %llu local attempts to steal from top of deque being suspended\n"
+               "      %llu successful attempts to steal from top of deque being suspended\n"
+               "      %llu deque mugged when suspending deques\n"
+               "    --aggregate--\n"
+               "      %llu failures to get work from a steal (either mug or steal)\n"
+               "      %llu deques suspended\n",
+               w->self,
+               ks.random_steal_attempts,
+               ks.successful_random_steals,
+               ks.failed_random_steals_due_to_empty_suspended_deque,
+               ks.random_steal_deque_muggings,
+               ks.steal_on_suspend_attempts,
+               ks.successful_steal_on_suspend,
+               ks.deques_mugged_on_suspend,
+               (ks.random_steal_attempts - ks.successful_random_steals) - ks.random_steal_deque_muggings,
+               ks.steal_on_suspend_attempts + ks.deques_mugged_on_suspend);
+
+        fflush(stdout);
+        memset(&w->l->ks_stats, 0, sizeof(w->l->ks_stats)); // reset for next run
+    }
+    w = bkup_w;
+    #endif
 
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay
@@ -2885,6 +2932,9 @@ __cilkrts_worker *make_worker(global_state_t *g,
 #endif
 
     w->l = (local_state *)__cilkrts_malloc(sizeof(*w->l));
+    #ifdef COLLECT_STEAL_STATS
+        memset(&w->l->ks_stats, 0, sizeof(w->l->ks_stats));
+    #endif
 
     __cilkrts_frame_malloc_per_worker_init(w);
 
@@ -3023,6 +3073,7 @@ void destroy_worker(__cilkrts_worker *w)
     __cilkrts_mutex_destroy(0, &w->l->steal_lock);
     __cilkrts_frame_malloc_per_worker_cleanup(w);
 
+    
     __cilkrts_free(w->l);
 
     // The caller is responsible for freeing the worker memory

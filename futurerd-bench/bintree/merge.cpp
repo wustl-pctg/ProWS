@@ -72,11 +72,12 @@ int main(int argc, char* argv[]) {
   __asm__ volatile ("" ::: "memory");
   t1->merge(t2);
   __asm__ volatile ("" ::: "memory");
+  t1->replace_all();
+  __asm__ volatile ("" ::: "memory");
   auto end = std::chrono::steady_clock::now();
 
   // fprintf(stderr, "merged: ");
   // t1->print_keys();
-  t1->replace_all();
 
   if(check) {
     t1->validate();

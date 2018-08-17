@@ -1,6 +1,84 @@
 1
+Result: 267914296
+Running time 1: 22.0549s
+Running time 2: 22.0538s
+Running time 3: 22.0548s
+Running time 4: 22.0549s
+Running time 5: 22.0532s
+Running time 6: 22.055s
+Running time 7: 22.0549s
+Running time 8: 22.0541s
+Running time 9: 22.0532s
+Running time 10: 22.0557s
+Running time average: 22.0544 s
+Std. dev: 0.000835293 s (0.004%)
 2
+Result: 267914296
+Running time 1: 10.8214s
+Running time 2: 10.8945s
+Running time 3: 10.8938s
+Running time 4: 10.8195s
+Running time 5: 10.8205s
+Running time 6: 10.8202s
+Running time 7: 10.8208s
+Running time 8: 10.8202s
+Running time 9: 10.8209s
+Running time 10: 10.8214s
+Running time average: 10.8353 s
+Std. dev: 0.031003 s (0.286%)
 4
+Result: 267914296
+Running time 1: 5.42098s
+Running time 2: 5.42436s
+Running time 3: 5.42931s
+Running time 4: 5.4256s
+Running time 5: 5.43228s
+Running time 6: 5.43772s
+Running time 7: 5.43459s
+Running time 8: 5.43802s
+Running time 9: 5.43833s
+Running time 10: 5.42453s
+Running time average: 5.43057 s
+Std. dev: 0.00649233 s (0.120%)
 8
+Result: 267914296
+Running time 1: 2.71203s
+Running time 2: 2.7137s
+Running time 3: 2.71415s
+Running time 4: 2.71117s
+Running time 5: 2.72155s
+Running time 6: 2.70634s
+Running time 7: 2.71723s
+Running time 8: 2.70974s
+Running time 9: 2.71456s
+Running time 10: 2.71387s
+Running time average: 2.71344 s
+Std. dev: 0.00412939 s (0.152%)
 12
+Result: 267914296
+Running time 1: 1.83946s
+Running time 2: 1.80221s
+Running time 3: 1.81189s
+Running time 4: 1.80429s
+Running time 5: 1.80904s
+Running time 6: 1.80283s
+Running time 7: 1.8017s
+Running time 8: 1.8037s
+Running time 9: 1.80393s
+Running time 10: 1.80121s
+Running time average: 1.80802 s
+Std. dev: 0.0115507 s (0.639%)
 16
+Result: 267914296
+Running time 1: 1.36617s
+Running time 2: 1.3547s
+Running time 3: 1.35521s
+Running time 4: 1.35181s
+Running time 5: 1.35012s
+Running time 6: 1.35292s
+Running time 7: 1.35408s
+Running time 8: 1.35094s
+Running time 9: 1.35313s
+Running time 10: 1.351s
+Running time average: 1.35401 s
+Std. dev: 0.00459776 s (0.340%)

@@ -2,8 +2,9 @@
 #include <cstdlib> // malloc
 #include <cstdint> // uintptr_t
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
+#define STRUCTURED_FUTURES
 
 #include "bintree.hpp"
 
@@ -26,6 +27,17 @@ void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
 void cilk_fiber_do_post_switch_actions(cilk_fiber*);
 void __cilkrts_detach(__cilkrts_stack_frame*);
 void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
+void __attribute__((constructor)) print_type() {
+#ifdef STRUCTURED_FUTURES
+  printf("using spawn (no futures)\n");
+#endif
+
+#ifdef NONBLOCKING_FUTURES
+  printf("Using unstructured futures\n");
+#endif
+
 }
 
 #define START_FUTURE_SPAWN \

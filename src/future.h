@@ -71,7 +71,6 @@ template<typename T>
 class future {
 private:
   volatile T m_result;
-  int magic;
 
   __cilkrts_deque_link head = {
     .d = NULL, .next = NULL
@@ -91,13 +90,11 @@ private:
 public:
 
  future() {
-    magic = 0xc1407a5;
     m_num_suspended_deques = 0;
     tail = &head;
   };
 
   ~future() {
-    magic = ~0xc1407a5;
   }
 
   inline void reset() {
@@ -138,8 +135,6 @@ public:
   } 
 
   T __attribute__((always_inline)) get() {
-    assert(this);
-    assert(magic == 0xc1407a5);
     if (!this->ready()) {
       suspend_deque();
     }

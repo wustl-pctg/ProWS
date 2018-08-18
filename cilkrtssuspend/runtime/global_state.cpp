@@ -593,6 +593,10 @@ global_state_t* cilkg_init_global_state()
 	g->system_workers = g->P - 1; // system_workers is here for the debugger.
 	g->work_done = 0;
     g->active_workers = 1;
+    #ifdef TRACK_FIBER_COUNT
+        g->fiber_count = 0;
+        g->fiber_high_watermark = 0;
+    #endif
 	g->workers_running = 0;
 	g->ltqsize = 1024;//128; /* FIXME */ // Originally 1024
 
@@ -602,6 +606,25 @@ global_state_t* cilkg_init_global_state()
 
 	return g;
 }
+
+#ifdef TRACK_FIBER_COUNT
+void increment_fiber_count(global_state_t* g) {
+    uint64_t count = __sync_add_and_fetch(&g->fiber_count, 1);
+    uint64_t prev_val = 0;
+    while (count > g->fiber_high_watermark) {
+        uint64_t prev_val = g->fiber_high_watermark;
+        if (prev_val < count) {
+            if (__sync_bool_compare_and_swap(&g->fiber_high_watermark, prev_val, count)) {
+                count = prev_val;
+            }
+        }
+    }
+}
+
+void decrement_fiber_count(global_state_t* g) {
+    __sync_sub_and_fetch(&g->fiber_count, 1);
+}
+#endif
 
 int cilkg_decrement_active_workers(global_state_t* g) {
     return __sync_sub_and_fetch(&g->active_workers, 1);

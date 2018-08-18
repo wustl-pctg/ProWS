@@ -156,6 +156,13 @@ extern "C" {
     CILK_ASSERT(NULL == this->m_pending_pool);
   }
 
+
+#ifdef TRACK_FIBER_COUNT
+extern "C" {
+void decrement_fiber_count(global_state_t* g);
+} 
+#endif
+
   NORETURN
   cilk_fiber_remove_reference_from_self_and_resume_other(cilk_fiber*      self,
                                                          cilk_fiber_pool* self_pool,
@@ -166,6 +173,10 @@ extern "C" {
     fprintf(stderr, "W=%d: cilk_fiber_deactivate_self_and_resume_other: self=%p, other=%p\n",
             w->self,
             self, other);
+#endif
+    
+#ifdef TRACK_FIBER_COUNT
+decrement_fiber_count(__cilkrts_get_tls_worker()->g);
 #endif
     CILK_ASSERT(cilk_fiber_pool_sanity_check(self_pool, "remove_reference_from_self_resume_other"));
     self->remove_reference_from_self_and_resume_other(self_pool, other);

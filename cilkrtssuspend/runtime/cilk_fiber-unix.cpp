@@ -214,6 +214,11 @@ NORETURN cilk_fiber_sysdep::jump_to_resume_other_sysdep(cilk_fiber_sysdep* other
 	__cilkrts_bug("Should not get here");
 }
 
+#ifdef TRACK_FIBER_COUNT
+extern "C" {
+void increment_fiber_count(global_state_t* g);
+}
+#endif
 NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
 {
 	// Only fibers created from a pool have a proc method to run and execute. 
@@ -221,6 +226,9 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
 	CILK_ASSERT(!this->is_allocated_from_thread());
 	CILK_ASSERT(!this->is_resumable());
 
+#ifdef TRACK_FIBER_COUNT
+increment_fiber_count(__cilkrts_get_tls_worker()->g);
+#endif
     // Following the suggestion from above,
     // because setjmp/longjmp isn't fast.
     uintptr_t frame_size = NULL;

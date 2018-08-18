@@ -4,6 +4,13 @@
 #include "full_frame.h"
 #include "local_state.h"
 
+#ifdef TRACK_FIBER_COUNT
+extern "C" {
+void increment_fiber_count(global_state_t* g);
+void decrement_fiber_count(global_state_t* g);
+}
+#endif
+
 #define ALIGN_MASK (~((uintptr_t)0xFF))
 char* __attribute__((always_inline)) __cilkrts_get_exec_sp(cilk_fiber* fiber) {
     char *stack_base = cilk_fiber_get_stack_base(fiber);
@@ -22,6 +29,9 @@ CILK_ABI_VOID __attribute__((always_inline)) __cilkrts_switch_fibers_back(cilk_f
         dealloc = 0;
     }
 
+#ifdef TRACK_FIBER_COUNT
+    decrement_fiber_count(curr_worker->g);
+#endif
     cilk_fiber_setup_for_future_return(curr_fiber, &(curr_worker->l->fiber_pool), new_fiber, dealloc);
 
     // Technically, we could use this to get the current fiber.
@@ -43,6 +53,10 @@ CILK_ABI(char*) __attribute__((always_inline)) __cilkrts_switch_fibers() {
         new_exec_fiber = cilk_fiber_allocate(&(curr_worker->l->fiber_pool));
     }
     CILK_ASSERT(new_exec_fiber != NULL);
+
+#ifdef TRACK_FIBER_COUNT
+increment_fiber_count(curr_worker->g);
+#endif
 
     // Prefetch the stack so it is less painful to jump to!
     char *new_sp = __cilkrts_get_exec_sp(new_exec_fiber);

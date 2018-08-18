@@ -13,7 +13,7 @@
 #endif
 
 #ifndef TIMING_COUNT
-#define TIMING_COUNT 10
+#define TIMING_COUNT 3
 #endif
 
 #ifdef NO_PIN

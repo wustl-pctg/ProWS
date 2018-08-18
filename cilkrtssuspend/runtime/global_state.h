@@ -185,6 +185,11 @@ struct global_state_t { /* COMMON_PORTABLE */
 	/// USER SETTING: Global fiber pool size
 	int global_fiber_pool_size;
 
+    #ifdef TRACK_FIBER_COUNT
+    volatile uint64_t fiber_count;
+    volatile uint64_t fiber_high_watermark;
+    #endif
+
 	/**
 	 * @brief TRUE when workers should exit scheduling loop so we can
 	 * shut down the runtime and free the global state.

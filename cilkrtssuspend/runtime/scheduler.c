@@ -2792,6 +2792,12 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     w = bkup_w;
     #endif
 
+    #ifdef TRACK_FIBER_COUNT
+    printf("Fiber High Watermark: %llu\n", w->g->fiber_high_watermark);
+    w->g->fiber_high_watermark = 0;
+    w->g->fiber_count = 0;
+    #endif
+
     /* This is only called on a user thread worker. */
     // Disabled for CilkRR replay
     //fprintf(stderr, "Returning from initial: %p\n", (*w->l->frame_ff));

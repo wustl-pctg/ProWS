@@ -39,7 +39,7 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 #define SIZE_OF_ALPHABETS 4
 
 #undef STRUCTURED_FUTURES
-//#undef NONBLOCKING_FUTURES
+#undef NONBLOCKING_FUTURES
 #define NO_FUTURES
 //#define NONBLOCKING_FUTURES 1
 
@@ -120,7 +120,7 @@ process_sw_tile(int *stor, char *a, char *b, int n, int iB, int jB) {
 
 #ifdef NO_FUTURES
 
-static int __attribute__((noinline)) wave_sw_with_futures(int *stor, char *a, char *b, int n) {
+int __attribute__((noinline)) wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   int nBlocks = NUM_BLOCKS(n);
 
   // walk the upper half of triangle, including the diagonal (we assume square NxN LCS) 
@@ -442,14 +442,17 @@ int main(int argc, char *argv[]) {
 #elif NONBLOCKING_FUTURES
   printf("Performing SW with non-structured futures and %d x %d base case.\n",
          bSize, bSize);
-#else // STRUCTURED_FUTURE
+#elif defined(STRUCTURED_FUTURES) // STRUCTURED_FUTURE
   printf("Performing SW with structured futures and %d x %d base case.\n",
+         bSize, bSize);
+#else
+  printf("Performing SW with cilk-for and %d x %d base case.\n",
          bSize, bSize);
 #endif
 
   uint64_t running_time[TIMES_TO_RUN];
 
-  //__cilkrts_init();
+  __cilkrts_init();
   int *stor1 = NULL;
   for (int i = 0; i < TIMES_TO_RUN; i++) {
     stor1 = (int *) malloc(sizeof(int) * n * n);

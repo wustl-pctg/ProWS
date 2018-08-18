@@ -1,0 +1,96 @@
+12
+Compute LCS with 32768 x 32768 table.
+Performing LCS with cilk_for and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.54697s
+Running time 2: 1.53273s
+Running time 3: 1.68928s
+Running time 4: 1.53526s
+Running time 5: 1.72094s
+Running time 6: 1.55799s
+Running time 7: 1.62202s
+Running time 8: 1.56435s
+Running time 9: 1.65601s
+Running time 10: 1.60252s
+Running time average: 1.60281 s
+Std. dev: 0.0672564 s (4.196%)
+8
+Compute LCS with 32768 x 32768 table.
+Performing LCS with cilk_for and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.7974s
+Running time 2: 1.79214s
+Running time 3: 1.7908s
+Running time 4: 1.79221s
+Running time 5: 1.79283s
+Running time 6: 1.78934s
+Running time 7: 1.7904s
+Running time 8: 1.79127s
+Running time 9: 1.7927s
+Running time 10: 1.79417s
+Running time average: 1.79233 s
+Std. dev: 0.0022516 s (0.126%)
+4
+Compute LCS with 32768 x 32768 table.
+Performing LCS with cilk_for and 512 x 512 base case.
+Result: 21431
+Running time 1: 2.84119s
+Running time 2: 2.83845s
+Running time 3: 2.83805s
+Running time 4: 2.84004s
+Running time 5: 2.84017s
+Running time 6: 2.83764s
+Running time 7: 2.83954s
+Running time 8: 2.84117s
+Running time 9: 2.83649s
+Running time 10: 2.83889s
+Running time average: 2.83916 s
+Std. dev: 0.00154135 s (0.054%)
+2
+Compute LCS with 32768 x 32768 table.
+Performing LCS with cilk_for and 512 x 512 base case.
+Result: 21431
+Running time 1: 5.25422s
+Running time 2: 5.30056s
+Running time 3: 5.25877s
+Running time 4: 5.24888s
+Running time 5: 5.2562s
+Running time 6: 5.24863s
+Running time 7: 5.25076s
+Running time 8: 5.26017s
+Running time 9: 5.252s
+Running time 10: 5.28195s
+Running time average: 5.26121 s
+Std. dev: 0.0168792 s (0.321%)
+1
+Compute LCS with 32768 x 32768 table.
+Performing LCS with cilk_for and 512 x 512 base case.
+Result: 21431
+Running time 1: 10.2518s
+Running time 2: 10.2603s
+Running time 3: 10.2503s
+Running time 4: 10.2542s
+Running time 5: 10.2431s
+Running time 6: 10.2509s
+Running time 7: 10.2604s
+Running time 8: 10.2411s
+Running time 9: 10.2536s
+Running time 10: 10.2527s
+Running time average: 10.2518 s
+Std. dev: 0.00624039 s (0.061%)
+16
+Compute LCS with 32768 x 32768 table.
+Performing LCS with cilk_for and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.48497s
+Running time 2: 1.4671s
+Running time 3: 1.54103s
+Running time 4: 1.48078s
+Running time 5: 1.50566s
+Running time 6: 1.47179s
+Running time 7: 1.48171s
+Running time 8: 1.53519s
+Running time 9: 1.46618s
+Running time 10: 1.47675s
+Running time average: 1.49112 s
+Std. dev: 0.0271978 s (1.824%)

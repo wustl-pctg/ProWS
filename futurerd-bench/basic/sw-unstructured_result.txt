@@ -1,0 +1,96 @@
+16
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+Result: 839
+Running time 1: 1.39107s
+Running time 2: 1.36033s
+Running time 3: 1.33755s
+Running time 4: 1.33065s
+Running time 5: 1.3405s
+Running time 6: 1.35957s
+Running time 7: 1.36255s
+Running time 8: 1.3217s
+Running time 9: 1.34041s
+Running time 10: 1.33728s
+Running time average: 1.34816 s
+Std. dev: 0.0202284 s (1.500%)
+12
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+Result: 839
+Running time 1: 1.55456s
+Running time 2: 1.56699s
+Running time 3: 1.51951s
+Running time 4: 1.5791s
+Running time 5: 1.56023s
+Running time 6: 1.66432s
+Running time 7: 1.52451s
+Running time 8: 1.58889s
+Running time 9: 1.54774s
+Running time 10: 1.57619s
+Running time average: 1.5682 s
+Std. dev: 0.0405507 s (2.586%)
+8
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+Result: 839
+Running time 1: 2.09268s
+Running time 2: 2.06065s
+Running time 3: 2.12294s
+Running time 4: 2.08487s
+Running time 5: 2.08686s
+Running time 6: 2.07545s
+Running time 7: 2.0728s
+Running time 8: 2.05174s
+Running time 9: 2.04655s
+Running time 10: 2.08256s
+Running time average: 2.07771 s
+Std. dev: 0.0220977 s (1.064%)
+4
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+Result: 839
+Running time 1: 3.85101s
+Running time 2: 3.84587s
+Running time 3: 3.90103s
+Running time 4: 3.86943s
+Running time 5: 3.8431s
+Running time 6: 3.83748s
+Running time 7: 3.84368s
+Running time 8: 3.86847s
+Running time 9: 3.84383s
+Running time 10: 3.85314s
+Running time average: 3.8557 s
+Std. dev: 0.0191717 s (0.497%)
+2
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+Result: 839
+Running time 1: 7.52143s
+Running time 2: 7.62293s
+Running time 3: 7.53828s
+Running time 4: 7.52352s
+Running time 5: 7.51461s
+Running time 6: 7.58224s
+Running time 7: 7.53591s
+Running time 8: 7.52284s
+Running time 9: 7.53854s
+Running time 10: 7.53526s
+Running time average: 7.54356 s
+Std. dev: 0.033556 s (0.445%)
+1
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+Result: 839
+Running time 1: 14.9021s
+Running time 2: 14.9189s
+Running time 3: 14.9221s
+Running time 4: 14.8982s
+Running time 5: 14.9144s
+Running time 6: 14.8991s
+Running time 7: 14.9117s
+Running time 8: 14.9079s
+Running time 9: 14.9195s
+Running time 10: 14.9179s
+Running time average: 14.9112 s
+Std. dev: 0.00887492 s (0.060%)

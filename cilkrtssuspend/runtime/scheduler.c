@@ -2724,9 +2724,19 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     //}
     #ifdef COLLECT_STEAL_STATS
     __cilkrts_worker *bkup_w = w;
+    kyles_steal_stats output_stats;
+    memset(&output_stats, 0, sizeof(output_stats));
     for (int i = 0; i < w->g->total_workers; i++) {
         w = w->g->workers[i];
         kyles_steal_stats ks = w->l->ks_stats;
+        output_stats.random_steal_attempts += ks.random_steal_attempts;
+        output_stats.successful_random_steals += ks.successful_random_steals;
+        output_stats.failed_random_steals_due_to_empty_suspended_deque += ks.failed_random_steals_due_to_empty_suspended_deque;
+        output_stats.random_steal_deque_muggings += ks.random_steal_deque_muggings;
+        output_stats.steal_on_suspend_attempts += ks.steal_on_suspend_attempts;
+        output_stats.successful_steal_on_suspend += ks.successful_steal_on_suspend;
+        output_stats.deques_mugged_on_suspend += ks.deques_mugged_on_suspend;
+        /*kyles_steal_stats ks = w->l->ks_stats;
         printf("worker %d steal stats:\n"
                "    --raw counts--\n"
                "      %llu random steal attempts\n"
@@ -2751,8 +2761,34 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
                ks.steal_on_suspend_attempts + ks.deques_mugged_on_suspend);
 
         fflush(stdout);
+        */
         memset(&w->l->ks_stats, 0, sizeof(w->l->ks_stats)); // reset for next run
     }
+        printf("worker %d steal stats:\n"
+               "    --raw counts--\n"
+               "      %llu random steal attempts\n"
+               "      %llu successful random steals\n"
+               "      %llu random steals failed because of empty susp deque\n"
+               "      %llu deques mugged on random steal\n"
+               "      %llu local attempts to steal from top of deque being suspended\n"
+               "      %llu successful attempts to steal from top of deque being suspended\n"
+               "      %llu deque mugged when suspending deques\n"
+               "    --aggregate--\n"
+               "      %llu failures to get work from a steal (either mug or steal)\n"
+               "      %llu deques suspended\n",
+               w->self,
+               output_stats.random_steal_attempts,
+               output_stats.successful_random_steals,
+               output_stats.failed_random_steals_due_to_empty_suspended_deque,
+               output_stats.random_steal_deque_muggings,
+               output_stats.steal_on_suspend_attempts,
+               output_stats.successful_steal_on_suspend,
+               output_stats.deques_mugged_on_suspend,
+               (output_stats.random_steal_attempts - output_stats.successful_random_steals) - output_stats.random_steal_deque_muggings,
+               output_stats.steal_on_suspend_attempts + output_stats.deques_mugged_on_suspend);
+
+        fflush(stdout);
+
     w = bkup_w;
     #endif
 

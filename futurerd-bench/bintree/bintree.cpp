@@ -5,12 +5,19 @@
 //#undef STRUCTURED_FUTURES
 //#define NONBLOCKING_FUTURES 1
 #define STRUCTURED_FUTURES
+//#define SERIAL_ELISION
+
 
 #include "bintree.hpp"
 
-#include <cilk/cilk.h>
-#define spawn cilk_spawn
-#define sync cilk_sync
+#ifdef SERIAL_ELISION
+    #define spawn
+    #define sync
+#else
+
+  #include <cilk/cilk.h>
+    #define spawn cilk_spawn
+    #define sync cilk_sync
 
 
 #include "internal/abi.h"
@@ -28,6 +35,7 @@ void cilk_fiber_do_post_switch_actions(cilk_fiber*);
 void __cilkrts_detach(__cilkrts_stack_frame*);
 void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 }
+#endif
 
 void __attribute__((constructor)) print_type() {
 #ifdef STRUCTURED_FUTURES
@@ -38,6 +46,9 @@ void __attribute__((constructor)) print_type() {
   printf("Using unstructured futures\n");
 #endif
 
+#ifdef SERIAL_ELISION
+  printf("serial elision\n");
+#endif
 }
 
 #define START_FUTURE_SPAWN \
@@ -412,6 +423,7 @@ static node* merge_helper(node* lr, cilk::future<node*>* rr, int depth) {
 #define merge_helper bintree::merge
 #endif
 
+#ifndef SERIAL_ELISION
 #ifdef NONBLOCKING_FUTURES
 void __attribute__((noinline)) help_merge(node** res, node* lf, cilk::future<node*>* rr, int depth) {
 #else
@@ -423,6 +435,7 @@ void __attribute__((noinline)) help_merge(node** res, node* lf, node* rr, int de
 
   SPAWN_HELPER_EPILOGUE;
 }
+#endif
 
 node* __attribute__((noinline)) bintree::merge(node* lr, node* rr, int depth) {
   if (!lr) return rr;
@@ -438,22 +451,30 @@ node* __attribute__((noinline)) bintree::merge(node* lr, node* rr, int depth) {
     return lr;
   }
 
+  #ifndef SERIAL_ELISION
   CILK_FUNC_PREAMBLE;
+  #endif
 
 
   auto res = split2(rr, lr->key);
   auto left = res.first;
   auto right = res.second;
 
+  #ifndef SERIAL_ELISION
   //lr->left  = spawn merge_helper(lr->left, left, depth+1);
   if (!CILK_SETJMP(sf.ctx)) {
     help_merge(&lr->left, lr->left, left, depth+1);
   }
+  #else
+    lr->left = merge_helper(lr->left, left, depth+1);
+  #endif
   //SPAWN(help_merge, (&lr->left), lr->left, left, depth+1);
   lr->right = merge_helper(lr->right, right, depth+1);
   //sync;
 
+  #ifndef SERIAL_ELISION
   CILK_FUNC_EPILOGUE;
+  #endif
 
   return lr;
 }

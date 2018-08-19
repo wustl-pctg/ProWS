@@ -22,6 +22,11 @@ bintree.o: bintree.cpp
 merge: merge.o bintree.o ../util/getoptions.o
 	$(CXX) $^ $(LDFLAGS) $(LIB) -o $@
 
+merge-serial:
+	$(CXX) $(CXXFLAGS) -DSERIAL_ELISION=1 -c merge.cpp -o merge-se.o
+	$(CXX) $(CXXFLAGS) -DSERIAL_ELISION=1 -c bintree.cpp -o bintree-se.o
+	$(CXX) merge-se.o bintree-se.o ../util/getoptions.o $(LDFLAGS) $(LIB) -o $@
+
 # delete all object files
 clean:
 	rm -f *.o $(TARGETS) core.* merge-*

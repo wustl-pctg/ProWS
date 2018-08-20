@@ -8,9 +8,10 @@
 
 #include "internal/abi.h"
 
-//#undef STRUCTURED_FUTURES
+#undef STRUCTURED_FUTURES
 //#define NO_FUTURES
 //#define NONBLOCKING_FUTURES
+#define SERIAL_ELISION
 
 #define CONCAT3(X,Y,Z) X##Y##Z
 #define CONCAT(X,Y) X##Y
@@ -607,6 +608,65 @@ int compute_step10(const public_struct *pub, private_struct *priv) {
     return pub->frame_no;
 }
 
+
+#ifdef SERIAL_ELISION
+
+void __attribute__((noinline)) compute_kernel(const public_struct *pub, private_struct *priv) {
+    int frame_no = pub->frame_no;
+
+    if(pub->frame_no == 0) {
+        compute_startup(pub, priv);
+    } else {
+        int s1 = 0, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0, s7 = 0, s8 = 0, s9 = 0, s10 = 0;
+
+        s1 = compute_step1(pub, priv);
+
+
+        s9 = compute_step9(pub, priv);
+
+        s2 = compute_step2(pub, priv);
+        //s2 = fhandles[1].get();
+
+        s3 = compute_step3(pub, priv);
+
+        //s1 = fhandles[0].get();
+
+        s4 = compute_step4(pub, priv);
+
+        s5 = compute_step5(pub, priv);
+        //s5 = fhandles[4].get();
+           
+
+        //s3 = fhandles[2].get();
+        //s4 = fhandles[3].get();
+
+        s7 = compute_step7(pub, priv);
+        s6 = compute_step6(pub, priv);
+
+        //s7 = fhandles[6].get();
+        //s6 = fhandles[5].get();
+
+        s8 = compute_step8(pub, priv);
+
+        //s9 = fhandles[8].get();
+        //s8 = fhandles[7].get();
+
+        s10 = compute_step10(pub, priv);
+
+        assert(s1 == frame_no);
+        assert(s2 == frame_no);
+        assert(s3 == frame_no);
+        assert(s4 == frame_no);
+        assert(s5 == frame_no);
+        assert(s6 == frame_no);
+        assert(s7 == frame_no);
+        assert(s8 == frame_no);
+        assert(s9 == frame_no);
+        assert(s10 == frame_no);
+    }
+}
+
+#endif
 
 #ifdef NO_FUTURES
 

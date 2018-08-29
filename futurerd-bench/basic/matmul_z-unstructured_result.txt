@@ -1,126 +1,126 @@
 16
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1045.389181 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 890.444598 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 951.700818 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1016.867030 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 973.050380 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 993.614425 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 907.985246 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 916.405439 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1031.465167 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 902.358308 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 8144.643497 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7876.174375 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7801.086845 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 8125.099058 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7262.391592 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7783.209453 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7157.252986 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7280.254060 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7345.305311 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 7199.306129 ms
 12
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1203.495532 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1181.624414 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1191.038775 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1155.369078 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1227.700057 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1165.319059 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1255.041235 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1224.220278 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1210.223799 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1163.515677 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9577.554341 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9617.582226 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9658.609165 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9814.869920 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9623.204222 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9363.496984 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9547.738187 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9137.596327 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9367.247255 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 9431.111391 ms
 8
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1723.370049 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1718.190433 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1742.963824 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1725.912200 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1732.527735 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1727.718702 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1720.573036 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1739.327082 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1760.498965 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 1748.528622 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13773.459947 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13720.362007 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13778.124810 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13790.276072 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13807.792500 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13717.569369 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13702.924644 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13682.198141 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13920.437058 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 13714.565162 ms
 4
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3419.797613 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3419.319055 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3420.849292 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3419.302142 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3419.204097 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3419.434077 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3419.511986 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3418.916027 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3459.706953 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 3419.040159 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27370.739072 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27352.353037 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27370.790548 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27377.450340 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27380.835430 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27367.911311 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27378.428771 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27370.874601 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27372.920144 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 27348.122234 ms
 2
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6842.167079 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6843.350386 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6840.985472 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6843.980672 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6845.313726 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6845.782988 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6843.666310 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6925.054520 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6848.036826 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 6842.864504 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54753.594282 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54773.194855 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54731.208103 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54719.529079 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54743.969272 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 55412.078647 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54738.256863 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54737.804730 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54747.413533 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 54736.500426 ms
 1
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13674.541134 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13684.414760 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13681.449507 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13672.824874 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13683.401163 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13672.895696 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13678.468874 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13674.475012 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13677.824976 ms
-Performing unstructured matmul with z-layout, 2048 x 2048 with base case 64 x 64.
-Benchmark time: 13680.824688 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109395.130512 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109382.344062 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109388.900118 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109386.736849 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109431.446542 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109387.972208 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109391.350235 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109403.751060 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109392.365502 ms
+Performing unstructured matmul with z-layout, 4096 x 4096 with base case 64 x 64.
+Benchmark time: 109404.631413 ms

@@ -148,6 +148,9 @@ void __cilkrts_make_resumable(void* _deque)
 
 }
 
+#ifdef TRACK_FIBER_COUNT
+void decrement_fiber_count(global_state_t* g);
+#endif
 void __cilkrts_resume_suspended(void* _deque, int enable_resume)
 {
   __cilkrts_worker *w = __cilkrts_get_tls_worker_fast();
@@ -203,6 +206,10 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
   data->owner = w;
   deque_to_resume->call_stack->worker = w;
 
+  #ifdef COLLECT_STEAL_STATS
+    w->l->ks_stats.deques_resumed++;
+  #endif
+
   // Basically, if we are operating on a true future we can destroy the old deque.
   if (enable_resume == 2) { // && !w->current_stack_frame->call_parent && !(*w->l->frame_ff)->parent && !(w->current_stack_frame->flags & CILK_FRAME_LAST)) {
     cilk_fiber *current_fiber = cilk_fiber_get_current_fiber();
@@ -227,6 +234,9 @@ void __cilkrts_resume_suspended(void* _deque, int enable_resume)
     cilk_fiber_take(fiber_to_resume);
     if (w->l->future_fiber_pool_idx < (MAX_FUTURE_FIBERS_IN_POOL-1)) {
         w->l->future_fiber_pool[++w->l->future_fiber_pool_idx] = current_fiber;
+#ifdef TRACK_FIBER_COUNT
+        decrement_fiber_count(w->g);
+#endif
         cilk_fiber_suspend_self_and_resume_other(current_fiber, fiber_to_resume);
         CILK_ASSERT(!"Should not get back here!");
     } else {

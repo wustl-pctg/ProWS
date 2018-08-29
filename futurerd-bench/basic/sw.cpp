@@ -18,7 +18,7 @@
 #include "../util/util.hpp"
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 10
+#define TIMES_TO_RUN 1
 #endif
 
 #include "internal/abi.h"
@@ -40,8 +40,8 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 
 #undef STRUCTURED_FUTURES
 #undef NONBLOCKING_FUTURES
-#define NO_FUTURES
-//#define NONBLOCKING_FUTURES 1
+//#define NO_FUTURES
+#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32

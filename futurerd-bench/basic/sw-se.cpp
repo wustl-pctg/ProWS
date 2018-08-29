@@ -11,7 +11,7 @@
 //#include <cilk/cilk.h>
 //#include <cilk/cilk_api.h>
 
-#endif
+//#endif
 
 #include "../util/getoptions.hpp"
 #include "../util/ktiming.h"

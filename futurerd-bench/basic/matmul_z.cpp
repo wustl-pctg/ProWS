@@ -38,8 +38,8 @@ void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
 void cilk_fiber_do_post_switch_actions(cilk_fiber*);
 }
 
-//#undef STRUCTURED_FUTURES
-//#define NONBLOCKING_FUTURES
+#undef STRUCTURED_FUTURES
+#define NONBLOCKING_FUTURES
 
 // Don't make base case too large --- tmp matrices allocated on stack
 static int ITER_BASE_CASE, REC_BASE_CASE; // 2^POWER

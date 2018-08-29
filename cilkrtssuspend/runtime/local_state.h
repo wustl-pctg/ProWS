@@ -118,6 +118,7 @@ typedef struct kyles_steal_stats {
     uint64_t steal_on_suspend_attempts;
     uint64_t successful_steal_on_suspend;
     uint64_t deques_mugged_on_suspend;
+    uint64_t deques_resumed;
 } kyles_steal_stats;
 
 #endif
@@ -395,6 +396,8 @@ struct local_state  /* COMMON_PORTABLE */
 
     #ifdef COLLECT_STEAL_STATS
     kyles_steal_stats ks_stats;
+    uint64_t sync_suspend;
+    uint64_t num_susp_empty;
     #endif
 
 	/**

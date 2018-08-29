@@ -11,7 +11,7 @@ mkfile_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
 include ../common.mk
 
-MY_CXXFLAGS = -DTIMES_TO_RUN=3 -DTIMING_COUNT=3 -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
+MY_CXXFLAGS = -DTIMES_TO_RUN=1 -DTIMING_COUNT=1 -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
 MY_CFLAGS = -O3 -g
 MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
 
@@ -22,7 +22,14 @@ getoptions.o: getoptions.cpp
 	$(CXX) $(MY_CXXFLAGS) -c getoptions.cpp -o getoptions.o
 
 ktiming.o: ktiming.c
-	$(CXX) $(MY_CXXFLAGS) -c ktiming.c -o ktiming.o
+	$(CXX) -O3 -c ktiming.c -o ktiming.o
+
+TARGETS = fib-se
+APPS = fib-se
+
+fib-se: ktiming.o
+	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus_se.cpp -o fib_se.o
+	$(CXX) -flto fib_se.o ktiming.o -o fib-se $(MY_LDFLAGS)
 
 TARGETS = fib
 APPS = fib
@@ -89,6 +96,13 @@ run-tests:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./fib-future 40
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./fib-future 40
 
+TARGETS += strass-se
+APPS += strassen-se
+
+strass-se: ktiming.o getoptions.o strassen.cpp
+	$(CXX) $(MY_CXXFLAGS) -c strassen-se.cpp -o strassen-se.o
+	$(CXX) -flto strassen-se.o getoptions.o ktiming.o -o strassen-se $(MY_LDFLAGS)
+
 TARGETS += strass
 APPS += strassen
 
@@ -129,6 +143,13 @@ strass-fut-nofibers: ktiming.o getoptions.o strassen-future-nofibers.cpp
 run-strass-fut-nofibers:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future-nofibers -n 1024 -c
 
+TARGETS += matmul-se
+APPS += matmul-se
+
+matmul-se: matmul-se.cpp ktiming.o getoptions.o
+	$(CXX) $(MY_CXXFLAGS) -c matmul-se.cpp -o matmul-se.o
+	$(CXX) -flto matmul-se.o getoptions.o ktiming.o -o matmul-se $(MY_LDFLAGS)
+
 TARGETS += matmul
 APPS += matmul
 
@@ -161,6 +182,13 @@ matmul-future: matmul-future.cpp ktiming.o getoptions.o
 
 run-matmul-future:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-future -n 1024 -c
+
+TARGETS += cilksort-se
+APPS += cilksort-se
+
+cilksort-se: cilksort-se.cpp ktiming.o getoptions.o
+	$(CXX) $(MY_CXXFLAGS) -c cilksort-se.cpp -o cilksort-se.o
+	$(CXX) -flto cilksort-se.o getoptions.o ktiming.o -o cilksort-se $(MY_LDFLAGS)
 
 TARGETS += cilksort
 APPS += cilksort

@@ -2303,6 +2303,13 @@ static void do_sync(__cilkrts_worker *w, full_frame *ff, __cilkrts_stack_frame *
     }
 #endif // defined ENABLE_NOTIFY_ZC_INTRINSIC
 
+#ifdef COLLECT_STEAL_STATS
+    if (ABANDON_EXECUTION == steal_result) {
+      //CILK_ASSERT(w->l->next_frame_ff == NULL);
+      w->l->sync_suspend++;
+    }
+#endif
+
     return; /* back to scheduler loop */
 }
 
@@ -2725,9 +2732,13 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
     #ifdef COLLECT_STEAL_STATS
     __cilkrts_worker *bkup_w = w;
     kyles_steal_stats output_stats;
+    uint64_t sync_suspends = 0;
+    uint64_t susp_empty = 0;
     memset(&output_stats, 0, sizeof(output_stats));
     for (int i = 0; i < w->g->total_workers; i++) {
         w = w->g->workers[i];
+        susp_empty += w->l->num_susp_empty;
+        sync_suspends += w->l->sync_suspend;
         kyles_steal_stats ks = w->l->ks_stats;
         output_stats.random_steal_attempts += ks.random_steal_attempts;
         output_stats.successful_random_steals += ks.successful_random_steals;
@@ -2736,6 +2747,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
         output_stats.steal_on_suspend_attempts += ks.steal_on_suspend_attempts;
         output_stats.successful_steal_on_suspend += ks.successful_steal_on_suspend;
         output_stats.deques_mugged_on_suspend += ks.deques_mugged_on_suspend;
+        output_stats.deques_resumed += ks.deques_resumed;
         /*kyles_steal_stats ks = w->l->ks_stats;
         printf("worker %d steal stats:\n"
                "    --raw counts--\n"
@@ -2762,7 +2774,7 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
 
         fflush(stdout);
         */
-        memset(&w->l->ks_stats, 0, sizeof(w->l->ks_stats)); // reset for next run
+        //memset(&w->l->ks_stats, 0, sizeof(w->l->ks_stats)); // reset for next run
     }
         printf("worker %d steal stats:\n"
                "    --raw counts--\n"
@@ -2787,14 +2799,30 @@ void __cilkrts_c_return_from_initial(__cilkrts_worker *w)
                (output_stats.random_steal_attempts - output_stats.successful_random_steals) - output_stats.random_steal_deque_muggings,
                output_stats.steal_on_suspend_attempts + output_stats.deques_mugged_on_suspend);
 
+        printf("csv: %llu, %llu, %llu\n",
+            output_stats.successful_random_steals + output_stats.successful_steal_on_suspend,
+            output_stats.deques_mugged_on_suspend + output_stats.deques_resumed + output_stats.random_steal_deque_muggings, sync_suspends);
+
         fflush(stdout);
+        printf("num susp empt: %llu\n", susp_empty);
 
     w = bkup_w;
     #endif
 
+
+    #ifdef TRACK_FIBER_COUNT
+      #ifdef COLLECT_STEAL_STATS
+        printf("csv: %llu, %llu, %llu, %llu\n",
+            output_stats.successful_random_steals + output_stats.successful_steal_on_suspend,
+            output_stats.deques_mugged_on_suspend + output_stats.deques_resumed + output_stats.random_steal_deque_muggings,
+            sync_suspends,
+            w->g->fiber_high_watermark);
+      #endif
+    #endif
+
     #ifdef TRACK_FIBER_COUNT
     printf("Fiber High Watermark: %llu\n", w->g->fiber_high_watermark);
-    w->g->fiber_high_watermark = 0;
+    //w->g->fiber_high_watermark = 0;
     w->g->fiber_count = 0;
     #endif
 
@@ -2976,6 +3004,8 @@ __cilkrts_worker *make_worker(global_state_t *g,
     w->l = (local_state *)__cilkrts_malloc(sizeof(*w->l));
     #ifdef COLLECT_STEAL_STATS
         memset(&w->l->ks_stats, 0, sizeof(w->l->ks_stats));
+        w->l->num_susp_empty++;
+        w->l->sync_suspend = 0;
     #endif
 
     __cilkrts_frame_malloc_per_worker_init(w);

@@ -514,6 +514,12 @@ cilk_fiber* deque_suspend(__cilkrts_worker *w, deque *new_deque)
 
     deque_switch(w, w->l->active_deque);
 
+    #ifdef COLLECT_STEAL_STATS
+    if (!can_steal_from(w, d)) {
+      w->l->num_susp_empty++;
+    }
+#endif
+
     extern void fiber_proc_to_resume_user_code_for_random_steal(cilk_fiber*);
     w->l->work_stolen = 0;
     if (attempt_steal && can_steal_from(w,d)) {

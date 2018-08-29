@@ -614,7 +614,7 @@ int main(int argc, char *argv []) {
                 __cilkrts_sync(&sf);
             }
         }
-        //cilk_for(int i=0; i<pub.allPoints; i++) {
+        //for(int i=0; i<pub.allPoints; i++) {
         //  compute_kernel(&pub, &(priv[i]));
         //}
 

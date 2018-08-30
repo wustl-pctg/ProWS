@@ -24,7 +24,7 @@
 #define UP   2
 
 #ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 1
+#define TIMES_TO_RUN 10
 #endif
 
 #undef STRUCTURED_FUTURES

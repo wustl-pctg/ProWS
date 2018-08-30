@@ -371,6 +371,7 @@ struct full_frame
 #define CILK_FUTURE_PARENT  (0x02)
 
 typedef struct deque deque;
+void __cilkrts_reset_future_fiber_deque();
 void __cilkrts_enqueue_future_fiber(cilk_fiber *fiber);
 cilk_fiber* __cilkrts_pop_tail_future_fiber();
 cilk_fiber* __cilkrts_pop_head_future_fiber(__cilkrts_worker *victim, deque *d);

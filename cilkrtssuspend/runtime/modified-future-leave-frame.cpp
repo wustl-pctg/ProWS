@@ -351,6 +351,7 @@ void __attribute__((noinline)) __cilkrts_c_kyles_THE_exception_check(__cilkrts_w
 
     if (stolen_p)
     {
+        __cilkrts_reset_future_fiber_deque();
         w = execute_reductions_for_spawn_return(w, ff, returning_sf);
 
         // "Mr. Policeman?  My parent always told me that if I was in trouble

@@ -1,0 +1,177 @@
+16
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.46341s
+Running time 2: 1.367s
+Running time 3: 1.38829s
+Running time 4: 1.36079s
+Running time 5: 1.40732s
+Running time 6: 1.38412s
+Running time 7: 1.35436s
+Running time 8: 1.35195s
+Running time 9: 1.39404s
+Running time 10: 1.36825s
+Running time average: 1.38395 s
+Std. dev: 0.0332505 s (2.403%)
+12
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.33209s
+Running time 2: 1.26914s
+Running time 3: 1.30638s
+Running time 4: 1.305s
+Running time 5: 1.28677s
+Running time 6: 1.31238s
+Running time 7: 1.32335s
+Running time 8: 1.2772s
+Running time 9: 1.32957s
+Running time 10: 1.29983s
+Running time average: 1.30417 s
+Std. dev: 0.0214493 s (1.645%)
+8
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.47521s
+Running time 2: 1.40699s
+Running time 3: 1.43901s
+Running time 4: 1.39738s
+Running time 5: 1.4333s
+Running time 6: 1.37568s
+Running time 7: 1.41002s
+Running time 8: 1.45425s
+Running time 9: 1.40949s
+Running time 10: 1.39078s
+Running time average: 1.41921 s
+Std. dev: 0.030663 s (2.161%)
+4
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 2.5846s
+Running time 2: 2.54067s
+Running time 3: 2.53673s
+Running time 4: 2.54472s
+Running time 5: 2.53135s
+Running time 6: 2.56418s
+Running time 7: 2.52717s
+Running time 8: 2.55881s
+Running time 9: 2.53607s
+Running time 10: 2.52333s
+Running time average: 2.54476 s
+Std. dev: 0.0190519 s (0.749%)
+2
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 4.8957s
+Running time 2: 4.87695s
+Running time 3: 4.86013s
+Running time 4: 4.88873s
+Running time 5: 4.87297s
+Running time 6: 4.87053s
+Running time 7: 4.88639s
+Running time 8: 4.87883s
+Running time 9: 4.87161s
+Running time 10: 4.87529s
+Running time average: 4.87771 s
+Std. dev: 0.0102641 s (0.210%)
+1
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 9.34439s
+Running time 2: 9.34411s
+Running time 3: 9.35849s
+Running time 4: 9.34898s
+Running time 5: 9.34746s
+Running time 6: 9.35335s
+Running time 7: 9.34455s
+Running time 8: 9.34825s
+Running time 9: 9.35515s
+Running time 10: 9.35633s
+Running time average: 9.35011 s
+Std. dev: 0.00533697 s (0.057%)
+16
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.37362s
+Running time 2: 1.38626s
+Running time 3: 1.40597s
+Running time 4: 1.40045s
+Running time 5: 1.38068s
+Running time 6: 1.34237s
+Running time 7: 1.40835s
+Running time 8: 1.39345s
+Running time 9: 1.39425s
+Running time 10: 1.3745s
+Running time average: 1.38599 s
+Std. dev: 0.0195739 s (1.412%)
+12
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.28386s
+Running time 2: 1.31935s
+Running time 3: 1.29617s
+Running time 4: 1.28792s
+Running time 5: 1.32224s
+Running time 6: 1.3021s
+Running time 7: 1.30051s
+Running time 8: 1.35585s
+Running time 9: 1.30109s
+Running time 10: 1.29754s
+Running time average: 1.30666 s
+Std. dev: 0.0210204 s (1.609%)
+8
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 1.48159s
+Running time 2: 1.44894s
+Running time 3: 1.37912s
+Running time 4: 1.38378s
+Running time 5: 1.4078s
+Running time 6: 1.3832s
+Running time 7: 1.38841s
+Running time 8: 1.4236s
+Running time 9: 1.38852s
+Running time 10: 1.41834s
+Running time average: 1.41033 s
+Std. dev: 0.033641 s (2.385%)
+4
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 2.539s
+Running time 2: 2.53934s
+Running time 3: 2.56694s
+Running time 4: 2.53862s
+Running time 5: 2.54088s
+Running time 6: 2.50292s
+Running time 7: 2.52975s
+Running time 8: 2.55495s
+Running time 9: 2.5353s
+Running time 10: 2.53979s
+Running time average: 2.53875 s
+Std. dev: 0.0164659 s (0.649%)
+2
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+Result: 21431
+Running time 1: 4.88667s
+Running time 2: 4.87079s
+Running time 3: 4.87499s
+Running time 4: 4.87296s
+Running time 5: 4.86639s
+Running time 6: 4.84748s
+Running time 7: 4.86449s
+Running time 8: 4.85821s
+Running time 9: 4.87815s
+Running time 10: 4.86887s
+Running time average: 4.8689 s
+Std. dev: 0.0108392 s (0.223%)
+1

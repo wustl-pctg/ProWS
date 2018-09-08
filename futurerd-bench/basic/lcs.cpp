@@ -27,10 +27,10 @@
 #define TIMES_TO_RUN 10
 #endif
 
-#undef STRUCTURED_FUTURES
-#undef NONBLOCKING_FUTURES
+//#undef STRUCTURED_FUTURES
+//#undef NONBLOCKING_FUTURES
 //#define NO_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -41,85 +41,6 @@ static int base_case_log;
 static inline int nearpow2(int x) { return 1 << (32 - __builtin_clz (x - 1)); }
 static inline int ilog2(int x) { return 32 - __builtin_clz(x) - 1; }
 static inline int max(int a, int b) { return (a < b) ? b : a; }
-
-#include "internal/abi.h"
-
-class cilk_fiber;
-
-extern char* __cilkrts_switch_fibers();
-extern void __cilkrts_switch_fibers_back(cilk_fiber*);
-extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
-
-extern "C" {
-cilk_fiber* cilk_fiber_get_current_fiber();
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
-void cilk_fiber_do_post_switch_actions(cilk_fiber*);
-void __cilkrts_detach(__cilkrts_stack_frame*);
-void __cilkrts_pop_frame(__cilkrts_stack_frame*);
-}
-
-#define START_FUTURE_SPAWN \
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;\
-  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();\
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {\
-    char *new_sp = __cilkrts_switch_fibers();\
-    char *old_sp = NULL;\
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));\
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
-#define END_FUTURE_SPAWN \
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));\
-    __cilkrts_switch_fibers_back(initial_fiber);\
-  }\
-  cilk_fiber_do_post_switch_actions(initial_fiber);\
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
-#define SPAWN_FUTURE(helper, args...)\
-  START_FUTURE_SPAWN\
-  helper ( ##args );\
-  END_FUTURE_SPAWN
-
-#define FUTURE_HELPER_PREAMBLE\
-  __cilkrts_stack_frame sf;\
-  __cilkrts_enter_frame_fast_1(&sf);\
-  __cilkrts_detach(&sf);
-
-#define FUTURE_HELPER_EPILOGUE\
-  __cilkrts_pop_frame(&sf);\
-  __cilkrts_leave_future_frame(&sf);
-
-#define SPAWN_HELPER_PREAMBLE   FUTURE_HELPER_PREAMBLE
-
-#define SPAWN_HELPER_EPILOGUE\
-  __cilkrts_pop_frame(&sf);\
-  __cilkrts_leave_frame(&sf);
-
-#define CILK_FUNC_PREAMBLE\
-  __asm__ volatile ("" ::: "memory");\
-  __cilkrts_stack_frame sf;\
-  __cilkrts_enter_frame_1(&sf);\
-  __asm__ volatile ("" ::: "memory");
-
-#define CILK_FUNC_EPILOGUE\
-  __asm__ volatile ("" ::: "memory");\
-  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
-    if (!CILK_SETJMP(sf.ctx)) {\
-      __cilkrts_sync(&sf);\
-    }\
-  }\
-  SPAWN_HELPER_EPILOGUE;
-
-#define SPAWN(helper, args...)\
-  if (!CILK_SETJMP(sf.ctx)) {\
-    helper ( ##args );\
-  }
-
-#define SYNC\
-  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
-    if (!CILK_SETJMP(sf.ctx)) {\
-      __cilkrts_sync(&sf);\
-    }\
-  }
 
 #ifdef SERIAL
 static int wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
@@ -311,7 +232,7 @@ int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b,
       // since we are walking the wavefront serially, no need to get
       // left dependency --- already gotten by previous square.
 
-      START_FUTURE_SPAWN;
+      START_FIRST_FUTURE_SPAWN;
       process_lcs_tile_helper(&farray[iB*nBlocks+jB], stor, a, b, n, iB, jB);
       END_FUTURE_SPAWN;
       //reasync_helper<int,int*,char*,char*,int,int,int>
@@ -335,7 +256,7 @@ int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b,
       if(iB > 0) // up dependency
         farray[(iB-1)*nBlocks + jB].get();
 
-      START_FUTURE_SPAWN;
+      START_FIRST_FUTURE_SPAWN;
       process_lcs_tile_helper(&farray[iB*nBlocks+jB], stor, a, b, n, iB, jB);
       END_FUTURE_SPAWN;
 
@@ -374,16 +295,13 @@ static int process_lcs_tile_with_get(cilk::future<int> *farray, int *stor,
 
 void __attribute__((noinline)) process_lcs_tile_with_get_helper(cilk::future<int> *fut, cilk::future<int> *farray,
                                       int *stor, char *a, char *b, int n, int iB, int jB) {
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_fast_1(&sf);
-  __cilkrts_detach(&sf);
+  FUTURE_HELPER_PREAMBLE;
 
   void *__cilkrts_deque = fut->put(process_lcs_tile_with_get(farray, stor, a, b, n, iB, jB));
 
   if (__cilkrts_deque) __cilkrts_make_resumable(__cilkrts_deque);
 
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_future_frame(&sf);
+  FUTURE_HELPER_EPILOGUE;
 }
 
 typedef struct wave_lcs_loop_context_t {
@@ -396,8 +314,7 @@ typedef struct wave_lcs_loop_context_t {
 } wave_lcs_loop_context_t;
 
 void __attribute__((noinline)) wave_lcs_loop_body(void* context, uint32_t start, uint32_t end) {
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_fast_1(&sf);
+  CILK_FUNC_PREAMBLE;
 
   wave_lcs_loop_context_t *ctx = (wave_lcs_loop_context_t*) context;
 
@@ -405,28 +322,28 @@ void __attribute__((noinline)) wave_lcs_loop_body(void* context, uint32_t start,
     int iB = i / ctx->nBlocks;
     int jB = i % ctx->nBlocks;
 
-    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-    sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-        char *new_sp = __cilkrts_switch_fibers();
-        char *old_sp = NULL;
+    //cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
+    //sf.flags |= CILK_FRAME_FUTURE_PARENT;
+    //if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
+    //    char *new_sp = __cilkrts_switch_fibers();
+    //    char *old_sp = NULL;
 
-        __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-        __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+    //    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
+    //    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+    START_FIRST_FUTURE_SPAWN;
         process_lcs_tile_with_get_helper(&ctx->farray[i], ctx->farray, ctx->stor, ctx->a, ctx->b, ctx->n, iB, jB);
+    END_FUTURE_SPAWN;
 
-        __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
+    //    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
 
-        __cilkrts_switch_fibers_back(initial_fiber);
-    }
-    cilk_fiber_do_post_switch_actions(initial_fiber);
-    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    //    __cilkrts_switch_fibers_back(initial_fiber);
+    //}
+    //cilk_fiber_do_post_switch_actions(initial_fiber);
+    //sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
     //use_future_inplace(int,&ctx->farray[i], process_lcs_tile_with_get, ctx->farray, ctx->stor, ctx->a, ctx->b, ctx->n, iB, jB);
   }
 
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_frame(&sf);
+  CILK_FUNC_EPILOGUE;
 }
 
 extern "C" {
@@ -435,8 +352,7 @@ extern "C" {
 }
 
 int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_1(&sf);
+  CILK_FUNC_PREAMBLE;
 
   int nBlocks = NUM_BLOCKS(n);
   int blocks = nBlocks * nBlocks;
@@ -459,8 +375,7 @@ int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b,
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
 
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_frame(&sf);
+  CILK_FUNC_EPILOGUE;
 
   //free(farray);
   delete [] farray;

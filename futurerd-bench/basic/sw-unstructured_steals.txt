@@ -1,0 +1,291 @@
+Sun Aug 19 19:00:49 CDT 2018
+16
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 15 steal stats:
+    --raw counts--
+      2942595 random steal attempts
+      150 successful random steals
+      65 random steals failed because of empty susp deque
+      1034 deques mugged on random steal
+      974 local attempts to steal from top of deque being suspended
+      974 successful attempts to steal from top of deque being suspended
+      16 deque mugged when suspending deques
+    --aggregate--
+      2941411 failures to get work from a steal (either mug or steal)
+      990 deques suspended
+csv: 1124, 1050, 58, 993
+Fiber High Watermark: 993
+Result: 839
+Running time 1: 1.32951s
+Running time average: 1.32951 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 15 steal stats:
+    --raw counts--
+      3072301 random steal attempts
+      151 successful random steals
+      60 random steals failed because of empty susp deque
+      1027 deques mugged on random steal
+      975 local attempts to steal from top of deque being suspended
+      975 successful attempts to steal from top of deque being suspended
+      7 deque mugged when suspending deques
+    --aggregate--
+      3071123 failures to get work from a steal (either mug or steal)
+      982 deques suspended
+csv: 1126, 1034, 61, 997
+Fiber High Watermark: 997
+Result: 839
+Running time 1: 1.36083s
+Running time average: 1.36083 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 15 steal stats:
+    --raw counts--
+      3248084 random steal attempts
+      164 successful random steals
+      62 random steals failed because of empty susp deque
+      1031 deques mugged on random steal
+      964 local attempts to steal from top of deque being suspended
+      964 successful attempts to steal from top of deque being suspended
+      14 deque mugged when suspending deques
+    --aggregate--
+      3246889 failures to get work from a steal (either mug or steal)
+      978 deques suspended
+csv: 1128, 1045, 59, 995
+Fiber High Watermark: 995
+Result: 839
+Running time 1: 1.35741s
+Running time average: 1.35741 s
+12
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 11 steal stats:
+    --raw counts--
+      1770510 random steal attempts
+      151 successful random steals
+      61 random steals failed because of empty susp deque
+      1061 deques mugged on random steal
+      971 local attempts to steal from top of deque being suspended
+      971 successful attempts to steal from top of deque being suspended
+      53 deque mugged when suspending deques
+    --aggregate--
+      1769298 failures to get work from a steal (either mug or steal)
+      1024 deques suspended
+csv: 1122, 1114, 60, 993
+Fiber High Watermark: 993
+Result: 839
+Running time 1: 1.55636s
+Running time average: 1.55636 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 11 steal stats:
+    --raw counts--
+      1670345 random steal attempts
+      156 successful random steals
+      65 random steals failed because of empty susp deque
+      1081 deques mugged on random steal
+      983 local attempts to steal from top of deque being suspended
+      983 successful attempts to steal from top of deque being suspended
+      50 deque mugged when suspending deques
+    --aggregate--
+      1669108 failures to get work from a steal (either mug or steal)
+      1033 deques suspended
+csv: 1139, 1131, 57, 1009
+Fiber High Watermark: 1009
+Result: 839
+Running time 1: 1.5401s
+Running time average: 1.5401 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 11 steal stats:
+    --raw counts--
+      1624299 random steal attempts
+      148 successful random steals
+      64 random steals failed because of empty susp deque
+      1074 deques mugged on random steal
+      986 local attempts to steal from top of deque being suspended
+      986 successful attempts to steal from top of deque being suspended
+      47 deque mugged when suspending deques
+    --aggregate--
+      1623077 failures to get work from a steal (either mug or steal)
+      1033 deques suspended
+csv: 1134, 1121, 60, 1005
+Fiber High Watermark: 1005
+Result: 839
+Running time 1: 1.5411s
+Running time average: 1.5411 s
+8
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 7 steal stats:
+    --raw counts--
+      860182 random steal attempts
+      81 successful random steals
+      31 random steals failed because of empty susp deque
+      1094 deques mugged on random steal
+      1000 local attempts to steal from top of deque being suspended
+      1000 successful attempts to steal from top of deque being suspended
+      121 deque mugged when suspending deques
+    --aggregate--
+      859007 failures to get work from a steal (either mug or steal)
+      1121 deques suspended
+csv: 1081, 1215, 29, 1015
+Fiber High Watermark: 1015
+Result: 839
+Running time 1: 2.10043s
+Running time average: 2.10043 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 7 steal stats:
+    --raw counts--
+      612843 random steal attempts
+      86 successful random steals
+      38 random steals failed because of empty susp deque
+      1092 deques mugged on random steal
+      996 local attempts to steal from top of deque being suspended
+      996 successful attempts to steal from top of deque being suspended
+      155 deque mugged when suspending deques
+    --aggregate--
+      611665 failures to get work from a steal (either mug or steal)
+      1151 deques suspended
+csv: 1082, 1247, 31, 1008
+Fiber High Watermark: 1008
+Result: 839
+Running time 1: 2.03018s
+Running time average: 2.03018 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 7 steal stats:
+    --raw counts--
+      857521 random steal attempts
+      80 successful random steals
+      33 random steals failed because of empty susp deque
+      1077 deques mugged on random steal
+      997 local attempts to steal from top of deque being suspended
+      997 successful attempts to steal from top of deque being suspended
+      155 deque mugged when suspending deques
+    --aggregate--
+      856364 failures to get work from a steal (either mug or steal)
+      1152 deques suspended
+csv: 1077, 1232, 29, 1009
+Fiber High Watermark: 1009
+Result: 839
+Running time 1: 2.08088s
+Running time average: 2.08088 s
+4
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 3 steal stats:
+    --raw counts--
+      183183 random steal attempts
+      43 successful random steals
+      20 random steals failed because of empty susp deque
+      1010 deques mugged on random steal
+      976 local attempts to steal from top of deque being suspended
+      976 successful attempts to steal from top of deque being suspended
+      315 deque mugged when suspending deques
+    --aggregate--
+      182130 failures to get work from a steal (either mug or steal)
+      1291 deques suspended
+csv: 1019, 1325, 13, 903
+Fiber High Watermark: 903
+Result: 839
+Running time 1: 3.83312s
+Running time average: 3.83312 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 3 steal stats:
+    --raw counts--
+      240170 random steal attempts
+      34 successful random steals
+      15 random steals failed because of empty susp deque
+      1043 deques mugged on random steal
+      1010 local attempts to steal from top of deque being suspended
+      1010 successful attempts to steal from top of deque being suspended
+      312 deque mugged when suspending deques
+    --aggregate--
+      239093 failures to get work from a steal (either mug or steal)
+      1322 deques suspended
+csv: 1044, 1355, 15, 1008
+Fiber High Watermark: 1008
+Result: 839
+Running time 1: 3.83872s
+Running time average: 3.83872 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 3 steal stats:
+    --raw counts--
+      244591 random steal attempts
+      33 successful random steals
+      13 random steals failed because of empty susp deque
+      982 deques mugged on random steal
+      941 local attempts to steal from top of deque being suspended
+      941 successful attempts to steal from top of deque being suspended
+      325 deque mugged when suspending deques
+    --aggregate--
+      243576 failures to get work from a steal (either mug or steal)
+      1266 deques suspended
+csv: 974, 1307, 14, 890
+Fiber High Watermark: 890
+Result: 839
+Running time 1: 3.87705s
+Running time average: 3.87705 s
+2
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 1 steal stats:
+    --raw counts--
+      37921 random steal attempts
+      16 successful random steals
+      6 random steals failed because of empty susp deque
+      985 deques mugged on random steal
+      980 local attempts to steal from top of deque being suspended
+      980 successful attempts to steal from top of deque being suspended
+      303 deque mugged when suspending deques
+    --aggregate--
+      36920 failures to get work from a steal (either mug or steal)
+      1283 deques suspended
+csv: 996, 1288, 8, 982
+Fiber High Watermark: 982
+Result: 839
+Running time 1: 7.52884s
+Running time average: 7.52884 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 1 steal stats:
+    --raw counts--
+      126608 random steal attempts
+      16 successful random steals
+      6 random steals failed because of empty susp deque
+      983 deques mugged on random steal
+      980 local attempts to steal from top of deque being suspended
+      980 successful attempts to steal from top of deque being suspended
+      271 deque mugged when suspending deques
+    --aggregate--
+      125609 failures to get work from a steal (either mug or steal)
+      1251 deques suspended
+csv: 996, 1254, 8, 982
+Fiber High Watermark: 982
+Result: 839
+Running time 1: 7.5402s
+Running time average: 7.5402 s
+Compute SmithWaterman with 2048 x 2048 table.
+Performing SW with non-structured futures and 64 x 64 base case.
+worker 1 steal stats:
+    --raw counts--
+      53488 random steal attempts
+      16 successful random steals
+      6 random steals failed because of empty susp deque
+      981 deques mugged on random steal
+      981 local attempts to steal from top of deque being suspended
+      981 successful attempts to steal from top of deque being suspended
+      236 deque mugged when suspending deques
+    --aggregate--
+      52491 failures to get work from a steal (either mug or steal)
+      1217 deques suspended
+csv: 997, 1217, 8, 983
+Fiber High Watermark: 983
+Result: 839
+Running time 1: 7.53778s
+Running time average: 7.53778 s

@@ -1,0 +1,291 @@
+Sun Aug 19 19:00:49 CDT 2018
+16
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 15 steal stats:
+    --raw counts--
+      8690517 random steal attempts
+      468 successful random steals
+      373 random steals failed because of empty susp deque
+      3657 deques mugged on random steal
+      3634 local attempts to steal from top of deque being suspended
+      3634 successful attempts to steal from top of deque being suspended
+      341 deque mugged when suspending deques
+    --aggregate--
+      8686392 failures to get work from a steal (either mug or steal)
+      3975 deques suspended
+csv: 4102, 3998, 54, 3328
+Fiber High Watermark: 3328
+Result: 21431
+Running time 1: 1.39552s
+Running time average: 1.39552 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 15 steal stats:
+    --raw counts--
+      9052718 random steal attempts
+      442 successful random steals
+      343 random steals failed because of empty susp deque
+      3717 deques mugged on random steal
+      3681 local attempts to steal from top of deque being suspended
+      3681 successful attempts to steal from top of deque being suspended
+      307 deque mugged when suspending deques
+    --aggregate--
+      9048559 failures to get work from a steal (either mug or steal)
+      3988 deques suspended
+csv: 4123, 4024, 50, 3406
+Fiber High Watermark: 3406
+Result: 21431
+Running time 1: 1.41629s
+Running time average: 1.41629 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 15 steal stats:
+    --raw counts--
+      8253064 random steal attempts
+      547 successful random steals
+      444 random steals failed because of empty susp deque
+      3486 deques mugged on random steal
+      3428 local attempts to steal from top of deque being suspended
+      3428 successful attempts to steal from top of deque being suspended
+      424 deque mugged when suspending deques
+    --aggregate--
+      8249031 failures to get work from a steal (either mug or steal)
+      3852 deques suspended
+csv: 3975, 3910, 48, 3088
+Fiber High Watermark: 3088
+Result: 21431
+Running time 1: 1.35167s
+Running time average: 1.35167 s
+12
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 11 steal stats:
+    --raw counts--
+      3199506 random steal attempts
+      403 successful random steals
+      324 random steals failed because of empty susp deque
+      3627 deques mugged on random steal
+      3600 local attempts to steal from top of deque being suspended
+      3600 successful attempts to steal from top of deque being suspended
+      297 deque mugged when suspending deques
+    --aggregate--
+      3195476 failures to get work from a steal (either mug or steal)
+      3897 deques suspended
+csv: 4003, 3924, 52, 3248
+Fiber High Watermark: 3248
+Result: 21431
+Running time 1: 1.33871s
+Running time average: 1.33871 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 11 steal stats:
+    --raw counts--
+      3464137 random steal attempts
+      202 successful random steals
+      113 random steals failed because of empty susp deque
+      3968 deques mugged on random steal
+      3945 local attempts to steal from top of deque being suspended
+      3945 successful attempts to steal from top of deque being suspended
+      51 deque mugged when suspending deques
+    --aggregate--
+      3459967 failures to get work from a steal (either mug or steal)
+      3996 deques suspended
+csv: 4147, 4019, 60, 3914
+Fiber High Watermark: 3914
+Result: 21431
+Running time 1: 1.33294s
+Running time average: 1.33294 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 11 steal stats:
+    --raw counts--
+      3111866 random steal attempts
+      379 successful random steals
+      287 random steals failed because of empty susp deque
+      3688 deques mugged on random steal
+      3664 local attempts to steal from top of deque being suspended
+      3664 successful attempts to steal from top of deque being suspended
+      259 deque mugged when suspending deques
+    --aggregate--
+      3107799 failures to get work from a steal (either mug or steal)
+      3923 deques suspended
+csv: 4043, 3947, 55, 3355
+Fiber High Watermark: 3355
+Result: 21431
+Running time 1: 1.32239s
+Running time average: 1.32239 s
+8
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 7 steal stats:
+    --raw counts--
+      409442 random steal attempts
+      147 successful random steals
+      108 random steals failed because of empty susp deque
+      3991 deques mugged on random steal
+      3886 local attempts to steal from top of deque being suspended
+      3886 successful attempts to steal from top of deque being suspended
+      296 deque mugged when suspending deques
+    --aggregate--
+      405304 failures to get work from a steal (either mug or steal)
+      4182 deques suspended
+csv: 4033, 4287, 31, 3724
+Fiber High Watermark: 3724
+Result: 21431
+Running time 1: 1.50317s
+Running time average: 1.50317 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 7 steal stats:
+    --raw counts--
+      272463 random steal attempts
+      203 successful random steals
+      165 random steals failed because of empty susp deque
+      3933 deques mugged on random steal
+      3856 local attempts to steal from top of deque being suspended
+      3856 successful attempts to steal from top of deque being suspended
+      270 deque mugged when suspending deques
+    --aggregate--
+      268327 failures to get work from a steal (either mug or steal)
+      4126 deques suspended
+csv: 4059, 4203, 29, 3525
+Fiber High Watermark: 3525
+Result: 21431
+Running time 1: 1.4668s
+Running time average: 1.4668 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 7 steal stats:
+    --raw counts--
+      360751 random steal attempts
+      321 successful random steals
+      269 random steals failed because of empty susp deque
+      3748 deques mugged on random steal
+      3663 local attempts to steal from top of deque being suspended
+      3663 successful attempts to steal from top of deque being suspended
+      402 deque mugged when suspending deques
+    --aggregate--
+      356682 failures to get work from a steal (either mug or steal)
+      4065 deques suspended
+csv: 3984, 4150, 26, 2582
+Fiber High Watermark: 2582
+Result: 21431
+Running time 1: 1.42623s
+Running time average: 1.42623 s
+4
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 3 steal stats:
+    --raw counts--
+      27353 random steal attempts
+      111 successful random steals
+      83 random steals failed because of empty susp deque
+      3915 deques mugged on random steal
+      3858 local attempts to steal from top of deque being suspended
+      3858 successful attempts to steal from top of deque being suspended
+      924 deque mugged when suspending deques
+    --aggregate--
+      23327 failures to get work from a steal (either mug or steal)
+      4782 deques suspended
+csv: 3969, 4839, 14, 3196
+Fiber High Watermark: 3196
+Result: 21431
+Running time 1: 2.49405s
+Running time average: 2.49405 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 3 steal stats:
+    --raw counts--
+      39198 random steal attempts
+      53 successful random steals
+      16 random steals failed because of empty susp deque
+      4123 deques mugged on random steal
+      4041 local attempts to steal from top of deque being suspended
+      4041 successful attempts to steal from top of deque being suspended
+      1070 deque mugged when suspending deques
+    --aggregate--
+      35022 failures to get work from a steal (either mug or steal)
+      5111 deques suspended
+csv: 4094, 5193, 16, 4044
+Fiber High Watermark: 4044
+Result: 21431
+Running time 1: 2.49646s
+Running time average: 2.49646 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 3 steal stats:
+    --raw counts--
+      31742 random steal attempts
+      74 successful random steals
+      52 random steals failed because of empty susp deque
+      3995 deques mugged on random steal
+      3945 local attempts to steal from top of deque being suspended
+      3945 successful attempts to steal from top of deque being suspended
+      966 deque mugged when suspending deques
+    --aggregate--
+      27673 failures to get work from a steal (either mug or steal)
+      4911 deques suspended
+csv: 4019, 4961, 16, 3556
+Fiber High Watermark: 3556
+Result: 21431
+Running time 1: 2.51142s
+Running time average: 2.51142 s
+2
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 1 steal stats:
+    --raw counts--
+      34569 random steal attempts
+      39 successful random steals
+      9 random steals failed because of empty susp deque
+      4010 deques mugged on random steal
+      4005 local attempts to steal from top of deque being suspended
+      4005 successful attempts to steal from top of deque being suspended
+      1395 deque mugged when suspending deques
+    --aggregate--
+      30520 failures to get work from a steal (either mug or steal)
+      5400 deques suspended
+csv: 4044, 5405, 8, 3935
+Fiber High Watermark: 3935
+Result: 21431
+Running time 1: 4.82324s
+Running time average: 4.82324 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 1 steal stats:
+    --raw counts--
+      8531 random steal attempts
+      33 successful random steals
+      10 random steals failed because of empty susp deque
+      4039 deques mugged on random steal
+      4035 local attempts to steal from top of deque being suspended
+      4035 successful attempts to steal from top of deque being suspended
+      1001 deque mugged when suspending deques
+    --aggregate--
+      4459 failures to get work from a steal (either mug or steal)
+      5036 deques suspended
+csv: 4068, 5040, 8, 3999
+Fiber High Watermark: 3999
+Result: 21431
+Running time 1: 4.79982s
+Running time average: 4.79982 s
+Compute LCS with 32768 x 32768 table.
+Performing LCS with non-structured futures and 512 x 512 base case.
+worker 1 steal stats:
+    --raw counts--
+      11973 random steal attempts
+      31 successful random steals
+      7 random steals failed because of empty susp deque
+      4011 deques mugged on random steal
+      4009 local attempts to steal from top of deque being suspended
+      4009 successful attempts to steal from top of deque being suspended
+      1161 deque mugged when suspending deques
+    --aggregate--
+      7931 failures to get work from a steal (either mug or steal)
+      5170 deques suspended
+csv: 4040, 5172, 8, 3959
+Fiber High Watermark: 3959
+Result: 21431
+Running time 1: 4.81941s
+Running time average: 4.81941 s

@@ -6,6 +6,7 @@
 #include <vector>
 #include <internal/abi.h>
 #include <pthread.h>
+#include "handcomp-macros.h"
 
 extern void __spawn_future_helper_helper(std::function<void*(void)>);
 

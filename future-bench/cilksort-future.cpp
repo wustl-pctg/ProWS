@@ -91,7 +91,6 @@ typedef long ELM;
 class cilk_fiber;
 extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
 extern char* __cilkrts_switch_fibers();
-extern char* __cilkrts_switch_fibers_back(cilk_fiber*);
 extern "C" {
 void __cilkrts_detach(__cilkrts_stack_frame*);
 void __cilkrts_pop_frame(__cilkrts_stack_frame*);

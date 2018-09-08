@@ -1,4 +1,0 @@
-data
-**/*.o
-**/lib*.a
-src/build

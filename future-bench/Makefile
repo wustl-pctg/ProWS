@@ -11,7 +11,7 @@ mkfile_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
 include ../common.mk
 
-MY_CXXFLAGS = -DTIMES_TO_RUN=1 -DTIMING_COUNT=1 -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -DPRECOMPUTE_PEDIGREES=1 -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
+MY_CXXFLAGS = -DTIMES_TO_RUN=10 -DTIMING_COUNT=10 -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
 MY_CFLAGS = -O3 -g
 MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
 
@@ -210,27 +210,6 @@ APPS += cilksort-future
 cilksort-future: cilksort-future.cpp ktiming.o getoptions.o
 	$(CXX) $(MY_CXXFLAGS) -c cilksort-future.cpp -o cilksort-future.o
 	$(CXX) -flto cilksort-future.o getoptions.o ktiming.o -o cilksort-future $(MY_LDFLAGS)
-
-TARGETS += nqueens
-APPS += nqueens
-
-nqueens: nqueens.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c nqueens.cpp -o nqueens.o
-	$(CXX) -flto nqueens.o getoptions.o ktiming.o -o nqueens $(MY_LDFLAGS)
-
-TARGETS += nqueens-handcomp
-APPS += nqueens-handcomp
-
-nqueens-handcomp: nqueens-handcomp.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c nqueens-handcomp.cpp -o nqueens-handcomp.o
-	$(CXX) -flto nqueens-handcomp.o getoptions.o ktiming.o -o nqueens-handcomp $(MY_LDFLAGS)
-
-TARGETS += nqueens-future
-APPS += nqueens-future
-
-nqueens-future: nqueens-future.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c nqueens-future.cpp -o nqueens-future.o
-	$(CXX) -flto nqueens-future.o getoptions.o ktiming.o -o nqueens-future $(MY_LDFLAGS)
 
 ###########################################################################
 # Though shalt not cross this line lest thou knowest what thou art doing! #

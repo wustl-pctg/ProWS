@@ -29,24 +29,7 @@
 
 #define ERR_THRESHOLD   (0.1)
 
-#include "internal/abi.h"
 #include "future.h"
-
-//typedef void cilk_fiber;
-class cilk_fiber;
-
-extern char* __cilkrts_switch_fibers();
-extern void __cilkrts_switch_fibers_back(cilk_fiber*);
-extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
-
-extern "C" {
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
-cilk_fiber* cilk_fiber_get_current_fiber();
-void cilk_fiber_do_post_switch_actions(cilk_fiber*);
-void __cilkrts_detach(__cilkrts_stack_frame*);
-void __cilkrts_pop_frame(__cilkrts_stack_frame*);
-}
-
 
 #define REAL int
 static int BASE_CASE; //the base case of the computation (2*POWER)
@@ -247,27 +230,21 @@ double maxerror_rm(REAL *M1, REAL *M2, int n) {
 void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n);
 
 void __attribute__((noinline)) mat_mul_par_helper(const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_fast_1(&sf);
-  __cilkrts_detach(&sf);
+  SPAWN_HELPER_PREAMBLE;
 
   mat_mul_par(A, B, C, CReady, n);
 
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_frame(&sf);
+  SPAWN_HELPER_EPILOGUE;
 }
 
 void __attribute__((noinline)) mat_mul_par_fut_helper(cilk::future<void> *fut, const REAL *const A, const REAL *const B, REAL *C, cilk::future<void> *CReady, int n) {
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_fast_1(&sf);
-  __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     mat_mul_par(A, B, C, CReady, n);
     void *__cilkrts_deque = fut->put();
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 //recursive parallel solution to matrix multiplication
@@ -294,9 +271,7 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
         return;
     }
 
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_1(&sf);
-
+    CILK_FUNC_PREAMBLE;
 
     //partition each matrix into 4 sub matrices
     //each sub-matrix points to the start of the z pattern
@@ -315,74 +290,29 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
     REAL *C3 = &C[block_convert(n >> 1,0)];
     REAL *C4 = &C[block_convert(n >> 1, n >> 1)];
 
-    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
     cilk::future<void> stages[4];// = new cilk::future<void>[4];
-    sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-      char *new_sp = __cilkrts_switch_fibers();
-      char *old_sp = NULL;
-
-      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+    START_FIRST_FUTURE_SPAWN;
       mat_mul_par_fut_helper(&stages[0], A1, B1, C1, CReady, n>>1);
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-
-      __cilkrts_switch_fibers_back(initial_fiber);
-    }
-    cilk_fiber_do_post_switch_actions(initial_fiber);
-    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    END_FUTURE_SPAWN;
 
     //recursively call the sub-matrices for evaluation in parallel
     //cilk_spawn mat_mul_par(A1, B1, C1, n >> 1);
 
-    sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-      char *new_sp = __cilkrts_switch_fibers();
-      char *old_sp = NULL;
-
-      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+    START_FUTURE_SPAWN;
       mat_mul_par_fut_helper(&stages[1], A1, B2, C2, CReady, n>>1);
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-
-      __cilkrts_switch_fibers_back(initial_fiber);
-    }
-    cilk_fiber_do_post_switch_actions(initial_fiber);
-    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    END_FUTURE_SPAWN;
 
     ///*cilk_spawn*/ mat_mul_par(A1, B2, C2, n >> 1);
     
-    sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-      char *new_sp = __cilkrts_switch_fibers();
-      char *old_sp = NULL;
-
-      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+    START_FUTURE_SPAWN;
       mat_mul_par_fut_helper(&stages[2], A3, B1, C3, CReady, n>>1);
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-
-      __cilkrts_switch_fibers_back(initial_fiber);
-    }
-    cilk_fiber_do_post_switch_actions(initial_fiber);
-    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    END_FUTURE_SPAWN;
 
     ///*cilk_spawn*/ mat_mul_par(A3, B1, C3, n >> 1);
     
-    sf.flags |= CILK_FRAME_FUTURE_PARENT;
-    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-      char *new_sp = __cilkrts_switch_fibers();
-      char *old_sp = NULL;
-
-      __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+    START_FUTURE_SPAWN;
       mat_mul_par_fut_helper(&stages[3], A3, B2, C4, CReady, n>>1);
-      __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-
-      __cilkrts_switch_fibers_back(initial_fiber);
-    }
-    cilk_fiber_do_post_switch_actions(initial_fiber);
-    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    END_FUTURE_SPAWN;
 
     ///*cilk_spawn*/ mat_mul_par(A3, B2, C4, n >> 1);
     //cilk_sync; //wait here for first round to finish
@@ -406,15 +336,8 @@ void mat_mul_par(const REAL *const A, const REAL *const B, REAL *C, cilk::future
     mat_mul_par(A4, B4, C4, &stages[3], n>>1);
     //}
 
-    if (sf.flags & CILK_FRAME_UNSYNCHED) {
-      if (!CILK_SETJMP(sf.ctx)) {
-        __cilkrts_sync(&sf);
-      }
-    }
-
     //delete [] stages;
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_frame(&sf);
+    CILK_FUNC_EPILOGUE;
 }
 
 //recursive parallel solution to matrix multiplication - row major order

@@ -3,7 +3,7 @@
 
 #include "internal/abi.h"
 
-class cilk_fiber;
+struct cilk_fiber;
 
 extern char* __cilkrts_switch_fibers();
 extern void __cilkrts_switch_fibers_back(cilk_fiber*);

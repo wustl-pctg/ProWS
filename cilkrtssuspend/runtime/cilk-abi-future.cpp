@@ -37,7 +37,7 @@ static void __attribute__((noinline)) __spawn_future_helper(std::function<void*(
         }
 
     __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    __cilkrts_leave_frame(&sf);
 }
 
 CILK_ABI_VOID __attribute__((noinline)) __spawn_future_helper_helper(std::function<void*(void)> func) {

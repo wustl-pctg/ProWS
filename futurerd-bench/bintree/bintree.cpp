@@ -74,7 +74,7 @@ void __attribute__((noinline)) immediate_helper(cilk::future<node*>* fut, node *
   FUTURE_HELPER_EPILOGUE;
 }
 //#define put(fut,res) reasync_helper<node*,node*>((fut), immediate, (res))
-#define place(fut,res) START_FUTURE_SPAWN immediate_helper(fut,res); END_FUTURE_SPAWN
+#define place(fut,res) START_FIRST_FUTURE_SPAWN immediate_helper(fut,res); END_FUTURE_SPAWN
 
 
 #else
@@ -233,13 +233,13 @@ static node* __attribute__((noinline)) split(node* n, key_t s,
 
       if (s < next->key) { // left-left case
         //new (next_res_right) cilk::future<node*>();
-        START_FUTURE_SPAWN;
+        START_FIRST_FUTURE_SPAWN;
         split_helper(next_res_right, next, s, res_left, next_res_right, depth+1);
         END_FUTURE_SPAWN;
         //async_split(next_res_right, next, s, res_left, next_res_right, depth+1);
       } else { // left-right case
         //new (next_res_right) cilk::future<node*>();
-        START_FUTURE_SPAWN;
+        START_FIRST_FUTURE_SPAWN;
         split_helper(res_left, next, s, res_left, next_res_right, depth+1);
         END_FUTURE_SPAWN;
         //async_split(res_left, next, s, res_left, next_res_right, depth+1);
@@ -267,13 +267,13 @@ static node* __attribute__((noinline)) split(node* n, key_t s,
 
       if (s < next->key) { // right-left case
         //new (res_right) cilk::future<node*>();
-        START_FUTURE_SPAWN;
+        START_FIRST_FUTURE_SPAWN;
         split_helper(res_right, next, s, next_res_left, res_right, depth+1);
         END_FUTURE_SPAWN;
         //async_split(res_right, next, s, next_res_left, res_right, depth+1);
       } else { // right-right case
         //new (next_res_left) cilk::future<node*>();
-        START_FUTURE_SPAWN;
+        START_FIRST_FUTURE_SPAWN;
         split_helper(next_res_left, next, s, next_res_left, res_right, depth+1);
         END_FUTURE_SPAWN;
         //async_split(next_res_left, next, s, next_res_left, res_right, depth+1);
@@ -297,12 +297,12 @@ static futpair_t __attribute__((noinline)) split2(node* n, key_t s) {
   auto right = new cilk::future<node*>();
   // lookahead
   if (s < n->key) {
-    START_FUTURE_SPAWN;
+    START_FIRST_FUTURE_SPAWN;
     split_helper(right, n, s, left, right, 0);
     END_FUTURE_SPAWN;
     //async_split(right, n, s, left, right, 0);
   } else {
-    START_FUTURE_SPAWN;
+    START_FIRST_FUTURE_SPAWN;
     split_helper(left, n, s, left, right, 0);
     END_FUTURE_SPAWN;
     //async_split(left, n, s, left, right, 0);

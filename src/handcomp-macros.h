@@ -7,7 +7,6 @@ struct cilk_fiber;
 
 extern char* __cilkrts_switch_fibers();
 extern void __cilkrts_switch_fibers_back(cilk_fiber*);
-extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
 
 extern "C" {
 cilk_fiber* cilk_fiber_get_current_fiber();
@@ -51,7 +50,7 @@ void __cilkrts_pop_frame(__cilkrts_stack_frame*);
 
 #define FUTURE_HELPER_EPILOGUE\
   __cilkrts_pop_frame(&sf);\
-  __cilkrts_leave_future_frame(&sf);
+  __cilkrts_leave_frame(&sf);
 
 #define SPAWN_HELPER_PREAMBLE   FUTURE_HELPER_PREAMBLE
 

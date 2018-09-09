@@ -52,28 +52,7 @@ cd src
 make -j
 cd -
 
-# Check out our fork of PBBS
-cd bench
-#git clone https://gitlab.com/robertutterback/cilkplus-tests2.git cilkplus-tests
-
-# Compile benchmarks
-./build.sh
-
-# Generate data sets for PBBS benchmarks
-cd cilkplus-tests
-./gendata.sh
-cd -
-
-# Download and setup data sets for dedup and ferret
-cd $BASE_DIR/bench/dedup
-wget www.cse.wustl.edu/~utterbackr/dedup-data.tar.gz
-tar -vxzf dedup-data.tar.gz data
-
-cd $BASE_DIR/bench/ferret
+cd ferret
 wget www.cse.wustl.edu/~utterbackr/ferret-data.tar.gz
 tar -vxzf ferret-data.tar.gz data
-
-# Now we're ready to go!
-msg "Setup completed. Use bench/bench.sh to run benchmarks"
-msg "Running the benchmarks will require setting vm.max_map_count to a high level"
-msg "e.g. 'sysctl -w vm.max_map_count=1000000'"
+rm ferret-data.tar.gz

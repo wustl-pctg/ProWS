@@ -1,4 +1,0 @@
-*.o
-util/*.o
-dedup-reducer
-*.comp

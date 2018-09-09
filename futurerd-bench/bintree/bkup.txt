@@ -1,0 +1,35 @@
+16
+Using unstructured futures
+worker 15 steal stats:
+    --raw counts--
+      903661 random steal attempts
+      93 successful random steals
+      0 random steals failed because of empty susp deque
+      50 deques mugged on random steal
+      19 local attempts to steal from top of deque being suspended
+      19 successful attempts to steal from top of deque being suspended
+      5 deque mugged when suspending deques
+    --aggregate--
+      903518 failures to get work from a steal (either mug or steal)
+      24 deques suspended
+csv: 112, 55, 27, 82
+Fiber High Watermark: 82
+./merge-unstructured: s1=8000000 s2=4000000
+Benchmark time: 1812.419630 ms
+Using unstructured futures
+worker 15 steal stats:
+    --raw counts--
+      907704 random steal attempts
+      87 successful random steals
+      0 random steals failed because of empty susp deque
+      48 deques mugged on random steal
+      19 local attempts to steal from top of deque being suspended
+      19 successful attempts to steal from top of deque being suspended
+      4 deque mugged when suspending deques
+    --aggregate--
+      907569 failures to get work from a steal (either mug or steal)
+      23 deques suspended
+csv: 106, 52, 29, 67
+Fiber High Watermark: 67
+./merge-unstructured: s1=8000000 s2=4000000
+Benchmark time: 1863.323545 ms

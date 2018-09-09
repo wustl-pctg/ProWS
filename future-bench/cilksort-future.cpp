@@ -88,18 +88,6 @@ typedef long ELM;
 #define QUICKSIZE KILO
 #define INSERTIONSIZE 20
 
-class cilk_fiber;
-extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
-extern char* __cilkrts_switch_fibers();
-extern char* __cilkrts_switch_fibers_back(cilk_fiber*);
-extern "C" {
-void __cilkrts_detach(__cilkrts_stack_frame*);
-void __cilkrts_pop_frame(__cilkrts_stack_frame*);
-cilk_fiber* cilk_fiber_get_current_fiber();
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
-void cilk_fiber_do_post_switch_actions(cilk_fiber*);
-}
-
 static unsigned long rand_nxt = 0;
 
 static inline unsigned long my_rand(void) {
@@ -329,16 +317,13 @@ void cilkmerge(ELM *low1, ELM *high1,
 void __attribute__((noinline)) cilkmerge_helper(cilk::future<void> *fut, ELM *low1, ELM *high1, 
     ELM *low2, ELM *high2, ELM *lowdest) {
 
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     cilkmerge(low1, high1, low2, high2, lowdest);
     void *__cilkrts_deque = fut->put();
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 void __attribute__((noinline)) cilkmerge(ELM *low1, ELM *high1, 
@@ -380,8 +365,7 @@ void __attribute__((noinline)) cilkmerge(ELM *low1, ELM *high1,
     seqmerge(low1, high1, low2, high2, lowdest);
     return;
   }
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_1(&sf);
+  CILK_FUNC_PREAMBLE;
 
   /*
    * Basic approach: Find the middle element of one range (indexed by
@@ -400,28 +384,14 @@ void __attribute__((noinline)) cilkmerge(ELM *low1, ELM *high1,
    */
   *(lowdest + lowsize + 1) = *split1;
   cilk::future<void> m;
-  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+  START_FIRST_FUTURE_SPAWN;
     cilkmerge_helper(&m, low1, split1 - 1, low2, split2, lowdest);
-
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
-  }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+  END_FUTURE_SPAWN;
   cilkmerge(split1 + 1, high1, split2 + 1, high2, lowdest + lowsize + 2);
 
   m.get();
 
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_frame(&sf);
+  CILK_FUNC_EPILOGUE;
 
   return;
 }
@@ -429,16 +399,13 @@ void __attribute__((noinline)) cilkmerge(ELM *low1, ELM *high1,
 void cilksort(ELM *low, ELM *tmp, long size);
 
 void __attribute__((noinline)) cilksort_helper(cilk::future<void> *fut, ELM *low, ELM *tmp, long size) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     cilksort(low, tmp, size);
     void *__cilkrts_deque = fut->put();
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 void __attribute__((noinline)) cilksort(ELM *low, ELM *tmp, long size) {
@@ -460,8 +427,7 @@ void __attribute__((noinline)) cilksort(ELM *low, ELM *tmp, long size) {
     return;
   }
 
-  __cilkrts_stack_frame sf;
-  __cilkrts_enter_frame_1(&sf);
+  CILK_FUNC_PREAMBLE;
 
   A = low;
   tmpA = tmp;
@@ -474,48 +440,17 @@ void __attribute__((noinline)) cilksort(ELM *low, ELM *tmp, long size) {
 
   cilk::future<void> sort_futures[3];
 
-  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+  START_FIRST_FUTURE_SPAWN;
     cilksort_helper(&sort_futures[0], A, tmpA, quarter);
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
-  }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+  END_FUTURE_SPAWN;
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+  START_FUTURE_SPAWN;
     cilksort_helper(&sort_futures[1], B, tmpB, quarter);
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
-  }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+  END_FUTURE_SPAWN;
 
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+  START_FUTURE_SPAWN;
     cilksort_helper(&sort_futures[2], C, tmpC, quarter);
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
-  }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+  END_FUTURE_SPAWN;
 
   cilksort(D, tmpD, size - 3 * quarter);
 
@@ -524,19 +459,9 @@ void __attribute__((noinline)) cilksort(ELM *low, ELM *tmp, long size) {
   }
 
   cilk::future<void> m;
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-    char *new_sp = __cilkrts_switch_fibers();
-    char *old_sp = NULL;
-
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
+  START_FUTURE_SPAWN;
     cilkmerge_helper(&m, A, A + quarter - 1, B, B + quarter - 1, tmpA);
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-    __cilkrts_switch_fibers_back(initial_fiber);
-  }
-  cilk_fiber_do_post_switch_actions(initial_fiber);
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+  END_FUTURE_SPAWN;
 
   cilkmerge(C, C + quarter - 1, D, low + size - 1, tmpC);
 
@@ -544,8 +469,7 @@ void __attribute__((noinline)) cilksort(ELM *low, ELM *tmp, long size) {
 
   cilkmerge(tmpA, tmpC - 1, tmpC, tmpA + size - 1, A);
 
-  __cilkrts_pop_frame(&sf);
-  __cilkrts_leave_frame(&sf);
+  CILK_FUNC_EPILOGUE;
 
   return;
 }

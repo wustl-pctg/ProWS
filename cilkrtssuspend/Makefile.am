@@ -89,7 +89,6 @@ libcilkrts_la_SOURCES =            \
   runtime/bug.cpp                  \
   runtime/cilk-abi.c               \
   runtime/cilk_future_fiber_deque.cpp \
-  runtime/modified-future-leave-frame.cpp \
   runtime/cilk-abi-future_utils.cpp \
   runtime/cilk-abi-cilk-for.cpp    \
   runtime/cilk-abi-vla-internal.c  \

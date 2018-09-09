@@ -2449,12 +2449,14 @@ static void do_return_from_spawn(__cilkrts_worker *w, full_frame *ff, __cilkrts_
             decjoin(ff);
         } END_WITH_FRAME_LOCK(w, ff);
 
-        BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
-            if (parent_ff->simulated_stolen)
-                unconditional_steal(w, parent_ff);
-            else
-                steal_result = provably_good_steal(w, parent_ff);
-        } END_WITH_FRAME_LOCK(w, parent_ff);
+        if (parent_ff) {
+          BEGIN_WITH_FRAME_LOCK(w, parent_ff) {
+              if (parent_ff->simulated_stolen)
+                  unconditional_steal(w, parent_ff);
+              else
+                  steal_result = provably_good_steal(w, parent_ff);
+          } END_WITH_FRAME_LOCK(w, parent_ff);
+        }
 
     } END_WITH_WORKER_LOCK_OPTIONAL(w);
 
@@ -3619,9 +3621,9 @@ static inline void finish_spawn_return_on_user_stack(__cilkrts_worker *w, full_f
     CILK_ASSERT(w->l->fiber_to_free == NULL);
 
     // Execute left-holder logic for stacks.
-    if (child_ff->left_sibling || parent_ff->fiber_child) {
+    if (!parent_ff || child_ff->left_sibling || parent_ff->fiber_child) {
         // Case where we are not the leftmost stack.
-        CILK_ASSERT(parent_ff->fiber_child != child_ff->fiber_self);
+        CILK_ASSERT(!parent_ff || parent_ff->fiber_child != child_ff->fiber_self);
 
         // Remember any fiber we need to free in the worker.
         // After we jump into the runtime, we will actually do the
@@ -3637,7 +3639,7 @@ static inline void finish_spawn_return_on_user_stack(__cilkrts_worker *w, full_f
 
     child_ff->fiber_self = NULL;
 
-    unlink_child(parent_ff, child_ff);
+    if (parent_ff) unlink_child(parent_ff, child_ff);
 }
 
 
@@ -3894,28 +3896,39 @@ static __cilkrts_worker* execute_reductions_for_spawn_return(__cilkrts_worker *w
     // w's deque.
     restore_frame_for_spawn_return_reduction(w, ff, returning_sf);
 
-    // Step A2 and A3: Execute reductions on user stack.
-    BEGIN_WITH_FRAME_LOCK(w, ff->parent) {
-        struct cilkred_map **left_map_ptr;
-        left_map_ptr = fast_path_reductions_for_spawn_return(w, ff);
+    if (ff->parent) {
+      // Step A2 and A3: Execute reductions on user stack.
+      BEGIN_WITH_FRAME_LOCK(w, ff->parent) {
+          struct cilkred_map **left_map_ptr;
+          left_map_ptr = fast_path_reductions_for_spawn_return(w, ff);
 
-        // Pointer will be non-NULL if there are
-        // still reductions to execute.
-        if (left_map_ptr) {
-            // WARNING: This method call may release the lock
-            // on ff->parent and re-acquire it (possibly on a
-            // different worker).
-            // We can't hold locks while actually executing
-            // reduce functions.
+          // Pointer will be non-NULL if there are
+          // still reductions to execute.
+          if (left_map_ptr) {
+              // WARNING: This method call may release the lock
+              // on ff->parent and re-acquire it (possibly on a
+              // different worker).
+              // We can't hold locks while actually executing
+              // reduce functions.
 
-            w = slow_path_reductions_for_spawn_return(w, ff, left_map_ptr);
-            verify_current_wkr(w);
-        }
+              w = slow_path_reductions_for_spawn_return(w, ff, left_map_ptr);
+              verify_current_wkr(w);
+          }
 
-        finish_spawn_return_on_user_stack(w, ff->parent, ff);      
-        // WARNING: the use of this lock macro is deceptive.
-        // The worker may have changed here.
-    } END_WITH_FRAME_LOCK(w, ff->parent);
+          finish_spawn_return_on_user_stack(w, ff->parent, ff);      
+          // WARNING: the use of this lock macro is deceptive.
+          // The worker may have changed here.
+      } END_WITH_FRAME_LOCK(w, ff->parent);
+    } else {
+      w->l->fiber_to_free = ff->fiber_self;
+      ff->fiber_self = NULL;
+      w->l->pending_exception = NULL;
+      ff->pending_exception = NULL;
+      if (w->reducer_map) {
+        __cilkrts_destroy_reducer_map(w, w->reducer_map);
+      }
+      w->reducer_map = NULL;
+    }
     return w;
 }
 

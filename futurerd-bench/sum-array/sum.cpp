@@ -7,82 +7,6 @@
 #include <cilk/cilk_api.h>
 #include "../util/util.hpp"
 
-#include "internal/abi.h"
-
-class cilk_fiber;
-
-extern char* __cilkrts_switch_fibers();
-extern void __cilkrts_switch_fibers_back(cilk_fiber*);
-extern void __cilkrts_leave_future_frame(__cilkrts_stack_frame*);
-
-extern "C" {
-cilk_fiber* cilk_fiber_get_current_fiber();
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber*);
-void cilk_fiber_do_post_switch_actions(cilk_fiber*);
-void __cilkrts_detach(__cilkrts_stack_frame*);
-void __cilkrts_pop_frame(__cilkrts_stack_frame*);
-}
-
-#define START_FUTURE_SPAWN \
-  sf.flags |= CILK_FRAME_FUTURE_PARENT;\
-  cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();\
-  if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {\
-    char *new_sp = __cilkrts_switch_fibers();\
-    char *old_sp = NULL;\
-    __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));\
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
-#define END_FUTURE_SPAWN \
-    __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));\
-    __cilkrts_switch_fibers_back(initial_fiber);\
-  }\
-  cilk_fiber_do_post_switch_actions(initial_fiber);\
-  sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
-
-#define SPAWN_FUTURE(helper, args...)\
-  START_FUTURE_SPAWN\
-  helper ( ##args );\
-  END_FUTURE_SPAWN
-
-#define FUTURE_HELPER_PREAMBLE\
-  __cilkrts_stack_frame sf;\
-  __cilkrts_enter_frame_fast_1(&sf);\
-  __cilkrts_detach(&sf);
-
-#define FUTURE_HELPER_EPILOGUE\
-  __cilkrts_pop_frame(&sf);\
-  __cilkrts_leave_future_frame(&sf);
-
-#define SPAWN_HELPER_PREAMBLE   FUTURE_HELPER_PREAMBLE
-
-#define SPAWN_HELPER_EPILOGUE\
-  __cilkrts_pop_frame(&sf);\
-  __cilkrts_leave_frame(&sf);
-
-#define CILK_FUNC_PREAMBLE\
-  __cilkrts_stack_frame sf;\
-  __cilkrts_enter_frame_1(&sf);
-
-#define CILK_FUNC_EPILOGUE\
-  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
-    if (!CILK_SETJMP(sf.ctx)) {\
-      __cilkrts_sync(&sf);\
-    }\
-  }\
-  SPAWN_HELPER_EPILOGUE;
-
-#define SPAWN(helper, args...)\
-  if (!CILK_SETJMP(sf.ctx)) {\
-    helper ( ##args );\
-  }
-
-#define SYNC\
-  if (sf.flags & CILK_FRAME_UNSYNCHED) {\
-    if (!CILK_SETJMP(sf.ctx)) {\
-      __cilkrts_sync(&sf);\
-    }\
-  }
-
 typedef struct pair_t {
     unsigned long n;
     cilk::future<struct pair_t> *fut;
@@ -124,7 +48,7 @@ pair_t __attribute__((noinline)) produce(unsigned long n) {
     if(n > 0) { 
         //cilk::future<pair_t> *fut;
         res.fut = new cilk::future<pair_t>(); 
-        START_FUTURE_SPAWN;
+        START_FIRST_FUTURE_SPAWN;
             produce_fut_helper(res.fut, n-1);
         END_FUTURE_SPAWN;
         //cilk_future_create(pair_t, res.fut, produce, n-1);
@@ -174,7 +98,7 @@ int main(int argc, char *argv[]) {
 
     pair_t data(n);
     data.fut = new cilk::future<pair_t>(); 
-    START_FUTURE_SPAWN;
+    START_FIRST_FUTURE_SPAWN;
         produce_fut_helper(data.fut, n-1);
     END_FUTURE_SPAWN;
 

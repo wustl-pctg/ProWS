@@ -5,13 +5,13 @@
 #include <cstring>
 #include "ktiming.h"
 #include "internal/abi.h"
-#include "../cilkrtssuspend/runtime/cilk_fiber.h"
-#include "../cilkrtssuspend/runtime/os.h"
-#include "../cilkrtssuspend/runtime/jmpbuf.h"
-#include "../cilkrtssuspend/runtime/global_state.h"
-#include "../cilkrtssuspend/runtime/full_frame.h"
-#include "../cilkrtssuspend/runtime/scheduler.h"
-#include "../cilkrtssuspend/runtime/local_state.h"
+//#include "../cilkrtssuspend/runtime/cilk_fiber.h"
+//#include "../cilkrtssuspend/runtime/os.h"
+//#include "../cilkrtssuspend/runtime/jmpbuf.h"
+//#include "../cilkrtssuspend/runtime/global_state.h"
+//#include "../cilkrtssuspend/runtime/full_frame.h"
+//#include "../cilkrtssuspend/runtime/scheduler.h"
+//#include "../cilkrtssuspend/runtime/local_state.h"
 
 #ifndef TIMES_TO_RUN
 #define TIMES_TO_RUN 10 
@@ -30,35 +30,18 @@
  * fib 42: 267914296
  */
 
-extern CILK_ABI_VOID __cilkrts_leave_future_frame(__cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_switch_fibers_back(cilk_fiber* new_fiber);
-extern CILK_ABI(char*) __cilkrts_switch_fibers();
-
-extern "C" {
-extern CILK_ABI_VOID __cilkrts_detach(struct __cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_pop_frame(struct __cilkrts_stack_frame *sf);
-extern CILK_ABI_VOID __cilkrts_enter_frame_1(__cilkrts_stack_frame *sf);
-
-void** cilk_fiber_get_resume_jmpbuf(cilk_fiber *self);
-void cilk_fiber_do_post_switch_actions(cilk_fiber *self);
-char* cilk_fiber_get_stack_base(cilk_fiber *self);
-}
-
 int fib(int n);
 void fib_helper(int *res, int n);
 
 void  __attribute__((noinline)) fib_fut(cilk::future<int> *x, int n) {
-    __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
-    __cilkrts_enter_frame_fast_1(sf);
-    __cilkrts_detach(sf);
+    FUTURE_HELPER_PREAMBLE;
     
     void *__cilk_deque = x->put(fib(n));
     if (__builtin_expect(__cilk_deque != NULL, 0)) {
             __cilkrts_resume_suspended(__cilk_deque, 2);
     }
 
-    __cilkrts_pop_frame(sf);
-    __cilkrts_leave_future_frame(sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 int  __attribute__((noinline)) fib(int n) {
@@ -69,8 +52,7 @@ int  __attribute__((noinline)) fib(int n) {
         return n;
     }
 
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_1(&sf);
+    CILK_FUNC_PREAMBLE;
 
     #ifdef TEST_INTEROP_PRE_FUTURE_CREATE
         #pragma message ("using spawn pre fut fib interop")
@@ -81,34 +63,9 @@ int  __attribute__((noinline)) fib(int n) {
 
     cilk::future<int> x_fut = cilk::future<int>();
 
-    sf.flags |= CILK_FRAME_FUTURE_PARENT;
-
-    // TODO: Is there an easier/better way to do this? Doing this avoids
-    //       locking the frame when we run out of fibers on the future fiber deque.
-    cilk_fiber *initial_fiber = cilk_fiber_get_current_fiber();
-     
-    if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-        char *new_sp = __cilkrts_switch_fibers();
-
-        char *old_sp = NULL;
-
-        // Save the old stack pointer and
-        // move it to point to the new fiber.
-        __asm__ volatile ("mov %%rsp,%0\n"
-                          "mov %1,%%rsp"
-                          : "=r" (old_sp)
-                          : "r" (new_sp));
-
+    START_FIRST_FUTURE_SPAWN;
         fib_fut(&x_fut, n-1);
-
-        // Move our stack back!
-        __asm__ volatile ("mov %0,%%rsp"
-                          : : "r" (old_sp));
-
-        __cilkrts_switch_fibers_back(initial_fiber);
-    }
-    cilk_fiber_do_post_switch_actions(initial_fiber);
-    sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+    END_FUTURE_SPAWN;
 
     #ifdef TEST_INTEROP_POST_FUTURE_CREATE
         #pragma message ("using using spawn post fut fib interop")
@@ -119,32 +76,9 @@ int  __attribute__((noinline)) fib(int n) {
         #pragma message ("using future fib interop")
         cilk::future<int> y_fut = cilk::future<int>();
 
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-
-        initial_fiber = cilk_fiber_get_current_fiber();
-
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char* new_sp = __cilkrts_switch_fibers();
-
-            char* old_sp = NULL;
-            // Save the old stack pointer and
-            // move it to point to the new fiber.
-            __asm__ volatile ("mov %%rsp,%0"
-                              : "=r" (old_sp));
-
-            __asm__ volatile ("mov %0,%%rsp"
-                              : : "r" (new_sp));
-
+        START_FUTURE_SPAWN;
             fib_fut(&y_fut, n-2);
-
-            // Move our stack back!
-            __asm__ volatile ("mov %0,%%rsp"
-                              : : "r" (old_sp));
-
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+        END_FUTURE_SPAWN;
     
         y = y_fut.get();
     #elif !defined(TEST_INTEROP_PRE_FUTURE_CREATE)
@@ -160,11 +94,7 @@ int  __attribute__((noinline)) fib(int n) {
     #if defined(TEST_INTEROP_PRE_FUTURE_CREATE) || defined(TEST_INTEROP_POST_FUTURE_CREATE)
         #pragma message ("Added a synch to the function")
 
-        if (sf.flags & CILK_FRAME_UNSYNCHED) {
-            if (!CILK_SETJMP(sf.ctx)) {
-                __cilkrts_sync(&sf);
-            }
-        }
+        SYNC;
     #endif
 
     #ifdef FUTURE_AFTER_SYNC
@@ -178,26 +108,21 @@ int  __attribute__((noinline)) fib(int n) {
     // gets too agressive and starts popping
     // frames at inappropriate moments
     __asm__ volatile ("" ::: "memory");
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_frame(&sf);
+    CILK_FUNC_EPILOGUE;
 
     return _tmp;
 }
 
 void __attribute__((noinline)) fib_helper(int* res, int n) {
-    __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
-    __cilkrts_enter_frame_fast_1(sf);
-    __cilkrts_detach(sf);
+    SPAWN_HELPER_PREAMBLE;
 
     *res = fib(n);
     
-    __cilkrts_pop_frame(sf);
-    __cilkrts_leave_frame(sf);
+    SPAWN_HELPER_EPILOGUE;
 }
 
 int __attribute__((noinline)) run(int n, uint64_t *running_time) {
-    __cilkrts_stack_frame* sf = (__cilkrts_stack_frame*) alloca(sizeof(__cilkrts_stack_frame));;
-    __cilkrts_enter_frame_1(sf);
+    CILK_FUNC_PREAMBLE;
 
     int res;
     clockmark_t begin, end; 
@@ -205,23 +130,18 @@ int __attribute__((noinline)) run(int n, uint64_t *running_time) {
     for(int i = 0; i < TIMES_TO_RUN; i++) {
         begin = ktiming_getmark();
 
-        if (!CILK_SETJMP(sf->ctx)) {
+        if (!CILK_SETJMP(sf.ctx)) {
             fib_helper(&res, n);
         }
 
-        if (sf->flags & CILK_FRAME_UNSYNCHED) {
-            if (!CILK_SETJMP(sf->ctx)) {
-                __cilkrts_sync(sf);
-            }
-        }
+        SYNC;
 
         end = ktiming_getmark();
         running_time[i] = ktiming_diff_usec(&begin, &end);
     }
 
 
-    __cilkrts_pop_frame(sf);
-    __cilkrts_leave_frame(sf);
+    CILK_FUNC_EPILOGUE;
 
     return res;
 }
@@ -238,8 +158,8 @@ int main(int argc, char * args[]) {
     n = atoi(args[1]);
 
     int res = run(n, &running_time[0]);
-    cilkg_set_param("local stacks", "128");
-    cilkg_set_param("shared stacks", "128");
+//    cilkg_set_param("local stacks", "128");
+//    cilkg_set_param("shared stacks", "128");
 
     printf("Res: %d\n", res);
 

@@ -12,7 +12,6 @@ RUN apt-get update \
       groff \
       git \
       wget \
-      cmake \
       binutils-dev \
       python \
       libgsl-dev \

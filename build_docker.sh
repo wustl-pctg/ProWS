@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker build -t capf:latest .
+docker build -t cilkfut:latest .

@@ -33,7 +33,7 @@ cd -
 cd ./cilkrtssuspend
 libtoolize
 autoreconf -i
-./remake.sh pre opt lto
+./remake.sh opt lto
 cd -
 
 msg "Suspendable work-stealing runtime built"

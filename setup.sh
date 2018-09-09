@@ -10,18 +10,13 @@ function msg() {
 
 msg "Begin PORRidge setup at $(date)"
 
-: ${BINUTILS_PLUGIN_DIR:="/usr/local/include"}
+: ${BINUTILS_PLUGIN_DIR:="/usr/include"}
 if [[ ($BINUTILS_PLUGIN_DIR != "") &&
           (-e $BINUTILS_PLUGIN_DIR/plugin-api.h) ]]; then
     export LTO=1
 else
     export LTO=0
     echo "Warning: no binutils plugin found, necessary for LTO"
-fi
-
-t=$(ldconfig -p | grep tcmalloc)
-if [[ $? != 0 ]]; then
-    echo "tcmalloc not found! Install google-perftools"
 fi
 
 # Setup and compile our compiler

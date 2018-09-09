@@ -384,15 +384,12 @@ void* s2(filter_seg& seg, void* item) {
 }
 
 void __attribute__((noinline)) s2_helper(cilk::future<void*> *fut, filter_seg& seg, void* item) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     void *__cilkrts_deque = fut->put(s2(seg, item));
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 void* s3(filter_extract& ext, future<void*>* item) {
@@ -401,15 +398,12 @@ void* s3(filter_extract& ext, future<void*>* item) {
 }
 
 void __attribute__((noinline)) s3_helper(cilk::future<void*> *fut, filter_extract& ext, cilk::future<void*>* item) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     void *__cilkrts_deque = fut->put(s3(ext, item));
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 void* s4(filter_vec& vec, future<void*>* item) {
@@ -418,15 +412,12 @@ void* s4(filter_vec& vec, future<void*>* item) {
 }
 
 void __attribute__((noinline)) s4_helper(cilk::future<void*> *fut, filter_vec& vec, cilk::future<void*>* item) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     void *__cilkrts_deque = fut->put(s4(vec, item));
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 void* s5(filter_rank& rank, future<void*>* item) {
@@ -435,15 +426,12 @@ void* s5(filter_rank& rank, future<void*>* item) {
 }
 
 void __attribute__((noinline)) s5_helper(cilk::future<void*> *fut, filter_rank& rank, cilk::future<void*>* item) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     void *__cilkrts_deque = fut->put(s5(rank, item));
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 void s6(filter_out& out, future<void>* prev, future<void*>* item) {
@@ -454,23 +442,19 @@ void s6(filter_out& out, future<void>* prev, future<void*>* item) {
 }
 
 void __attribute__((noinline)) s6_helper(cilk::future<void> *fut, filter_out& out, cilk::future<void>* prev, cilk::future<void*>* item) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    FUTURE_HELPER_PREAMBLE;
 
     s6(out, prev, item);
     void *__cilkrts_deque = fut->put();
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_future_frame(&sf);
+    FUTURE_HELPER_EPILOGUE;
 }
 
 static volatile int done = 0;
 
 int my_fancy_wrapper(int argc, char *argv[]) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_1(&sf);
+    CILK_FUNC_PREAMBLE;
 
     future<void>* prev = NULL; 
     char *db_dir = NULL;
@@ -550,90 +534,30 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     for (void *chunk = my_load_filter(NULL); chunk != NULL; chunk = my_load_filter(NULL)) {
 
         future<void*>* stage2 = new cilk::future<void*>();
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+        START_FUTURE_SPAWN;
             s2_helper(stage2, my_seg_filter, chunk);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+        END_FUTURE_SPAWN;
 
         future<void*>* stage3 = new cilk::future<void*>();
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+        START_FUTURE_SPAWN;
             s3_helper(stage3, my_extract_filter, stage2);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+        END_FUTURE_SPAWN;
 
         future<void*>* stage4 = new cilk::future<void*>();
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+        START_FUTURE_SPAWN;
             s4_helper(stage4, my_vec_filter, stage3);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+        END_FUTURE_SPAWN;
 
         future<void*> *stage5 = new cilk::future<void*>();
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+        START_FUTURE_SPAWN;
             s5_helper(stage5, my_rank_filter, stage4);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+        END_FUTURE_SPAWN;
 
 
         future<void> *stage6 = new cilk::future<void>();
-        sf.flags |= CILK_FRAME_FUTURE_PARENT;
-        if (!CILK_SETJMP(cilk_fiber_get_resume_jmpbuf(initial_fiber))) {
-            char *new_sp = __cilkrts_switch_fibers();
-            char *old_sp = NULL;
-
-            __asm__ volatile ("mov %%rsp, %0" : "=r" (old_sp));
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (new_sp));
-
+        START_FUTURE_SPAWN;
             s6_helper(stage6, my_out_filter, prev, stage5);
-
-            __asm__ volatile ("mov %0, %%rsp" : : "r" (old_sp));
-            __cilkrts_switch_fibers_back(initial_fiber);
-        }
-        cilk_fiber_do_post_switch_actions(initial_fiber);
-        sf.flags &= ~(CILK_FRAME_FUTURE_PARENT);
+        END_FUTURE_SPAWN;
 
         prev = stage6;
     }
@@ -654,8 +578,7 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     fclose(fout);
     done = 1;
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_frame(&sf);
+    CILK_FUNC_EPILOGUE;
 
     return 0;
 }

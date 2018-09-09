@@ -1,14 +1,11 @@
+include ../../common.mk
+
 PROG = serial pthreads std-future cilk-future tbb parsec3-tbb cilk piper cilkview
 
-#COMPILER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/llvm-cilk
-#PIPER_HOME=/project/adams/home/kdsinger/cilk-plus-futures/cilkrtssuspend
-COMPILER_HOME=/home/kdsinger/cilk-plus-futures/llvm-cilk
-PIPER_HOME=/home/kdsinger/cilk-plus-futures/cilkrtssuspend
-#RD_HOME=/home/kdsinger/pracer/rdtool
-#RD_INCLUDE=$(RD_HOME)/include 
+COMPILER_HOME=$(BASE_DIR)/llvm-cilk
+PIPER_HOME=$(BASE_DIR)/cilkrtssuspend
 RTS_INCLUDE=$(PIPER_HOME)/include/
 RTS_STATIC_LIB=$(PIPER_HOME)/.libs/libcilkrts.a
-#RTS_DYNAMIC_LIB=-Wl,-rpath -Wl,$(PIPER_HOME)/.libs/libcilkrts.so -lcilkrts
 CXXFLAGS=-std=c++11 -flto
 
 # compilation flags
@@ -43,7 +40,7 @@ BASIC_CPPFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointe
 BASIC_CFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR) -flto
 BASIC_GCCFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -std=gnu99 -fno-omit-frame-pointer -flto
 
-CFLAGS ?= -DPRECOMPUTE_PEDIGREES=1 -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
+CFLAGS = -DPRECOMPUTE_PEDIGREES=1 -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
 CFLAGS_S = -DPRECOMPUTE_PEDIGREES=1 -O3 -g -I$(INCDIR) -fno-omit-frame-pointer
 
 LDFLAGS += -L/usr/lib64 -L$(LIBDIR) -flto

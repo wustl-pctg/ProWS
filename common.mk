@@ -23,6 +23,6 @@ ifeq ($(LTO),1)
 endif
 
 #CFLAGS = -g -std=c++11 -Wfatal-errors -DPRECOMPUTE_PEDIGREES=1 $(OPT) $(DEFS) $(INC)
-CFLAGS = -g -std=c++11 -Wfatal-errors $(OPT) $(DEFS) $(INC)
+CFLAGS = -g -Wfatal-errors $(OPT) $(DEFS) $(INC)
 #CXXFLAGS = -DPRECOMPUTE_PEDIGREES=1
 CILKFLAGS = -fcilkplus -fcilk-no-inline

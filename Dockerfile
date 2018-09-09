@@ -15,6 +15,8 @@ RUN apt-get update \
       cmake \
       binutils-dev \
       python \
+      libgsl-dev \
+      libjpeg-dev \
     && update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.gold" 20 \
     && update-alternatives --install "/usr/bin/ld" "ld" "/usr/bin/ld.bfd" 10 \
     && rm -rf /var/lib/apt/lists/*

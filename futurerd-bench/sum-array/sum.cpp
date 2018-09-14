@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <future.hpp>
+#include <cilk/future.hpp>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 #include "../util/util.hpp"

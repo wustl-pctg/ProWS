@@ -1,10 +1,10 @@
-#include "../src/future.h"
 #include <cilk/cilk.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <cstring>
 #include "ktiming.h"
 #include "internal/abi.h"
+#include "cilk/future.h"
 //#include "../cilkrtssuspend/runtime/cilk_fiber.h"
 //#include "../cilkrtssuspend/runtime/os.h"
 //#include "../cilkrtssuspend/runtime/jmpbuf.h"

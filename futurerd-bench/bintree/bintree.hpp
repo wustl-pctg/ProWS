@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <utility> // pair
 
-#include <future.hpp>
+#include <cilk/future.hpp>
 //#include <futptr.hpp>
 
 class bintree {

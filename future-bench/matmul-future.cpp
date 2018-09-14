@@ -29,7 +29,7 @@
 
 #define ERR_THRESHOLD   (0.1)
 
-#include "future.h"
+#include "cilk/future.h"
 
 #define REAL int
 static int BASE_CASE; //the base case of the computation (2*POWER)

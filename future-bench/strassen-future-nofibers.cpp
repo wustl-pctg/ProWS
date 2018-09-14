@@ -26,7 +26,7 @@
 
 
 #include "internal/abi.h"
-#include "future.hpp"
+#include "cilk/future.hpp"
 
 extern "C" {
 void __cilkrts_detach(__cilkrts_stack_frame*);

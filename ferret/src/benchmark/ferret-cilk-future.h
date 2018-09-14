@@ -5,8 +5,7 @@
 #include <dirent.h>
 #include <stack>
 
-#include "../../../src/future.h"
-#include "../../../cilkrtssuspend/include/internal/abi.h"
+#include "cilk/future.h"
 
 class filter_load {
 	char m_path[BUFSIZ];

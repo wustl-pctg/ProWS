@@ -57,7 +57,7 @@
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 #include "internal/abi.h"
-#include "future.hpp"
+#include "cilk/future.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>

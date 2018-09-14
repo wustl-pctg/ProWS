@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ktiming.h"
-#include "../src/future.h"
+#include "cilk/future.h"
 
 #ifndef TIMES_TO_RUN
 #define TIMES_TO_RUN 10

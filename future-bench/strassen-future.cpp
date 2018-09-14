@@ -24,8 +24,7 @@
 #define __cilkrts_pin_top_level_frame_at_socket(n)
 #endif
 
-
-#include "future.hpp"
+#include "cilk/future.h"
 
 /* The real numbers we are using --- either double or float */
 typedef double REAL;

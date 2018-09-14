@@ -2,7 +2,7 @@
 #include <iostream>
 #include <future>
 #include <cilk/cilk.h>
-#include "../src/future.h"
+#include "cilk/future.h"
 
 #define LIST_SIZE (2500)
 #define SEQ_THRESH (25)

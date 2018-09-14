@@ -19,7 +19,7 @@
 #include "define.hpp"
 
 #include "../../util/util.hpp"
-#include <future.hpp>
+#include <cilk/future.hpp>
 
 #include "internal/abi.h"
 

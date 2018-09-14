@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include "cilk/cilk.h"
 #include "internal/abi.h"
-//#include "../cilkrtssuspend/runtime/local_state.h"
-//#include "../cilkrtssuspend/runtime/full_frame.h"
-#include "../src/future.h"
+#include "cilk/future.h"
 #include <cstring>
 #include <unistd.h>
 

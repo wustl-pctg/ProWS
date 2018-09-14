@@ -1,6 +1,6 @@
 #include <assert.h> 
 #include <math.h> 
-#include <future.hpp>
+#include <cilk/future.hpp>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 

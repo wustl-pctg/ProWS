@@ -1,4 +1,3 @@
-#include "../src/future.h"
 #include <cilk/cilk.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +11,7 @@
 #include "../cilkrtssuspend/runtime/full_frame.h"
 #include "../cilkrtssuspend/runtime/scheduler.h"
 #include "../cilkrtssuspend/runtime/local_state.h"
+#include "cilk/future.h"
 
 #ifndef TIMES_TO_RUN
 #define TIMES_TO_RUN 10 

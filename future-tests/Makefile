@@ -13,7 +13,7 @@ default:
 
 qsort: qsort.cpp
 	$(CXX) -O3 -g -flto -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../llvm-cilk/include -I../cilkrtssuspend/include -std=c++11 -Wall -c qsort.cpp -o qsort.o
-	$(CXX) -flto qsort.o -o qsort ../cilkrtssuspend/.libs/libcilkrts.a -lnuma -lrt -ldl -lpthread -ltcmalloc -lpthread -lm -lrt
+	$(CXX) -flto qsort.o -o qsort ../cilkrtssuspend/.libs/libcilkrts.a -lnuma -lrt -ldl -lpthread -lpthread -lm -lrt
 
 .PHONY = clean
 clean:

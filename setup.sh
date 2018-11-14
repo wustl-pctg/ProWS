@@ -29,6 +29,12 @@ cd ./SuperMalloc/release
 make
 cd -
 
+cd ./cilkplus-rts
+libtoolize
+autoreconf -i
+./remake.sh opt lto
+cd -
+
 # # Build the runtime (ability to suspend/resume deques)
 cd ./cilkrtssuspend
 libtoolize

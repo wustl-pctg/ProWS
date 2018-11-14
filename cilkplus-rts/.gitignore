@@ -1,0 +1,44 @@
+# Object files
+*.o
+*.lo
+*.ko
+*.obj
+*.elf
+
+# Libraries
+*.lib
+*.a
+*.la
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Generated directories and files
+.deps
+.libs
+aclocal.m4
+autom4te.cache
+Makefile
+Makefile.in
+config.guess
+config.log
+config.status
+config.sub
+configure
+depcomp
+install-sh
+libtool
+ltmain.sh
+m4
+missing

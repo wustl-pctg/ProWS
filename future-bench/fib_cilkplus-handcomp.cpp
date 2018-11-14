@@ -1,4 +1,4 @@
-#include <cilk/cilk.h>
+#include "cilk/cilk.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "ktiming.h"

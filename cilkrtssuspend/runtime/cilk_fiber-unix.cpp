@@ -229,16 +229,13 @@ NORETURN __attribute__((noinline)) cilk_fiber_sysdep::run()
 #ifdef TRACK_FIBER_COUNT
 increment_fiber_count(__cilkrts_get_tls_worker()->g);
 #endif
-    // Following the suggestion from above,
-    // because setjmp/longjmp isn't fast.
+
     uintptr_t frame_size = NULL;
     char *stack_pointer = NULL;
     __asm__ volatile ("movq %%rsp, %0" : "=r" (stack_pointer));
 
-    //__asm__ volatile ("mov %%rsp,%0" : "=r" (frame_size));
-    //printf("%p\n", frame_size);
-    // equivalent to: frame_size = rbp - rsp;
     __asm__ volatile ("movq %%rbp,%0" : "=r" (frame_size));
+    // equivalent to: frame_size = rbp - rsp;
     frame_size = frame_size - (uintptr_t)stack_pointer;
 
     // Make sure the frame size 16-byte aligned

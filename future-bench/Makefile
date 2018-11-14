@@ -11,15 +11,22 @@ mkfile_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
 include ../common.mk
 
-MY_CXXFLAGS = -DTIMES_TO_RUN=10 -DTIMING_COUNT=10 -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../src -I../llvm-cilk/include -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include -std=c++11 -Wall
-MY_CFLAGS = -O3 -g
-MY_LDFLAGS = ../cilkrtssuspend/.libs/libcilkrts.a -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+COMMON_CXXFLAGS = -DTIMES_TO_RUN=10 -DTIMING_COUNT=10 -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../src -I../llvm-cilk/include -std=c++11 -Wall
+COMMON_LDFLAGS  = -L$(mkfile_dir)/../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
+
+FUTURE_CXXFLAGS = $(COMMON_CXXFLAGS) -I../cilkrtssuspend/runtime/config/x86 -I../cilkrtssuspend/runtime/sslib -I../cilkrtssuspend/include
+FUTURE_LDFLAGS 	= ../cilkrtssuspend/.libs/libcilkrts.a $(COMMON_LDFLAGS) 
+
+VANILLA_CXXFLAGS = $(COMMON_CXXFLAGS) -I../cilkplus-rts/runtime/config/x86 -I../cilkplus-rts/runtime/sslib -I../cilkplus-rts/include
+VANILLA_LDFLAGS  = ../cilkplus-rts/.libs/libcilkrts.a $(COMMON_LDFLAGS) 
+#VANILLA_CXXFLAGS = $(FUTURE_CXXFLAGS)
+#VANILLA_LDFLAGS = $(FUTURE_LDFLAGS)
 
 .PHONY = default
 default: all
 
 getoptions.o: getoptions.cpp
-	$(CXX) $(MY_CXXFLAGS) -c getoptions.cpp -o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -c getoptions.cpp -o getoptions.o
 
 ktiming.o: ktiming.c
 	$(CXX) -O3 -c ktiming.c -o ktiming.o
@@ -28,63 +35,63 @@ TARGETS = fib-se
 APPS = fib-se
 
 fib-se: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus_se.cpp -o fib_se.o
-	$(CXX) -flto fib_se.o ktiming.o -o fib-se $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c fib_cilkplus_se.cpp -o fib_se.o
+	$(CXX) -flto fib_se.o ktiming.o -o fib-se $(FUTURE_LDFLAGS)
 
 TARGETS = fib
 APPS = fib
 
 fib: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus.cpp -o fib.o
-	$(CXX) -flto fib.o ktiming.o -o fib $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c fib_cilkplus.cpp -o fib.o
+	$(CXX) -flto fib.o ktiming.o -o fib $(VANILLA_LDFLAGS)
 
 TARGETS += fib-handcomp
 APPS += fib-handcomp
 
 fib-handcomp: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c fib_cilkplus-handcomp.cpp -o fib-handcomp.o
-	$(CXX) -flto fib-handcomp.o ktiming.o -o fib-handcomp $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c fib_cilkplus-handcomp.cpp -o fib-handcomp.o
+	$(CXX) -flto fib-handcomp.o ktiming.o -o fib-handcomp $(VANILLA_LDFLAGS)
 
 TARGETS += fib-future-macro
 APPS += fib-future-macro
 
 fib-future-macro: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c fib_cilkfut.cpp -o fib-future-macro.o
-	$(CXX) -flto fib-future-macro.o ktiming.o -o fib-future-macro $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c fib_cilkfut.cpp -o fib-future-macro.o
+	$(CXX) -flto fib-future-macro.o ktiming.o -o fib-future-macro $(FUTURE_LDFLAGS)
 
 TARGETS += fib-future
 APPS += fib-future
 
 fib-future: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o fib-future.o
-	$(CXX) -flto fib-future.o ktiming.o -o fib-future $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o fib-future.o
+	$(CXX) -flto fib-future.o ktiming.o -o fib-future $(FUTURE_LDFLAGS)
 
 APPS += fib-future-nofibers
 TARGETS += fib-future-nofibers
 
 fib-future-nofibers: ktiming.o
-	$(CXX) $(MY_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o fib-future-nofibers.o
-	$(CXX) -flto fib-future-nofibers.o ktiming.o -o fib-future-nofibers $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o fib-future-nofibers.o
+	$(CXX) -flto fib-future-nofibers.o ktiming.o -o fib-future-nofibers $(FUTURE_LDFLAGS)
 
 TARGETS += fib-interop-tests
 APPS += handcomp_fib_cilkfut_spawn-after-sync-after handcomp_fib_cilkfut_spawn-after-sync-before handcomp_fib_cilkfut_spawn-before-sync-after handcomp_fib_cilkfut_spawn-before-sync-before handcomp_fib_cilkfut_future-interop  handcomp_fib_cilkfut_nofibers
 
 fib-interop-tests: ktiming.o fib fib-future
 	# Test spawns before futures, sync after touching the future
-	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-after $(MY_LDFLAGS)
+	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-after $(FUTURE_LDFLAGS)
 	# Test spawns before futures, sync before touching the future
-	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-before $(MY_LDFLAGS)
+	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-before $(FUTURE_LDFLAGS)
 	# Test spawns after futures, sync after touching the future
-	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-after $(MY_LDFLAGS)
+	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-after $(FUTURE_LDFLAGS)
 	# Test spawns after futures, sync before touching the future
-	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-before $(MY_LDFLAGS)
+	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-before $(FUTURE_LDFLAGS)
 	# Test futures working with futures
-	$(CXX) -DTEST_INTEROP_MULTI_FUTURE $(MY_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_future-interop $(MY_LDFLAGS)
+	$(CXX) -DTEST_INTEROP_MULTI_FUTURE $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
+	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_future-interop $(FUTURE_LDFLAGS)
 	#make run-tests
 
 run-tests:
@@ -100,15 +107,15 @@ TARGETS += strass-se
 APPS += strassen-se
 
 strass-se: ktiming.o getoptions.o strassen.cpp
-	$(CXX) $(MY_CXXFLAGS) -c strassen-se.cpp -o strassen-se.o
-	$(CXX) -flto strassen-se.o getoptions.o ktiming.o -o strassen-se $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c strassen-se.cpp -o strassen-se.o
+	$(CXX) -flto strassen-se.o getoptions.o ktiming.o -o strassen-se $(FUTURE_LDFLAGS)
 
 TARGETS += strass
 APPS += strassen
 
 strass: ktiming.o getoptions.o strassen.cpp
-	$(CXX) $(MY_CXXFLAGS) -c strassen.cpp -o strassen.o
-	$(CXX) -flto strassen.o getoptions.o ktiming.o -o strassen $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c strassen.cpp -o strassen.o
+	$(CXX) -flto strassen.o getoptions.o ktiming.o -o strassen $(FUTURE_LDFLAGS)
 	#make run-strass
 
 run-strass:
@@ -118,15 +125,15 @@ TARGETS += strass-handcomp
 APPS += strassen-handcomp
 
 strass-handcomp: ktiming.o getoptions.o strassen.cpp
-	$(CXX) $(MY_CXXFLAGS) -c strassen-handcomp.cpp -o strassen-handcomp.o
-	$(CXX) -flto strassen-handcomp.o getoptions.o ktiming.o -o strassen-handcomp $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c strassen-handcomp.cpp -o strassen-handcomp.o
+	$(CXX) -flto strassen-handcomp.o getoptions.o ktiming.o -o strassen-handcomp $(VANILLA_LDFLAGS)
 
 TARGETS += strass-fut
 APPS += strassen-future
     
 strass-fut: ktiming.o getoptions.o strassen-future.cpp
-	$(CXX) $(MY_CXXFLAGS) -c strassen-future.cpp -o strassen-future.o
-	$(CXX) -flto strassen-future.o getoptions.o ktiming.o -o strassen-future $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c strassen-future.cpp -o strassen-future.o
+	$(CXX) -flto strassen-future.o getoptions.o ktiming.o -o strassen-future $(FUTURE_LDFLAGS)
 	#make run-strass-fut
 
 run-strass-fut:
@@ -136,8 +143,8 @@ TARGETS += strass-fut-nofibers
 APPS += strassen-future-nofibers
     
 strass-fut-nofibers: ktiming.o getoptions.o strassen-future-nofibers.cpp
-	$(CXX) $(MY_CXXFLAGS) -c strassen-future-nofibers.cpp -o strassen-future-nofibers.o
-	$(CXX) -flto strassen-future-nofibers.o getoptions.o ktiming.o -o strassen-future-nofibers $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c strassen-future-nofibers.cpp -o strassen-future-nofibers.o
+	$(CXX) -flto strassen-future-nofibers.o getoptions.o ktiming.o -o strassen-future-nofibers $(FUTURE_LDFLAGS)
 	#make run-strass-fut-nofibers
 
 run-strass-fut-nofibers:
@@ -147,15 +154,15 @@ TARGETS += matmul-se
 APPS += matmul-se
 
 matmul-se: matmul-se.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c matmul-se.cpp -o matmul-se.o
-	$(CXX) -flto matmul-se.o getoptions.o ktiming.o -o matmul-se $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c matmul-se.cpp -o matmul-se.o
+	$(CXX) -flto matmul-se.o getoptions.o ktiming.o -o matmul-se $(FUTURE_LDFLAGS)
 
 TARGETS += matmul
 APPS += matmul
 
 matmul: matmul.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c matmul.cpp -o matmul.o
-	$(CXX) -flto matmul.o getoptions.o ktiming.o -o matmul $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c matmul.cpp -o matmul.o
+	$(CXX) -flto matmul.o getoptions.o ktiming.o -o matmul $(VANILLA_LDFLAGS)
 	##make run-matmul
 
 run-matmul:
@@ -165,8 +172,8 @@ TARGETS += matmul-handcomp
 APPS += matmul-handcomp
 
 matmul-handcomp: matmul-handcomp.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c matmul-handcomp.cpp -o matmul-handcomp.o
-	$(CXX) -flto matmul-handcomp.o getoptions.o ktiming.o -o matmul-handcomp $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c matmul-handcomp.cpp -o matmul-handcomp.o
+	$(CXX) -flto matmul-handcomp.o getoptions.o ktiming.o -o matmul-handcomp $(VANILLA_LDFLAGS)
 	##make run-matmul-handcomp
 
 run-matmul-handcomp:
@@ -176,8 +183,8 @@ TARGETS += matmul-future
 APPS += matmul-future
 
 matmul-future: matmul-future.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c matmul-future.cpp -o matmul-future.o
-	$(CXX) -flto matmul-future.o getoptions.o ktiming.o -o matmul-future $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c matmul-future.cpp -o matmul-future.o
+	$(CXX) -flto matmul-future.o getoptions.o ktiming.o -o matmul-future $(FUTURE_LDFLAGS)
 	##make run-matmul-future
 
 run-matmul-future:
@@ -187,29 +194,29 @@ TARGETS += cilksort-se
 APPS += cilksort-se
 
 cilksort-se: cilksort-se.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c cilksort-se.cpp -o cilksort-se.o
-	$(CXX) -flto cilksort-se.o getoptions.o ktiming.o -o cilksort-se $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c cilksort-se.cpp -o cilksort-se.o
+	$(CXX) -flto cilksort-se.o getoptions.o ktiming.o -o cilksort-se $(FUTURE_LDFLAGS)
 
 TARGETS += cilksort
 APPS += cilksort
 
 cilksort: cilksort.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c cilksort.cpp -o cilksort.o
-	$(CXX) -flto cilksort.o getoptions.o ktiming.o -o cilksort $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c cilksort.cpp -o cilksort.o
+	$(CXX) -flto cilksort.o getoptions.o ktiming.o -o cilksort $(VANILLA_LDFLAGS)
 
 TARGETS += cilksort-handcomp
 APPS += cilksort-handcomp
 
 cilksort-handcomp: cilksort-handcomp.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c cilksort-handcomp.cpp -o cilksort-handcomp.o
-	$(CXX) -flto cilksort-handcomp.o getoptions.o ktiming.o -o cilksort-handcomp $(MY_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -c cilksort-handcomp.cpp -o cilksort-handcomp.o
+	$(CXX) -flto cilksort-handcomp.o getoptions.o ktiming.o -o cilksort-handcomp $(VANILLA_LDFLAGS)
 
 TARGETS += cilksort-future
 APPS += cilksort-future
 
 cilksort-future: cilksort-future.cpp ktiming.o getoptions.o
-	$(CXX) $(MY_CXXFLAGS) -c cilksort-future.cpp -o cilksort-future.o
-	$(CXX) -flto cilksort-future.o getoptions.o ktiming.o -o cilksort-future $(MY_LDFLAGS)
+	$(CXX) $(FUTURE_CXXFLAGS) -c cilksort-future.cpp -o cilksort-future.o
+	$(CXX) -flto cilksort-future.o getoptions.o ktiming.o -o cilksort-future $(FUTURE_LDFLAGS)
 
 ###########################################################################
 # Though shalt not cross this line lest thou knowest what thou art doing! #

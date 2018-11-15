@@ -2,8 +2,8 @@
 #include <cstdlib> // malloc
 #include <cstdint> // uintptr_t
 
-#undef STRUCTURED_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#undef STRUCTURED_FUTURES
+//#define NONBLOCKING_FUTURES 1
 //#define STRUCTURED_FUTURES
 //#define SERIAL_ELISION
 
@@ -23,26 +23,25 @@
 #endif
 
 void __attribute__((constructor)) print_type() {
-#ifdef STRUCTURED_FUTURES
+#ifdef SERIAL_ELISION
+  printf("serial elision\n");
+#elif defined(STRUCTURED_FUTURES)
   printf("using spawn (no futures)\n");
-#endif
-
-#ifdef NONBLOCKING_FUTURES
+#elif defined(NONBLOCKING_FUTURES)
   printf("Using unstructured futures\n");
 #endif
 
-#ifdef SERIAL_ELISION
-  printf("serial elision\n");
-#endif
 }
 
 using key_t = bintree::key_t;
 using node = bintree::node;
-using futpair_t = bintree::futpair_t;
 
 // Helper macros for dealing with pointers that may or may not be
 // future pointers.
 #ifdef NONBLOCKING_FUTURES
+
+using futpair_t = bintree::futpair_t;
+
 #define IS_FUTPTR(f)                                            \
   (((void*) (((uintptr_t)(f)) & ((uintptr_t)0x1))) != nullptr)
 

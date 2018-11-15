@@ -1,10 +1,16 @@
 #pragma once
 // Binary search tree, duplicates allowed
 
+#include <cassert>
 #include <cstdio>
 #include <utility> // pair
 
-#include <cilk/future.hpp>
+#ifdef NONBLOCKING_FUTURES
+  #include <cilk/future.hpp>
+#elif !defined(SERIAL_ELISION)
+  // The functions called should be the same for both
+  #include "../../cilkrtssuspend/include/cilk/handcomp-macros.h"
+#endif
 //#include <futptr.hpp>
 
 class bintree {
@@ -20,8 +26,10 @@ public:
     node(key_t k) : key(k) {}
     ~node() { delete left; delete right; }
   };
+#ifdef NONBLOCKING_FUTURES
   using fut_t = cilk::future<node*>;
   using futpair_t = std::pair<fut_t*, fut_t*>;
+#endif
 
   ~bintree() { delete m_root; }
 

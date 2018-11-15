@@ -32,25 +32,25 @@ class filter_seg {
 class filter_extract {
 	public:
 		filter_extract();
-		/*override*/void* operator()(cilk::future<void*>* item);
+		/*override*/void* operator()(void* item);
 };
 
 class filter_vec {
 	public:
 		filter_vec();
-		/*override*/void* operator()(cilk::future<void*>* item);
+		/*override*/void* operator()(void* item);
 };
 
 class filter_rank {
 	public:
 		filter_rank();
-		/*override*/void* operator()(cilk::future<void*>* item);
+		/*override*/void* operator()(void* item);
 };
 
 class filter_out {
 	public:
 		filter_out();
-		/*override*/void operator()(cilk::future<void>* prev, cilk::future<void*>* item);
+		/*override*/void operator()(cilk::future<void>* prev, void* item);
 };
 
 #endif

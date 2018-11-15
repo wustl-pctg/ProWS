@@ -3,9 +3,14 @@ include ../../common.mk
 PROG = serial pthreads std-future cilk-future tbb parsec3-tbb cilk piper cilkview
 
 COMPILER_HOME=$(BASE_DIR)/llvm-cilk
-PIPER_HOME=$(BASE_DIR)/cilkrtssuspend
+
+FUTURE_RTS_HOME=$(BASE_DIR)/cilkrtssuspend
+FUTURE_RTS_INCLUDE=$(FUTURE_RTS_HOME)/include/
+FUTURE_RTS_STATIC_LIB=$(FUTURE_RTS_HOME)/.libs/libcilkrts.a
+
+PIPER_HOME=$(BASE_DIR)piper-rts
 RTS_INCLUDE=$(PIPER_HOME)/include/
-RTS_STATIC_LIB=$(PIPER_HOME)/.libs/libcilkrts.a
+RTS_STATIC_LIB=$(PIPER_HOME)/lib/libcilkrts.a
 CXXFLAGS=-std=c++11 -flto
 
 # compilation flags
@@ -17,8 +22,6 @@ LDLIBS += $(LIBS) -lrt -lm -lcass -lgsl -lgslcblas -ljpeg -lstdc++ -lpthread -ln
 
 .PHONY:	all clean dirs full_clean lib tools image server \
         serial tbb parsec3-tbb pthreads std-future cilk-future piper cilk cilkview
-
-#include ../../Makefile.myenv
 
 VPATH = $(CURDIR)/src:$(CURDIR)/src/lsh:$(CURDIR)/tools:$(CURDIR)/image:$(CURDIR)/benchmark:$(RD_HOME)/src:$(RD_HOME)/src/om
 
@@ -130,7 +133,7 @@ std-future: dirs lib tools
 	make $(BINDIR)/ferret-std-future
 
 cilk-future: dirs lib tools
-	@echo "Building the std future version."
+	@echo "Building the cilk future version."
 	make $(BINDIR)/ferret-cilk-future
 
 cilk: dirs lib tools
@@ -167,6 +170,8 @@ $(OBJDIR)/ferret-piper.o: ferret-piper.cpp
 	#@icpc $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 	$(PIPER_CXX)  $(PIPER_FLAGS) -I$(RTS_INCLUDE) -I$(RD_HOME) -I$(RD_INCLUDE) -c $< -o $@
 
+$(OBJDIR)/ferret-cilk-future.o: ferret-cilk-future.cpp
+	$(PIPER_CXX)  $(PIPER_FLAGS) -I$(FUTURE_RTS_INCLUDE) -I$(RD_HOME) -I$(RD_INCLUDE) -c $< -o $@
 
 $(OBJDIR)/ferret-cilkview.o: ferret-cilkview.c
 	@echo "   'icc $(CFLAGS) $<' ==> '$@'"
@@ -190,6 +195,10 @@ $(BINDIR)/ferret-piper: $(OBJDIR)/ferret-piper.o $(LIBDIR)/libcass.a $(LIBDIR)/l
 	@echo "   'icpc $(CFLAGS) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
 	#@icpc $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 	$(PIPER_CXX) $^ $(RTS_STATIC_LIB) $(PIPER_LDLIBS) $(LDFLAGS) $(LDLIBS) -o $@
+
+$(BINDIR)/ferret-cilk-future: $(OBJDIR)/ferret-cilk-future.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
+	echo "Hello moto!"
+	$(PIPER_CXX) $^ $(FUTURE_RTS_STATIC_LIB) $(PIPER_LDLIBS) $(LDFLAGS) $(LDLIBS) -o $@
 
 $(BINDIR)/ferret-cilkview: $(OBJDIR)/ferret-cilkview.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	@echo "   'icc $(CFLAGS) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"

@@ -247,10 +247,10 @@ void *filter_seg::operator()( void* item ) {
 
 filter_extract::filter_extract() {}
 
-void *filter_extract::operator()( future<void*>* item ) {
+void *filter_extract::operator()( void* item ) {
     assert(item != NULL && "filter extract");
-	struct all_data *data = (struct all_data *)cilk_future_get(item);
-    delete item;
+	struct all_data *data = (struct all_data *)item;
+    //delete item;
     //delete item;
 
 	data->extract.name = data->second.seg.name;
@@ -271,10 +271,10 @@ void *filter_extract::operator()( future<void*>* item ) {
 
 filter_vec::filter_vec() {}
 
-void *filter_vec::operator()(future<void*>* item) {
+void *filter_vec::operator()(void* item) {
     assert(item != NULL && "filter vec");
-	struct all_data *data = (struct all_data *) cilk_future_get(item);
-    delete item;
+	struct all_data *data = (struct all_data *) item;
+    //delete item;
     //delete item;
 	cass_query_t query;
 
@@ -306,14 +306,14 @@ void *filter_vec::operator()(future<void*>* item) {
 
 filter_rank::filter_rank() {}
 
-void *filter_rank::operator()(future<void*>* item) {
+void *filter_rank::operator()(void* item) {
 	
 	cass_result_t *candidate;
 	cass_query_t query;
 
     assert(item != NULL && "filter rank");
-	struct all_data *data = (struct all_data*) cilk_future_get(item);
-    delete item;
+	struct all_data *data = (struct all_data*) item;
+    //delete item;
     //delete item;
 	data->first.rank.name = data->second.vec.name;
 
@@ -350,13 +350,13 @@ void *filter_rank::operator()(future<void*>* item) {
 
 filter_out::filter_out() {}
 
-void filter_out::operator()(future<void>* prev, future<void*>* item) {
+void filter_out::operator()(future<void>* prev, void* item) {
     if (prev) {
         cilk_future_get(prev);
         delete prev;
     }
     assert(item != NULL && "filter out");
-	struct all_data *data = (struct all_data *) cilk_future_get(item);
+	struct all_data *data = (struct all_data *) item;
     //delete item;
 	
 	fprintf(fout, "%s", data->first.rank.name);
@@ -378,12 +378,35 @@ void filter_out::operator()(future<void>* prev, future<void*>* item) {
 	cnt_dequeue++;
 }
 
-void* s2(filter_seg& seg, void* item) {
+//void* s2(filter_seg& seg, void* item) {
     //printf("In s2\n");
-    return seg(item);
+//    return seg(item);
+//}
+
+void pipeline(void *item, cilk::future<void> *prev, filter_seg& seg,
+              filter_extract& ext, filter_vec& vec, filter_rank& rank, filter_out& out) {
+    item = seg(item);
+    item = ext(item);
+    item = vec(item);
+    item = rank(item);
+    out(prev, item);
 }
 
-void __attribute__((noinline)) s2_helper(cilk::future<void*> *fut, filter_seg& seg, void* item) {
+void __attribute__((noinline)) pipeline_helper(cilk::future<void> *fut, void *item,
+    cilk::future<void> *prev, filter_seg& seg, filter_extract& ext, filter_vec& vec,
+    filter_rank& rank, filter_out& out) {
+
+    FUTURE_HELPER_PREAMBLE;
+
+    pipeline(item, prev, seg, ext, vec, rank, out);
+
+    void *__cilkrts_deque = fut->put();
+    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+
+    FUTURE_HELPER_EPILOGUE;
+}
+
+/*void __attribute__((noinline)) s2_helper(cilk::future<void*> *fut, filter_seg& seg, void* item) {
     FUTURE_HELPER_PREAMBLE;
 
     void *__cilkrts_deque = fut->put(s2(seg, item));
@@ -391,57 +414,58 @@ void __attribute__((noinline)) s2_helper(cilk::future<void*> *fut, filter_seg& s
 
     FUTURE_HELPER_EPILOGUE;
 }
+*/
 
-void* s3(filter_extract& ext, future<void*>* item) {
+//void* s3(filter_extract& ext, future<void*>* item) {
     //printf("In s3\n");
-    return ext(item);
-}
+//    return ext(item);
+//}
 
-void __attribute__((noinline)) s3_helper(cilk::future<void*> *fut, filter_extract& ext, cilk::future<void*>* item) {
-    FUTURE_HELPER_PREAMBLE;
+//void __attribute__((noinline)) s3_helper(cilk::future<void*> *fut, filter_extract& ext, cilk::future<void*>* item) {
+//    FUTURE_HELPER_PREAMBLE;
+//
+//    void *__cilkrts_deque = fut->put(s3(ext, item));
+//    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
+//
+//    FUTURE_HELPER_EPILOGUE;
+//}
 
-    void *__cilkrts_deque = fut->put(s3(ext, item));
-    if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
-
-    FUTURE_HELPER_EPILOGUE;
-}
-
-void* s4(filter_vec& vec, future<void*>* item) {
+//void* s4(filter_vec& vec, future<void*>* item) {
     //printf("In s4\n");
-    return vec(item);
-}
+//    return vec(item);
+//}
 
-void __attribute__((noinline)) s4_helper(cilk::future<void*> *fut, filter_vec& vec, cilk::future<void*>* item) {
+/*void __attribute__((noinline)) s4_helper(cilk::future<void*> *fut, filter_vec& vec, cilk::future<void*>* item) {
     FUTURE_HELPER_PREAMBLE;
 
     void *__cilkrts_deque = fut->put(s4(vec, item));
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
     FUTURE_HELPER_EPILOGUE;
-}
+}*/
 
-void* s5(filter_rank& rank, future<void*>* item) {
+//void* s5(filter_rank& rank, future<void*>* item) {
     //printf("In s5\n");
-    return rank(item);
-}
+//    return rank(item);
+//}
 
-void __attribute__((noinline)) s5_helper(cilk::future<void*> *fut, filter_rank& rank, cilk::future<void*>* item) {
+/*void __attribute__((noinline)) s5_helper(cilk::future<void*> *fut, filter_rank& rank, cilk::future<void*>* item) {
     FUTURE_HELPER_PREAMBLE;
 
     void *__cilkrts_deque = fut->put(s5(rank, item));
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
     FUTURE_HELPER_EPILOGUE;
-}
+}*/
 
-void s6(filter_out& out, future<void>* prev, future<void*>* item) {
+/*void s6(filter_out& out, future<void>* prev, future<void*>* item) {
     //printf("In s6\n");
     out(prev, item);
     //delete prev;
     //delete item;
-}
+}*/
 
-void __attribute__((noinline)) s6_helper(cilk::future<void> *fut, filter_out& out, cilk::future<void>* prev, cilk::future<void*>* item) {
+/*void __attribute__((noinline)) s6_helper(cilk::future<void> *fut, filter_out& out, cilk::future<void>* prev, cilk::future<void*>* item) {
     FUTURE_HELPER_PREAMBLE;
 
     s6(out, prev, item);
@@ -449,7 +473,7 @@ void __attribute__((noinline)) s6_helper(cilk::future<void> *fut, filter_out& ou
     if (__cilkrts_deque) __cilkrts_resume_suspended(__cilkrts_deque, 2);
 
     FUTURE_HELPER_EPILOGUE;
-}
+}*/
 
 static volatile int done = 0;
 
@@ -533,7 +557,7 @@ int my_fancy_wrapper(int argc, char *argv[]) {
     
     for (void *chunk = my_load_filter(NULL); chunk != NULL; chunk = my_load_filter(NULL)) {
 
-        future<void*>* stage2 = new cilk::future<void*>();
+        /*future<void*>* stage2 = new cilk::future<void*>();
         START_FUTURE_SPAWN;
             s2_helper(stage2, my_seg_filter, chunk);
         END_FUTURE_SPAWN;
@@ -558,8 +582,13 @@ int my_fancy_wrapper(int argc, char *argv[]) {
         START_FUTURE_SPAWN;
             s6_helper(stage6, my_out_filter, prev, stage5);
         END_FUTURE_SPAWN;
+        */
+        future<void> *curr = new cilk::future<void>();
+        START_FUTURE_SPAWN;
+          pipeline_helper(curr, chunk, prev, my_seg_filter, my_extract_filter, my_vec_filter, my_rank_filter, my_out_filter);
+        END_FUTURE_SPAWN;
 
-        prev = stage6;
+        prev = curr;
     }
     cilk_future_get(prev);
     delete prev;

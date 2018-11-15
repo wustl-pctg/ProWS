@@ -1,0 +1,179 @@
+Intel(R) Cilk(TM) Plus runtime library
+
+Piper: Experimental Support for Parallel Pipelines
+
+Index:
+1. BUILDING
+2. USING
+3. DOXYGEN DOCUMENTATION
+4. PIPER
+5. QUESTIONS OR BUGS
+6. CONTRIBUTIONS
+
+#
+#  1. BUILDING:
+#
+
+To distribute applications that use the Intel Cilk Plus language
+extensions to non-development systems, you need to build the Intel
+Cilk Plus runtime library and distribute it with your application.
+
+To build the libcilkrts.so runtime library component, you need the
+autoconf and automake packages, which are available through your
+favorite package manager.  You also need a C/C++ compiler that
+supports the Intel Cilk Plus language extensions, since the runtime
+uses Intel Cilk Plus features internally.  Use either the Intel(R)
+C++ Compiler (icc command) v12.1 or later, or the "cilkplus" branch
+in GCC (gcc command).
+
+Once you have the necessary prerequisites installed, you can use the
+following commands to create the library:
+
+% libtoolize
+% aclocal
+% automake --add-missing
+% autoconf
+% ./configure
+% make
+% make install
+
+This will produce the libcilkrts.so shared object.  To install the
+library in a custom location, set the prefix while running the
+configure script:
+
+% ./configure --prefix=/your/path/to/lib
+
+#
+#  2. USING:
+#
+
+The Intel(R) C++ Compiler will automatically try to bring in the
+Intel Cilk Plus runtime in any program that uses the relevant
+features.  GCC requires explicit linking of both the library and
+its dependencies (libpthread, libdl).  For example:
+
+% gcc foo.c -lcilkrts -lpthread -ldl
+
+#
+#  3. DOXYGEN DOCUMENTATION:
+#
+
+The library source has Doxygen markup.  Generate HTML documentation
+based on the markup by changing directory into runtime and running:
+
+% doxygen doxygen.cfg
+
+
+#
+#  4. PIPER
+#
+
+This package contains Piper, an experimental branch of the Intel Cilk
+Plus runtime with library headers and runtime support for pipe-while
+loops.  For additional documentation, see the Piper reference guide,
+available on http://cilkplus.org, in the Experimental Software
+section.
+
+
+The Piper prototype is based on research described in the following
+publication:
+
+    On-the-fly Pipeline Parallelism
+    I-Ting Angelina Lee, Charles E. Leiserson, Tao B. Schardl, 
+       Jim Sukha, and Zhunping Zhang.
+    SPAA '13: Proceedings of the 25th ACM Symposium 
+       on Parallel Algorithms and Architectures.  
+    July 2013
+    http://dx.doi.org/10.1145/2486159.2486174
+
+
+To write programs with parallel pipelines, use the macros defined in
+cilk/piper.h in the program to code a pipe-while loop.  Note that
+these macros require the use of lambdas, which are a C++11 feature.
+
+For example, suppose we want to code a simple 5-stage "SPSPS"
+pipeline, where stages 0, 2, and 4 are serial, but stages 1 and 3 are
+parallel.  One can code this loop using Piper as follows:
+
+    bool done = false;
+    int iter_counter = 0;
+    CILK_PIPE_WHILE_BEGIN(!done) {  // Each iteration starts in Stage 0.
+
+        int i = iter_counter++;
+        done = stage0(i);
+
+        CILK_STAGE(1);      // Advance to Stage 1 (parallel stage)
+        stage1(i);
+ 
+        CILK_STAGE_WAIT(2); // Advance to Stage 2 (serial stage)
+        stage2(i);
+     
+        CILK_STAGE(3);      // Advance to Stage 3 (parallel stage)
+        stage3(i);
+
+        CILK_STAGE_WAIT(4); // Advance to Stage 4 (serial stage)
+        stage4(i);
+
+    } CILK_PIPE_WHILE_END();
+
+
+This example illustrates the key components of a pipe-while loop:
+
+  * The CILK_PIPE_WHILE_BEGIN() and CILK_PIPE_WHILE_END() macros mark
+    the body of a pipe-while loop.
+  * Each iteration of the pipe-while loop is divided into stages,
+    using the CILK_STAGE and CILK_STAGE_WAIT macros.
+  * Each iteration of the pipe-while loop begins executing in stage 0,
+    and stage 0 of an iteration cannot start until stage 0 of the
+    previous iteration has completed.
+  * The macro CILK_STAGE(s) indicates that execution of the current
+    iteration should advance to stage s.
+  * The macro CILK_STAGE_WAIT(s) indicates that execution of the
+    current iteration should advance to stage s, but this stage should
+    execute only after stage s on the previous iteration has
+    completed.
+
+More generally, one can also implement more complex pipelines, with
+the number of stages in an iteration being variable or determined
+dynamically at runtime, with iterations "skipping" over empty stages
+in an iteration, and with the choice using a CILK_STAGE or a
+CILK_STAGE_WAIT statement being made dynamically while the iteration
+executes.
+
+Sample programs using these macros for pipe-while loops are available
+in the examples/piper directory.
+
+#
+#  5. QUESTIONS OR BUGS:
+#
+
+For questions, issues, or bug reports related to the Piper branch of
+Intel Cilk Plus, contact jim.sukha@intel.com or post issues in the
+Intel Cilk Plus forum:
+
+http://software.intel.com/en-us/forums/intel-cilk-plus
+
+
+#
+#  6. CONTRIBUTIONS:
+#
+
+The Intel Cilk Plus runtime library is dual licensed. The upstream copy
+of the library is maintained via the BSD-licensed version available at:
+http://cilkplus.org/
+
+The source for the Piper is also available on Bitbucket, as a branch
+of the existing Intel Cilk Plus runtime.  To checkout this branch:
+
+   git clone https://intelcilkruntime@bitbucket.org/intelcilkruntime/intel-cilk-runtime.git
+   git checkout origin/piper
+
+
+Changes to the Intel Cilk Plus runtime or Piper prototype are welcome
+and should be contributed to the upstream version via
+http://cilkplus.org/.
+
+
+------------------------
+Intel and Cilk are trademarks of Intel Corporation in the U.S. and/or
+other countries.

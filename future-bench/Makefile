@@ -20,7 +20,7 @@ FUTURE_LDFLAGS 	= ../cilkrtssuspend/.libs/libcilkrts.a $(COMMON_LDFLAGS)
 VANILLA_CXXFLAGS = $(COMMON_CXXFLAGS) -I../cilkplus-rts/runtime/config/x86 -I../cilkplus-rts/runtime/sslib -I../cilkplus-rts/include
 VANILLA_LDFLAGS  = ../cilkplus-rts/.libs/libcilkrts.a $(COMMON_LDFLAGS) 
 
-.PHONY = default
+.PHONY: default all clean
 default: all
 
 getoptions.o: getoptions.cpp
@@ -220,9 +220,7 @@ cilksort-future: cilksort-future.cpp ktiming.o getoptions.o
 # Though shalt not cross this line lest thou knowest what thou art doing! #
 ###########################################################################
 
-.PHONY = all
 all: $(TARGETS)
 
-.PHONY = clean
 clean:
 	rm -f *.o $(APPS)

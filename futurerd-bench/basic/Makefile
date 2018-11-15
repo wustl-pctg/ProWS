@@ -61,8 +61,8 @@ TARGETS += sw-fj
 APPS += sw-fj
 
 sw-fj: sw.cpp ktiming.o getoptions.o
-	$(CXX) $(VANILLA_CXXFLAGS) -DNO_FUTURES -c sw.cpp -o sw.o
-	$(CXX) -flto sw.o ../util/ktiming.o ../util/getoptions.o -o sw $(VANILLA_LDFLAGS)
+	$(CXX) $(VANILLA_CXXFLAGS) -DNO_FUTURES -c sw.cpp -o sw-fj.o
+	$(CXX) -flto sw-fj.o ../util/ktiming.o ../util/getoptions.o -o sw-fj $(VANILLA_LDFLAGS)
 
 TARGETS += sw-sf
 APPS += sw-sf

@@ -11,22 +11,52 @@
 #include <string.h>
 #include <time.h>
 #include <chrono>
+
+#ifdef SERIAL_ELISION
+
+#define cilk_for for
+#define __cilkrts_set_param(...)  
+#define SPAWN_START
+#define SPAWN_END
+#define SPAWN_HELPER_PREAMBLE
+#define SPAWN_HELPER_EPILOGUE
+#define SYNC
+#define CILK_FUNC_PREAMBLE
+#define CILK_FUNC_EPILOGUE
+
+#else
+
+#include "internal/abi.h"
+
+#ifndef NO_FUTURES 
+#include <cilk/future.hpp>
+#else
+#include "../../../cilkrtssuspend/include/cilk/handcomp-macros.h"
+#endif
+
+extern "C" {
+void __cilkrts_detach(__cilkrts_stack_frame*);
+void __cilkrts_pop_frame(__cilkrts_stack_frame*);
+}
+
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
+
+#define SPAWN_START \
+  if (!CILK_SETJMP(sf.ctx)) {
+
+#define SPAWN_END \
+  }
+
+#endif
 
 #include "avilib.hpp"
 #include "avimod.hpp"
 #include "define.hpp"
 
 #include "../../util/util.hpp"
-#include <cilk/future.hpp>
 
-#include "internal/abi.h"
 
-extern "C" {
-void __cilkrts_detach(__cilkrts_stack_frame*);
-void __cilkrts_pop_frame(__cilkrts_stack_frame*);
-}
 
 using namespace std;
 
@@ -499,16 +529,18 @@ static void cleanup(public_struct *pub, private_struct *priv) {
 }
 
 void __attribute__((noinline)) for_loop_helper(const public_struct& pub, private_struct* priv) {
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_fast_1(&sf);
-    __cilkrts_detach(&sf);
+    SPAWN_HELPER_PREAMBLE;
+//    __cilkrts_stack_frame sf;
+//    __cilkrts_enter_frame_fast_1(&sf);
+//    __cilkrts_detach(&sf);
 
     cilk_for(int i=0; i<pub.allPoints; i++) {
       compute_kernel(&pub, &(priv[i]));
     }
 
-   __cilkrts_pop_frame(&sf);
-   __cilkrts_leave_frame(&sf);
+    SPAWN_HELPER_EPILOGUE;
+//   __cilkrts_pop_frame(&sf);
+//   __cilkrts_leave_frame(&sf);
 }
 
 //==============================================================================
@@ -588,8 +620,9 @@ int main(int argc, char *argv []) {
 
     auto start = std::chrono::steady_clock::now();
 
-    __cilkrts_stack_frame sf;
-    __cilkrts_enter_frame_1(&sf);
+    CILK_FUNC_PREAMBLE;
+    //__cilkrts_stack_frame sf;
+    //__cilkrts_enter_frame_1(&sf);
 
     for(pub.frame_no=0; pub.frame_no<frames_processed; pub.frame_no++) {
         //====================================================================================================
@@ -606,14 +639,17 @@ int main(int argc, char *argv []) {
         //====================================================================================================
         //	PROCESSING
         //====================================================================================================
-        if (!CILK_SETJMP(sf.ctx)) {
+        SPAWN_START;
+        //if (!CILK_SETJMP(sf.ctx)) {
             for_loop_helper(pub, priv);
-        }
-        if (sf.flags & CILK_FRAME_UNSYNCHED) {
-            if (!CILK_SETJMP(sf.ctx)) {
-                __cilkrts_sync(&sf);
-            }
-        }
+        SPAWN_END;
+        //}
+        SYNC;
+        //if (sf.flags & CILK_FRAME_UNSYNCHED) {
+        //    if (!CILK_SETJMP(sf.ctx)) {
+        //        __cilkrts_sync(&sf);
+        //    }
+        //}
         //for(int i=0; i<pub.allPoints; i++) {
         //  compute_kernel(&pub, &(priv[i]));
         //}
@@ -632,8 +668,9 @@ int main(int argc, char *argv []) {
         fflush(NULL);
     }
 
-    __cilkrts_pop_frame(&sf);
-    __cilkrts_leave_frame(&sf);
+    CILK_FUNC_EPILOGUE;
+    //__cilkrts_pop_frame(&sf);
+    //__cilkrts_leave_frame(&sf);
 
     //=====================
     //	PRINT FRAME PROGRESS END

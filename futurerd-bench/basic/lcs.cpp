@@ -30,11 +30,6 @@
 #define TIMES_TO_RUN 10
 #endif
 
-//#undef STRUCTURED_FUTURES
-//#undef NONBLOCKING_FUTURES
-//#define NO_FUTURES
-//#define NONBLOCKING_FUTURES 1
-
 static int base_case_log;
 #define MIN_BASE_CASE 32
 #define NUM_BLOCKS(n) (n >> base_case_log)

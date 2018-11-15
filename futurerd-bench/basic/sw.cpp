@@ -21,16 +21,11 @@
 #include "../util/ktiming.h"
 #include "../util/util.hpp"
 
-//#ifndef TIMES_TO_RUN
-#define TIMES_TO_RUN 1
-//#endif
+#ifndef TIMES_TO_RUN
+#define TIMES_TO_RUN 10
+#endif
 
 #define SIZE_OF_ALPHABETS 4
-
-//#undef STRUCTURED_FUTURES
-//#undef NONBLOCKING_FUTURES
-//#define NO_FUTURES
-//#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -265,33 +260,75 @@ void __attribute__((noinline)) process_sw_tile_with_get_helper(cilk::future<void
   FUTURE_HELPER_EPILOGUE;
 }
 
-typedef struct wave_sw_context_t {
-  int nBlocks;
-  cilk::future<void> *farray;
-  int *stor;
-  char *a;
-  char *b;
-  int n;
-} wave_sw_context_t;
+//typedef struct wave_sw_context_t {
+//  int nBlocks;
+//  cilk::future<void> *farray;
+//  int *stor;
+//  char *a;
+//  char *b;
+//  int n;
+//} wave_sw_context_t;
 
-void wave_sw_with_futures_loop_body(void *context, uint32_t start, uint32_t end) {
+//void wave_sw_with_futures_loop_body(void *context, uint32_t start, uint32_t end) {
+//  CILK_FUNC_PREAMBLE;
+//
+//  wave_sw_context_t *ctx = (wave_sw_context_t*)context;
+//
+//  for (int i = start; i < end; i++) {
+//    int iB = i / ctx->nBlocks; // row block index 
+//    int jB = i % ctx->nBlocks; // col block index
+//    START_FIRST_FUTURE_SPAWN;
+//        process_sw_tile_with_get_helper(&ctx->farray[i], ctx->farray, ctx->stor, ctx->a, ctx->b, ctx->n, iB, jB);
+//    END_FUTURE_SPAWN;
+//  }
+//
+//  CILK_FUNC_EPILOGUE;
+//}
+
+static void __attribute__((noinline)) launch_sw_gf(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<void>* farray, int loc) {
   CILK_FUNC_PREAMBLE;
+  
+  int iB = loc / nBlocks;
+  int jB = loc % nBlocks;
 
-  wave_sw_context_t *ctx = (wave_sw_context_t*)context;
-
-  for (int i = start; i < end; i++) {
-    int iB = i / ctx->nBlocks; // row block index 
-    int jB = i % ctx->nBlocks; // col block index
-    START_FIRST_FUTURE_SPAWN;
-        process_sw_tile_with_get_helper(&ctx->farray[i], ctx->farray, ctx->stor, ctx->a, ctx->b, ctx->n, iB, jB);
-    END_FUTURE_SPAWN;
-  }
+  START_FIRST_FUTURE_SPAWN;
+      process_sw_tile_with_get_helper(&farray[loc], farray, stor, a, b, n, iB, jB);
+  END_FUTURE_SPAWN;
 
   CILK_FUNC_EPILOGUE;
 }
 
-static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
+static void recursive_wave_sw_with_futures(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<void>* farray, int start, int end);
+
+static void __attribute__((noinline)) recursive_wave_sw_with_futures_helper(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<void>* farray, int start, int end) {
+    SPAWN_HELPER_PREAMBLE;
+
+    recursive_wave_sw_with_futures(stor, a, b, n, nBlocks, farray, start, end);
+
+    SPAWN_HELPER_EPILOGUE;
+}
+
+static void __attribute__((noinline)) recursive_wave_sw_with_futures(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<void>* farray, int start, int end) {
   CILK_FUNC_PREAMBLE;
+
+  int count = end - start;
+  int mid;
+
+  while (count > 1) {
+    mid = start + count/2;
+    //cilk_spawn recursive_wave_sw_with_futures(stor, a, b, n, nBlocks, farray, start, mid);
+    if (!CILK_SETJMP(sf.ctx)) {
+      recursive_wave_sw_with_futures_helper(stor, a, b, n, nBlocks, farray, start, mid);
+    }
+    start = mid;
+    count = end - start;
+  }
+
+  launch_sw_gf(stor, a, b, n, nBlocks, farray, start);
+  CILK_FUNC_EPILOGUE;
+}
+
+static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
 
   int nBlocks = NUM_BLOCKS(n);
   int blocks = nBlocks * nBlocks;
@@ -300,15 +337,16 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   //  malloc(sizeof(cilk::future<void>) * blocks);
   cilk::future<void>* farray = new cilk::future<void>[blocks];
 
-  wave_sw_context_t ctx = {
-    .nBlocks = nBlocks,
-    .farray = farray,
-    .stor = stor,
-    .a = a,
-    .b = b,
-    .n = n
-  };
-  __cilkrts_cilk_for_32(wave_sw_with_futures_loop_body, &ctx, blocks, 0);
+  //wave_sw_context_t ctx = {
+  //  .nBlocks = nBlocks,
+  //  .farray = farray,
+  //  .stor = stor,
+  //  .a = a,
+  //  .b = b,
+  //  .n = n
+  //};
+  //__cilkrts_cilk_for_32(wave_sw_with_futures_loop_body, &ctx, blocks, 0);
+  recursive_wave_sw_with_futures(stor, a, b, n, nBlocks, farray, 0, blocks);
   
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
@@ -316,8 +354,6 @@ static int wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   //free(farray);
   delete [] farray;
     
-  CILK_FUNC_EPILOGUE;
-
   return stor[n*(n-1) + n-1];
 }
 #endif

@@ -1,12 +1,18 @@
 #include <assert.h> 
 #include <math.h> 
-#include <cilk/future.hpp>
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h>
 
 #include "define.hpp"
 
+#ifndef SERIAL_ELISION
+#ifdef NO_FUTURES
+  #include "../../../cilkrtssuspend/include/cilk/handcomp-macros.h"
+#else
+  #include <cilk/future.hpp>
+#endif
+#include <cilk/cilk.h>
+#include <cilk/cilk_api.h>
 #include "internal/abi.h"
+#endif
 
 //#undef STRUCTURED_FUTURES
 //#define NO_FUTURES
@@ -23,7 +29,7 @@ void __attribute__((constructor)) print_type() {
     #ifdef NONBLOCKING_FUTURES
         printf("Using unstructured futures\n");
     #endif
-    #ifdef NO_FUTURED
+    #ifdef NO_FUTURES
         printf("Using spawn (no futures)\n");
     #endif
 }

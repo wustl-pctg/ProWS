@@ -1,54 +1,86 @@
-THIS_FILE := $(lastword $(MAKEFILE_LIST))
-include ../bench.mk
+# This MUST be before any includes
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+mkfile_dir := $(patsubst %/,%,$(dir $(mkfile_path)))
 
-BENCH = lcs sw sw-se lcs-se 
-ALLTARGETS = $(BENCH:=-rd) $(BENCH:=-inst) $(BENCH:=-reach) $(BENCH:=-base)
-TARGETS = $(BENCH)
+include ../../common.mk
 
-ifeq ($(btype),inst)
-  INST = yes
-endif
-ifeq ($(btype),rd)
-  INST = yes
-endif
-ifeq ($(INST),yes)
-  GETOPT = ../util/getoptions-inst.o
-else
-  GETOPT = ../util/getoptions.o
-endif
+COMMON_CXXFLAGS = -DTIMES_TO_RUN=10 -DTIMING_COUNT=10 -O3 -flto -g -fcilkplus -fno-omit-frame-pointer -fcilk-no-inline -I../../src -I../../llvm-cilk/include -std=c++11 -Wall
+COMMON_LDFLAGS  = -L$(mkfile_dir)/../../SuperMalloc/release/lib -lsupermalloc -lrt -ldl -lpthread -lnuma -lpthread -lm -lrt
 
-.PHONY: all clean reallyclean $(BENCH) $(BENCH:=-all)
+FUTURE_CXXFLAGS = $(COMMON_CXXFLAGS) -I../../cilkrtssuspend/runtime/config/x86 -I../../cilkrtssuspend/runtime/sslib -I../../cilkrtssuspend/include
+FUTURE_LDFLAGS 	= ../../cilkrtssuspend/.libs/libcilkrts.a $(COMMON_LDFLAGS) 
+
+VANILLA_CXXFLAGS = $(COMMON_CXXFLAGS) -I../../cilkplus-rts/runtime/config/x86 -I../../cilkplus-rts/runtime/sslib -I../../cilkplus-rts/include
+VANILLA_LDFLAGS  = ../../cilkplus-rts/.libs/libcilkrts.a $(COMMON_LDFLAGS) 
+
+.PHONY = default
+default: all
+
+getoptions.o: ../util/getoptions.cpp
+	$(CXX) $(FUTURE_CXXFLAGS) -c ../util/getoptions.cpp -o ../util/getoptions.o
+
+ktiming.o: ../util/ktiming.cpp
+	$(CXX) -O3 -c ../util/ktiming.cpp -o ../util/ktiming.o
+
+TARGETS = lcs-se
+APPS = lcs-se
+
+lcs-se: lcs-se.cpp ktiming.o getoptions.o
+	$(CXX) $(COMMON_CXXFLAGS) -c lcs-se.cpp -o lcs-se.o
+	$(CXX) -flto lcs-se.o ../util/ktiming.o ../util/getoptions.o -o lcs-se $(COMMON_LDFLAGS)
+
+TARGETS += lcs-fj
+APPS += lcs-fj
+
+lcs-fj: lcs.cpp ktiming.o getoptions.o
+	$(CXX) $(VANILLA_CXXFLAGS) -DNO_FUTURES -c lcs.cpp -o lcs-fj.o
+	$(CXX) -flto lcs-fj.o ../util/ktiming.o ../util/getoptions.o -o lcs-fj $(VANILLA_LDFLAGS)
+
+TARGETS += lcs-sf
+APPS += lcs-sf
+
+lcs-sf: lcs.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -DSTRUCTURED_FUTURES -c lcs.cpp -o lcs-sf.o
+	$(CXX) -flto lcs-sf.o ../util/ktiming.o ../util/getoptions.o -o lcs-sf $(FUTURE_LDFLAGS)
+
+TARGETS += lcs-gf
+APPS += lcs-gf
+
+lcs-gf: lcs.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -DNONBLOCKING_FUTURES -c lcs.cpp -o lcs-gf.o
+	$(CXX) -flto lcs-gf.o ../util/ktiming.o ../util/getoptions.o -o lcs-gf $(FUTURE_LDFLAGS)
+
+TARGETS += sw-se
+APPS += sw-se
+
+sw-se: sw-se.cpp ktiming.o getoptions.o
+	$(CXX) $(COMMON_CXXFLAGS) -c sw-se.cpp -o sw-se.o
+	$(CXX) -flto sw-se.o ../util/ktiming.o ../util/getoptions.o -o sw-se $(COMMON_LDFLAGS)
+
+TARGETS += sw-fj
+APPS += sw-fj
+
+sw-fj: sw.cpp ktiming.o getoptions.o
+	$(CXX) $(VANILLA_CXXFLAGS) -DNO_FUTURES -c sw.cpp -o sw.o
+	$(CXX) -flto sw.o ../util/ktiming.o ../util/getoptions.o -o sw $(VANILLA_LDFLAGS)
+
+TARGETS += sw-sf
+APPS += sw-sf
+
+sw-sf: sw.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -DSTRUCTURED_FUTURES -c sw.cpp -o sw-sf.o
+	$(CXX) -flto sw-sf.o ../util/ktiming.o ../util/getoptions.o -o sw-sf $(FUTURE_LDFLAGS)
+
+TARGETS += sw-gf
+APPS += sw-gf
+
+sw-gf: sw.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -DNONBLOCKING_FUTURES -c sw.cpp -o sw-gf.o
+	$(CXX) -flto sw-gf.o ../util/ktiming.o ../util/getoptions.o -o sw-gf $(FUTURE_LDFLAGS)
+
+.PHONY=all
 all: $(TARGETS)
 
-.SECONDEXPANSION:
-$(BENCH:=-serial): $$@.o ../util/getoptions.o ../util/ktiming.o
-	$(CXX) $^ $(LDFLAGS) -o $@
-
-$(BENCH:=-all):
-	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=rd $(@:-all=)
-	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=inst $(@:-all=)
-	#$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=reach $(@:-all=)
-	$(MAKE) mode=$(mode) rdalg=$(rdalg) ftype=$(ftype) btype=base $(@:-all=)
-
-INC += -I../util
-CFLAGS += $(APPFLAGS) $(INC)
-CXXFLAGS += $(APPFLAGS) $(INC) -std=c++11
-LDFLAGS += -flto $(RTS_LIB) -lnuma
-
-.SECONDEXPANSION:
-$(BENCH): $$@.o
-	$(CXX) $^ ../util/ktiming.o $(GETOPT) $(LDFLAGS) -o $@
-
-$(ALLTARGETS): $$@.o ../util/ktiming.o $(GETOPT) | $(RDLIB)
-	$(CXX) $^ $(LDFLAGS) -o $@
-
-ifeq ($(btype),all)
+.PHONY=clean
 clean:
-	rm -rf core.* $(ALLTARGETS) $(ALLTARGETS:=.o)
-else
-clean:
-	rm -f core.* $(TARGETS) $(TARGETS:=.o)
-endif
-
-reallyclean:
-	rm -f *.o ../util/*.o core.* $(ALLTARGETS)
+	rm -f *.o $(APPS)

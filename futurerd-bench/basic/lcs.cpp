@@ -3,10 +3,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <chrono>
+
 #include <cmath>
 
 #if !SERIAL
-#include <cilk/future.hpp>
+#ifndef NO_FUTURES
+  #include <cilk/future.hpp>
+#endif
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
@@ -465,7 +468,7 @@ int main(int argc, char *argv[]) {
 
 #if SERIAL
   printf("Performing LCS serially.\n");
-#elif NONBLOCKING_FUTURES
+#elif defined(NONBLOCKING_FUTURES)
   printf("Performing LCS with non-structured futures and %d x %d base case.\n",
          bSize, bSize);
 #elif defined(STRUCTURED_FUTURES) // STRUCTURED_FUTURES

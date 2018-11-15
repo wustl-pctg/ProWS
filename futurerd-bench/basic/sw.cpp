@@ -7,7 +7,11 @@
 #include <cmath>
 
 #if !SERIAL
-#include <cilk/future.hpp>
+
+#ifndef NO_FUTURES
+  #include <cilk/future.hpp>
+#endif
+
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
@@ -17,16 +21,16 @@
 #include "../util/ktiming.h"
 #include "../util/util.hpp"
 
-#ifndef TIMES_TO_RUN
+//#ifndef TIMES_TO_RUN
 #define TIMES_TO_RUN 1
-#endif
+//#endif
 
 #define SIZE_OF_ALPHABETS 4
 
-#undef STRUCTURED_FUTURES
-#undef NONBLOCKING_FUTURES
+//#undef STRUCTURED_FUTURES
+//#undef NONBLOCKING_FUTURES
 //#define NO_FUTURES
-#define NONBLOCKING_FUTURES 1
+//#define NONBLOCKING_FUTURES 1
 
 static int base_case_log;
 #define MIN_BASE_CASE 32
@@ -72,7 +76,7 @@ static int simple_seq_sw(int* stor, char *a, char *b, int n) {
   return stor[(n-1)*n + (n-1)];
 }
 
-static inline int 
+static int 
 process_sw_tile(int *stor, char *a, char *b, int n, int iB, int jB) {
 
   int bSize = 1 << base_case_log;
@@ -105,27 +109,54 @@ process_sw_tile(int *stor, char *a, char *b, int n, int iB, int jB) {
 
 #ifdef NO_FUTURES
 
+void recursive_process_sw_tiles(int *stor, char *a, char *b, int n, int ibase, int start, int end) {
+  //if (start <= end) {
+  //  if (start == end) {
+  //    int iB = ibase - start;
+  //    process_sw_tile(stor, a, b, n, iB, start);
+  //  }
+  //} else {
+
+  //  cilk_spawn recursive_process_sw_tiles(stor, a, b, n, ibase, start, ((start+end)/2));
+  //  recursive_process_sw_tiles(stor, a, b, n, ibase, (start+end)/2, end);
+
+  //}
+  int count = end - start;
+  int mid;
+  while (count > 1) {
+    mid = start + count/2;
+    cilk_spawn recursive_process_sw_tiles(stor, a, b, n, ibase, start, mid);
+    start = mid;
+    count = end - start;
+  }
+  int iB = ibase - start;
+  process_sw_tile(stor, a, b, n, iB, start);
+}
+
 int __attribute__((noinline)) wave_sw_with_futures(int *stor, char *a, char *b, int n) {
   int nBlocks = NUM_BLOCKS(n);
 
-  // walk the upper half of triangle, including the diagonal (we assume square NxN LCS) 
+  // walk the upper half of triangle, including the diagonal (we assume square NxN SW) 
   for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
-    #pragma cilk grainsize = 1
-    cilk_for(int jB = 0; jB <= wave_front; jB++) {
-      int iB = wave_front - jB;
-      process_sw_tile(stor, a, b, n, iB, jB);
-    }
+    //#pragma cilk grainsize = 1
+    //for(int jB = 0; jB <= wave_front; jB++) {
+    //  int iB = wave_front - jB;
+    //  cilk_spawn process_sw_tile(stor, a, b, n, iB, jB);
+    //}
+    recursive_process_sw_tiles(stor, a, b, n, wave_front, 0, wave_front+1);
+    //cilk_sync;
   }
 
   // walk the lower half of triangle 
   for(int wave_front = 1; wave_front < nBlocks; wave_front++) {
     int iBase = nBlocks + wave_front - 1;
-    #pragma cilk grainsize = 1
-    cilk_for(int jB = wave_front; jB < nBlocks; jB++) {
-      int iB = iBase - jB;
-
-      process_sw_tile(stor, a, b, n, iB, jB);
-    }
+    //#pragma cilk grainsize = 1
+    //for(int jB = wave_front; jB < nBlocks; jB++) {
+    //  int iB = iBase - jB;
+    //  cilk_spawn process_sw_tile(stor, a, b, n, iB, jB);
+    //}
+    //cilk_sync;
+    recursive_process_sw_tiles(stor, a, b, n, iBase, wave_front, nBlocks);
   }
 
   return stor[n*(n-1) + n-1];

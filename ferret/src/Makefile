@@ -38,7 +38,7 @@ OBJDIR = $(ROOT)/build/obj
 # calls Make.  So CFLAGS gets updated twice.
 #
 # WHY was the code structured this way to begin with??
-PIPER_FLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR)
+PIPER_FLAGS=-flto -DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR)
 BASIC_CPPFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer -std=c++11 -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -I$(INCDIR) -I$(RTS_INCLUDE) -flto
 BASIC_CFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -fcilkplus -fno-omit-frame-pointer  -D__CILKRTS_ABI_VERSION=1 -fcilk-no-inline -fno-strict-aliasing -I$(INCDIR) -flto
 BASIC_GCCFLAGS=-DPRECOMPUTE_PEDIGREES=1 -g -O3 -std=gnu99 -fno-omit-frame-pointer -flto
@@ -194,7 +194,7 @@ $(BINDIR)/ferret-piper: $(OBJDIR)/ferret-piper.o $(LIBDIR)/libcass.a $(LIBDIR)/l
 #omrd.o instrumentation.o piper_rd.o mem_access.o
 	@echo "   'icpc $(CFLAGS) $(LDFLAGS) $(LDLIBS) $<' ==> '$@'"
 	#@icpc $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
-	$(PIPER_CXX) $^ $(RTS_STATIC_LIB) $(PIPER_LDLIBS) $(LDFLAGS) $(LDLIBS) -o $@
+	$(PIPER_CXX) -flto $^ $(RTS_STATIC_LIB) $(PIPER_LDLIBS) $(LDFLAGS) $(LDLIBS) -o $@
 
 $(BINDIR)/ferret-cilk-future: $(OBJDIR)/ferret-cilk-future.o $(LIBDIR)/libcass.a $(LIBDIR)/libcassimage.a
 	echo "Hello moto!"

@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+if [[ $(grep docker /proc/1/cgroup) == "" ]]; then
+  echo "Must run this script in the repo's docker container!"
+  echo "Please: 1) install the docker container system,"
+  echo "        2) install our docker image by running './build_docker.sh',"
+  echo "        3) start the docker container by running './start_docker.sh'"
+  exit
+fi
+
 BASE_DIR=$(pwd)
 rm -f setup.log
 

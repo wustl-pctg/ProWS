@@ -35,6 +35,8 @@ autoreconf -i
 ./remake.sh opt lto
 cd -
 
+./piper-setup.sh
+
 # # Build the runtime (ability to suspend/resume deques)
 cd ./cilkrtssuspend
 libtoolize

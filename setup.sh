@@ -61,3 +61,17 @@ cd ferret
 wget www.cse.wustl.edu/~utterbackr/ferret-data.tar.gz
 tar -vxzf ferret-data.tar.gz data
 rm ferret-data.tar.gz
+
+# Now build all of the benchmarks (starting with ferret)
+cd src/
+make piper
+make cilk-future
+cd ../..
+cd future-bench
+make all
+cd ../futurerd-bench/basic
+make all
+cd ../heartWallTracking/cilk-futures
+make all
+cd ../../bintree
+make all

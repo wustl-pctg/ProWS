@@ -172,27 +172,44 @@ static int process_lcs_tile(int *stor, char *a, char *b, int n, int iB, int jB) 
 
 #ifdef NO_FUTURES
 
+void recursive_process_lcs_tiles(int *stor, char *a, char *b, int n, int ibase, int start, int end) {
+    
+    int count = end - start;
+    int mid;
+
+    while (count > 1) {
+      mid = start + count/2;
+      cilk_spawn recursive_process_lcs_tiles(stor, a, b, n, ibase, start, mid);
+      start = mid;
+      count = end - start;
+    }
+
+    int iB = ibase - start;
+    process_lcs_tile(stor, a, b, n, iB, start);
+}
 
 int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
   int nBlocks = NUM_BLOCKS(n);
   
   // walk the upper half of triangle, including the diagonal (we assume square NxN LCS)
   for(int wave_front = 0; wave_front < nBlocks; wave_front++) {
-    #pragma cilk grainsize = 1
-    cilk_for(int jB = 0; jB <= wave_front; jB++) {
-      int iB = wave_front - jB;
-      process_lcs_tile(stor, a, b, n, iB, jB);
-    }
+    //#pragma cilk grainsize = 1
+    //cilk_for(int jB = 0; jB <= wave_front; jB++) {
+    //  int iB = wave_front - jB;
+    //  process_lcs_tile(stor, a, b, n, iB, jB);
+    //}
+    recursive_process_lcs_tiles(stor, a, b, n, wave_front, 0, wave_front+1);
   }
 
   // walk the lower half of triangle
   for(int wave_front = 1; wave_front < nBlocks; wave_front++) {
     int iBase = nBlocks + wave_front - 1;
-    #pragma cilk grainsize = 1
-    cilk_for(int jB = wave_front; jB < nBlocks; jB++) {
-      int iB = iBase - jB;
-      process_lcs_tile(stor, a, b, n, iB, jB);
-    }
+    recursive_process_lcs_tiles(stor, a, b, n, iBase, wave_front, nBlocks);
+    //#pragma cilk grainsize = 1
+    //cilk_for(int jB = wave_front; jB < nBlocks; jB++) {
+    //  int iB = iBase - jB;
+    //  process_lcs_tile(stor, a, b, n, iB, jB);
+    //}
   }
 
   return stor[n*(n-1) + n-1];
@@ -302,7 +319,7 @@ void __attribute__((noinline)) process_lcs_tile_with_get_helper(cilk::future<int
   FUTURE_HELPER_EPILOGUE;
 }
 
-typedef struct wave_lcs_loop_context_t {
+/*typedef struct wave_lcs_loop_context_t {
   int nBlocks;
   cilk::future<int> *farray;
   int *stor;
@@ -344,9 +361,54 @@ void __attribute__((noinline)) wave_lcs_loop_body(void* context, uint32_t start,
   CILK_FUNC_EPILOGUE;
 }
 
+
 extern "C" {
   void __cilkrts_cilk_for_32(void (*body) (void *, uint32_t, uint32_t),
       void *context, uint32_t count, int grain);
+}
+*/
+
+static void __attribute__((noinline)) launch_lcs_gf(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<int>* farray, int loc) {
+  CILK_FUNC_PREAMBLE;
+  
+  int iB = loc / nBlocks;
+  int jB = loc % nBlocks;
+
+  START_FIRST_FUTURE_SPAWN;
+      process_lcs_tile_with_get_helper(&farray[loc], farray, stor, a, b, n, iB, jB);
+  END_FUTURE_SPAWN;
+
+  CILK_FUNC_EPILOGUE;
+}
+
+static void recursive_wave_lcs_with_futures(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<int>* farray, int start, int end);
+
+static void __attribute__((noinline)) recursive_wave_lcs_with_futures_helper(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<int>* farray, int start, int end) {
+    SPAWN_HELPER_PREAMBLE;
+
+    recursive_wave_lcs_with_futures(stor, a, b, n, nBlocks, farray, start, end);
+
+    SPAWN_HELPER_EPILOGUE;
+}
+
+static void recursive_wave_lcs_with_futures(int *stor, char *a, char *b, int n, int nBlocks, cilk::future<int>* farray, int start, int end) {
+  CILK_FUNC_PREAMBLE;
+
+  int count = end - start;
+  int mid;
+
+  while (count > 1) {
+    mid = start + count/2;
+    //cilk_spawn recursive_wave_sw_with_futures(stor, a, b, n, nBlocks, farray, start, mid);
+    if (!CILK_SETJMP(sf.ctx)) {
+      recursive_wave_lcs_with_futures_helper(stor, a, b, n, nBlocks, farray, start, mid);
+    }
+    start = mid;
+    count = end - start;
+  }
+
+  launch_lcs_gf(stor, a, b, n, nBlocks, farray, start);
+  CILK_FUNC_EPILOGUE;
 }
 
 int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b, int n) {
@@ -360,7 +422,7 @@ int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b,
   //  malloc(sizeof(cilk::future<int>) * blocks);
   cilk::future<int> *farray = new cilk::future<int>[blocks];
 
-  wave_lcs_loop_context_t ctx = {
+  /*wave_lcs_loop_context_t ctx = {
     .nBlocks = nBlocks,
     .farray = farray,
     .stor = stor,
@@ -369,6 +431,8 @@ int __attribute__((noinline)) wave_lcs_with_futures(int *stor, char *a, char *b,
     .n = n,
   };
   __cilkrts_cilk_for_32(wave_lcs_loop_body, &ctx, blocks, 0);
+  */
+  recursive_wave_lcs_with_futures(stor, a, b, n, nBlocks, farray, 0, blocks);
 
   // make sure the last square finishes before we move onto returning
   farray[blocks-1].get();
@@ -415,7 +479,7 @@ const char* specifiers[] = {"-n", "-c", "-h", "-b"};
 int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG};
 
 int main(int argc, char *argv[]) {
-//#if REACH_MAINT && (!RACE_DETECT)
+//#if REACH_MAint && (!RACE_DETECT)
 //  futurerd_disable_shadowing();
 //#endif
 

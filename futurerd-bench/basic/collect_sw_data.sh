@@ -1,7 +1,7 @@
 #!/bin/sh
 
-INPUT_SIZE=4096
-BASE_CASE=64
+INPUT_SIZE=2048
+BASE_CASE=32
 
 echo "16" | tee sw-sf_result.txt sw-gf_result.txt sw-fj_result.txt
 taskset -c 0-15 ./sw-sf -n $INPUT_SIZE -b $BASE_CASE | tee -a sw-sf_result.txt

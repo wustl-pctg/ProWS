@@ -57,7 +57,7 @@ repository.
 
 The script _start-docker.sh_ will start the Docker container and set up
 the Docker container environment. It is strongly recommended that you use
-this script to start the Docker container.
+this script whenever you start the Docker container.
 
 The script _setup.sh_ should build the modified compiler, the SuperMalloc
 library, all required Cilk Plus runtimes, and all benchmarks.

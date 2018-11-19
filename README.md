@@ -67,8 +67,9 @@ It is specifically set up to enforce use of the Docker container.
 
 It is recommended that the benchmarks are run within the provided Docker
 container. When the Docker container is started with the _start-docker.sh_
-script, the _SuperMalloc_ library is added to the LD\_LIBRARY\_PATH to allow
-the linker to locate it when the benchmarks are loaded for execution.
+script, the location of the _SuperMalloc_ library is added to the
+LD\_LIBRARY\_PATH to allow the linker to locate it when the benchmarks are
+loaded for execution.
 
 TODO: Add information about how to run all the benchmarks using Justin's scripts.
 

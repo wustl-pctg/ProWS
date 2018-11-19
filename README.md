@@ -49,7 +49,10 @@ looking at the included _Dockerfile_.
 
 ## Installation
 
-Before installation, make sure to install the Docker container system.
+Before installation, make sure to install the Docker container system. Docker
+can be obtained either through your operating systems package manager or by
+downloading from the Docker website
+[here](https://store.docker.com/search?type=edition&offering=community&operating_system=linux).
 
 The script _build-docker.sh_ will build the Docker container that has
 all the libraries needed to build and run any code contained in this

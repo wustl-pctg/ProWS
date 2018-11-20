@@ -43,12 +43,12 @@ fib: ktiming.o
 	$(CXX) $(VANILLA_CXXFLAGS) -c fib_cilkplus.cpp -o fib.o
 	$(CXX) -flto fib.o ktiming.o -o fib $(VANILLA_LDFLAGS)
 
-TARGETS += fib-handcomp
-APPS += fib-handcomp
+TARGETS += fib-fj
+APPS += fib-fj
 
-fib-handcomp: ktiming.o
-	$(CXX) $(VANILLA_CXXFLAGS) -c fib_cilkplus-handcomp.cpp -o fib-handcomp.o
-	$(CXX) -flto fib-handcomp.o ktiming.o -o fib-handcomp $(VANILLA_LDFLAGS)
+fib-fj: ktiming.o
+	$(CXX) $(VANILLA_CXXFLAGS) -c fib_cilkplus-handcomp.cpp -o fib-fj.o
+	$(CXX) -flto fib-fj.o ktiming.o -o fib-fj $(VANILLA_LDFLAGS)
 
 TARGETS += fib-future-macro
 APPS += fib-future-macro
@@ -57,19 +57,19 @@ fib-future-macro: ktiming.o
 	$(CXX) $(FUTURE_CXXFLAGS) -c fib_cilkfut.cpp -o fib-future-macro.o
 	$(CXX) -flto fib-future-macro.o ktiming.o -o fib-future-macro $(FUTURE_LDFLAGS)
 
-TARGETS += fib-future
-APPS += fib-future
+TARGETS += fib-sf
+APPS += fib-sf
 
-fib-future: ktiming.o
-	$(CXX) $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o fib-future.o
-	$(CXX) -flto fib-future.o ktiming.o -o fib-future $(FUTURE_LDFLAGS)
+fib-sf: ktiming.o
+	$(CXX) $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o fib-sf.o
+	$(CXX) -flto fib-sf.o ktiming.o -o fib-sf $(FUTURE_LDFLAGS)
 
-APPS += fib-future-nofibers
-TARGETS += fib-future-nofibers
+APPS += fib-sf-stack
+TARGETS += fib-sf-stack
 
-fib-future-nofibers: ktiming.o
-	$(CXX) $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o fib-future-nofibers.o
-	$(CXX) -flto fib-future-nofibers.o ktiming.o -o fib-future-nofibers $(FUTURE_LDFLAGS)
+fib-sf-stack: ktiming.o
+	$(CXX) $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o fib-sf-stack.o
+	$(CXX) -flto fib-sf-stack.o ktiming.o -o fib-sf-stack $(FUTURE_LDFLAGS)
 
 TARGETS += fib-interop-tests
 APPS += handcomp_fib_cilkfut_spawn-after-sync-after handcomp_fib_cilkfut_spawn-after-sync-before handcomp_fib_cilkfut_spawn-before-sync-after handcomp_fib_cilkfut_spawn-before-sync-before handcomp_fib_cilkfut_future-interop  handcomp_fib_cilkfut_nofibers
@@ -101,12 +101,12 @@ run-tests:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./fib-future 40
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./fib-future 40
 
-TARGETS += strass-se
-APPS += strassen-se
+TARGETS += smm-se
+APPS += smm-se
 
-strass-se: ktiming.o getoptions.o strassen.cpp
-	$(CXX) $(FUTURE_CXXFLAGS) -c strassen-se.cpp -o strassen-se.o
-	$(CXX) -flto strassen-se.o getoptions.o ktiming.o -o strassen-se $(FUTURE_LDFLAGS)
+smm-se: ktiming.o getoptions.o strassen.cpp
+	$(CXX) $(FUTURE_CXXFLAGS) -c strassen-se.cpp -o smm-se.o
+	$(CXX) -flto smm-se.o getoptions.o ktiming.o -o smm-se $(FUTURE_LDFLAGS)
 
 TARGETS += strass
 APPS += strassen
@@ -119,19 +119,19 @@ strass: ktiming.o getoptions.o strassen.cpp
 run-strass:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen -n 1024 -c
 
-TARGETS += strass-handcomp
-APPS += strassen-handcomp
+TARGETS += smm-fj
+APPS += smm-fj
 
-strass-handcomp: ktiming.o getoptions.o strassen.cpp
-	$(CXX) $(VANILLA_CXXFLAGS) -c strassen-handcomp.cpp -o strassen-handcomp.o
-	$(CXX) -flto strassen-handcomp.o getoptions.o ktiming.o -o strassen-handcomp $(VANILLA_LDFLAGS)
+smm-fj: ktiming.o getoptions.o strassen.cpp
+	$(CXX) $(VANILLA_CXXFLAGS) -c strassen-handcomp.cpp -o smm-fj.o
+	$(CXX) -flto smm-fj.o getoptions.o ktiming.o -o smm-fj $(VANILLA_LDFLAGS)
 
-TARGETS += strass-fut
-APPS += strassen-future
+TARGETS += smm-sf
+APPS += smm-sf
     
-strass-fut: ktiming.o getoptions.o strassen-future.cpp
-	$(CXX) $(FUTURE_CXXFLAGS) -c strassen-future.cpp -o strassen-future.o
-	$(CXX) -flto strassen-future.o getoptions.o ktiming.o -o strassen-future $(FUTURE_LDFLAGS)
+smm-sf: ktiming.o getoptions.o strassen-future.cpp
+	$(CXX) $(FUTURE_CXXFLAGS) -c strassen-future.cpp -o smm-sf.o
+	$(CXX) -flto smm-sf.o getoptions.o ktiming.o -o smm-sf $(FUTURE_LDFLAGS)
 	#make run-strass-fut
 
 run-strass-fut:
@@ -148,12 +148,12 @@ strass-fut-nofibers: ktiming.o getoptions.o strassen-future-nofibers.cpp
 run-strass-fut-nofibers:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./strassen-future-nofibers -n 1024 -c
 
-TARGETS += matmul-se
-APPS += matmul-se
+TARGETS += mm-se
+APPS += mm-se
 
-matmul-se: matmul-se.cpp ktiming.o getoptions.o
-	$(CXX) $(FUTURE_CXXFLAGS) -c matmul-se.cpp -o matmul-se.o
-	$(CXX) -flto matmul-se.o getoptions.o ktiming.o -o matmul-se $(FUTURE_LDFLAGS)
+mm-se: matmul-se.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -c matmul-se.cpp -o mm-se.o
+	$(CXX) -flto mm-se.o getoptions.o ktiming.o -o mm-se $(FUTURE_LDFLAGS)
 
 TARGETS += matmul
 APPS += matmul
@@ -166,34 +166,34 @@ matmul: matmul.cpp ktiming.o getoptions.o
 run-matmul:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul -n 1024 -c
 
-TARGETS += matmul-handcomp
-APPS += matmul-handcomp
+TARGETS += mm-fj
+APPS += mm-fj
 
-matmul-handcomp: matmul-handcomp.cpp ktiming.o getoptions.o
-	$(CXX) $(VANILLA_CXXFLAGS) -c matmul-handcomp.cpp -o matmul-handcomp.o
-	$(CXX) -flto matmul-handcomp.o getoptions.o ktiming.o -o matmul-handcomp $(VANILLA_LDFLAGS)
+mm-fj: matmul-handcomp.cpp ktiming.o getoptions.o
+	$(CXX) $(VANILLA_CXXFLAGS) -c matmul-handcomp.cpp -o mm-fj.o
+	$(CXX) -flto mm-fj.o getoptions.o ktiming.o -o mm-fj $(VANILLA_LDFLAGS)
 	##make run-matmul-handcomp
 
 run-matmul-handcomp:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-handcomp -n 1024 -c
 
-TARGETS += matmul-future
-APPS += matmul-future
+TARGETS += mm-sf
+APPS += mm-sf
 
-matmul-future: matmul-future.cpp ktiming.o getoptions.o
-	$(CXX) $(FUTURE_CXXFLAGS) -c matmul-future.cpp -o matmul-future.o
-	$(CXX) -flto matmul-future.o getoptions.o ktiming.o -o matmul-future $(FUTURE_LDFLAGS)
+mm-sf: matmul-future.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -c matmul-future.cpp -o mm-sf.o
+	$(CXX) -flto mm-sf.o getoptions.o ktiming.o -o mm-sf $(FUTURE_LDFLAGS)
 	##make run-matmul-future
 
 run-matmul-future:
 	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./matmul-future -n 1024 -c
 
-TARGETS += cilksort-se
-APPS += cilksort-se
+TARGETS += sort-se
+APPS += sort-se
 
-cilksort-se: cilksort-se.cpp ktiming.o getoptions.o
-	$(CXX) $(FUTURE_CXXFLAGS) -c cilksort-se.cpp -o cilksort-se.o
-	$(CXX) -flto cilksort-se.o getoptions.o ktiming.o -o cilksort-se $(FUTURE_LDFLAGS)
+sort-se: cilksort-se.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -c cilksort-se.cpp -o sort-se.o
+	$(CXX) -flto sort-se.o getoptions.o ktiming.o -o sort-se $(FUTURE_LDFLAGS)
 
 TARGETS += cilksort
 APPS += cilksort
@@ -202,19 +202,19 @@ cilksort: cilksort.cpp ktiming.o getoptions.o
 	$(CXX) $(VANILLA_CXXFLAGS) -c cilksort.cpp -o cilksort.o
 	$(CXX) -flto cilksort.o getoptions.o ktiming.o -o cilksort $(VANILLA_LDFLAGS)
 
-TARGETS += cilksort-handcomp
-APPS += cilksort-handcomp
+TARGETS += sort-fj
+APPS += sort-fj
 
-cilksort-handcomp: cilksort-handcomp.cpp ktiming.o getoptions.o
-	$(CXX) $(VANILLA_CXXFLAGS) -c cilksort-handcomp.cpp -o cilksort-handcomp.o
-	$(CXX) -flto cilksort-handcomp.o getoptions.o ktiming.o -o cilksort-handcomp $(VANILLA_LDFLAGS)
+sort-fj: cilksort-handcomp.cpp ktiming.o getoptions.o
+	$(CXX) $(VANILLA_CXXFLAGS) -c cilksort-handcomp.cpp -o sort-fj.o
+	$(CXX) -flto sort-fj.o getoptions.o ktiming.o -o sort-fj $(VANILLA_LDFLAGS)
 
-TARGETS += cilksort-future
-APPS += cilksort-future
+TARGETS += sort-sf
+APPS += sort-sf
 
-cilksort-future: cilksort-future.cpp ktiming.o getoptions.o
-	$(CXX) $(FUTURE_CXXFLAGS) -c cilksort-future.cpp -o cilksort-future.o
-	$(CXX) -flto cilksort-future.o getoptions.o ktiming.o -o cilksort-future $(FUTURE_LDFLAGS)
+sort-sf: cilksort-future.cpp ktiming.o getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -c cilksort-future.cpp -o sort-sf.o
+	$(CXX) -flto sort-sf.o getoptions.o ktiming.o -o sort-sf $(FUTURE_LDFLAGS)
 
 ###########################################################################
 # Though shalt not cross this line lest thou knowest what thou art doing! #

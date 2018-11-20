@@ -6,7 +6,7 @@ include ../bench.mk
 
 .PHONY: all clean reallyclean
 
-TARGETS = merge-fj merge-gf merge-se
+TARGETS = bst-fj bst-gf bst-se
 
 all: $(TARGETS)
 
@@ -28,18 +28,18 @@ merge.o: merge.cpp
 getoptions.o: ../util/getoptions.o
 	$(CXX) -c ../util/getoptions.cpp -o ../util/getoptions.o
 
-merge-fj: merge.o bintree.cpp getoptions.o
+bst-fj: merge.o bintree.cpp getoptions.o
 	$(CXX) $(VANILLA_CXXFLAGS) -DSTRUCTURED_FUTURES -c bintree.cpp -o bintree-fj.o
 	$(CXX) merge.o bintree-fj.o ../util/getoptions.o $(VANILLA_LDFLAGS) -o $@
 
-merge-gf: merge.o bintree.cpp getoptions.o
+bst-gf: merge.o bintree.cpp getoptions.o
 	$(CXX) $(FUTURE_CXXFLAGS) -DNONBLOCKING_FUTURES -c bintree.cpp -o bintree-gf.o
 	$(CXX) merge.o bintree-gf.o ../util/getoptions.o $(FUTURE_LDFLAGS) -o $@
 
-merge-se:
-	$(CXX) $(COMMON_CXXFLAGS) -DSERIAL_ELISION=1 -c merge.cpp -o merge-se.o
+bst-se:
+	$(CXX) $(COMMON_CXXFLAGS) -DSERIAL_ELISION=1 -c merge.cpp -o bst-se.o
 	$(CXX) $(COMMON_CXXFLAGS) -DSTRUCTURED_FUTURES -DSERIAL_ELISION=1 -c bintree.cpp -o bintree-se.o
-	$(CXX) merge-se.o bintree-se.o ../util/getoptions.o $(COMMON_LDFLAGS) -o $@
+	$(CXX) bst-se.o bintree-se.o ../util/getoptions.o $(COMMON_LDFLAGS) -o $@
 
 # delete all object files
 clean:

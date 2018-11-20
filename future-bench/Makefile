@@ -36,8 +36,8 @@ fib-se: ktiming.o
 	$(CXX) $(FUTURE_CXXFLAGS) -c fib_cilkplus_se.cpp -o fib_se.o
 	$(CXX) -flto fib_se.o ktiming.o -o fib-se $(FUTURE_LDFLAGS)
 
-TARGETS = fib
-APPS = fib
+TARGETS += fib
+APPS += fib
 
 fib: ktiming.o
 	$(CXX) $(VANILLA_CXXFLAGS) -c fib_cilkplus.cpp -o fib.o

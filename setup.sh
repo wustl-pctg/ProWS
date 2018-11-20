@@ -74,6 +74,7 @@ rm ferret-data.tar.gz
 cd src/
 make piper
 make cilk-future
+make serial
 cd ../..
 cd future-bench
 make all

@@ -512,6 +512,13 @@ int main(int argc, char *argv[]) {
 
   n = BLOCK_ALIGN(n); // make sure it's divisible by base case
   assert(n % bSize == 0);
+
+  // Must be less than sqrt(2**31 - 1)
+  if (n > 46340) {
+    fprintf(stderr, "n must be less than 46340! (n was rounded to %d)\n", n);
+    exit(1);
+  }
+
   printf("Compute LCS with %d x %d table.\n", n, n);
 
   // str len is n-1, but allocated n to have the last char be \0

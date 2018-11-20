@@ -419,6 +419,13 @@ int main(int argc, char *argv[]) {
   base_case_log = ilog2(bSize);
      
   n = BLOCK_ALIGN(n); // round it to be 64-byte aligned
+
+  // Must be less than sqrt(2**31 - 1)
+  if (n > 46340) {
+      fprintf(stderr, "n must be < 46340! (n was rounded to %d)\n", n);
+      exit(1);
+  }
+
   printf("Compute SmithWaterman with %d x %d table.\n", n, n);
 
   // str len is n-1, but allocated n to have the last char be \0

@@ -3875,7 +3875,7 @@ static void __cilkrts_unbind_thread()
             for (i = 0; i < g->total_workers; i++) {
                 total_idle_time += g->workers[i]->l->idle_time;
             }
-            fprintf(stdout, "Total Idle Time: %f\n", cycleToSecond(total_idle_time));
+            //fprintf(stdout, "Total Idle Time: %f\n", cycleToSecond(total_idle_time));
             // If there's only 1 worker, the counts will be stopped in
             // __cilkrts_scheduler
             if (g->P > 1)

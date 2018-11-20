@@ -1,4 +1,3 @@
 *.o
-lcs
-sw
-matmul_z
+lcs-*
+sw-*

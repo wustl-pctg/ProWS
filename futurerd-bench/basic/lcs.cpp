@@ -9,9 +9,16 @@
 #if !SERIAL
 #ifndef NO_FUTURES
   #include <cilk/future.hpp>
+#else
+  #include "../../cilkrtssuspend/include/cilk/handcomp-macros.h"
 #endif
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
+
+#else
+
+#define CILK_FUNC_PREAMBLE
+#define CILK_FUNC_EPILOGUE
 
 #endif
 
@@ -479,6 +486,7 @@ const char* specifiers[] = {"-n", "-c", "-h", "-b"};
 int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG};
 
 int main(int argc, char *argv[]) {
+  CILK_FUNC_PREAMBLE;
 //#if REACH_MAint && (!RACE_DETECT)
 //  futurerd_disable_shadowing();
 //#endif
@@ -573,6 +581,8 @@ int main(int argc, char *argv[]) {
   free(a1);
   free(b1);
   free(stor1);
+
+  CILK_FUNC_EPILOGUE;
 
   return 0;
 }

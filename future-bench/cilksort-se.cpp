@@ -65,6 +65,8 @@
 #define TIMING_COUNT 3
 #endif 
 
+int timing_count = TIMING_COUNT;
+
 #if TIMING_COUNT
 #include "ktiming.h"
 #endif 
@@ -461,8 +463,8 @@ int usage(void) {
   return -1;
 }
 
-const char *specifiers[] = {"-n", "-c", "-benchmark", "-h", 0};
-int opt_types[] = {LONGARG, BOOLARG, BENCHMARK, BOOLARG, 0};
+const char *specifiers[] = {"-n", "-c", "-benchmark", "-h", "-nruns", 0};
+int opt_types[] = {LONGARG, BOOLARG, BENCHMARK, BOOLARG, INTARG, 0};
 
 int main(int argc, char **argv) {
 
@@ -476,7 +478,7 @@ int main(int argc, char **argv) {
   size = 3000000;
 
   get_options(argc, argv, specifiers, opt_types, 
-              &size, &check, &benchmark, &help);
+              &size, &check, &benchmark, &help, &timing_count);
 
   if(help)
     return usage();
@@ -499,16 +501,19 @@ int main(int argc, char **argv) {
 
 #if TIMING_COUNT
   clockmark_t begin, end;
-  uint64_t elapsed[TIMING_COUNT];
+  uint64_t elapsed[timing_count];
 
-  for(int i=0; i < TIMING_COUNT; i++) {
+  for(int i=0; i < timing_count; i++) {
     fill_array(array, size);
     begin = ktiming_getmark();
     cilksort(array, tmp, size);
     end = ktiming_getmark();
     elapsed[i] = ktiming_diff_usec(&begin, &end);
   }
-  print_runtime(elapsed, TIMING_COUNT);
+  if (timing_count > 10)
+    print_runtime_summary(elapsed, timing_count);
+  else 
+    print_runtime(elapsed, timing_count);
 #else
   fill_array(array, size);
   cilksort(array, tmp, size);

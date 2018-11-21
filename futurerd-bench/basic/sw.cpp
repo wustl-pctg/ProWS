@@ -30,6 +30,8 @@
 #define TIMES_TO_RUN 10
 #endif
 
+int times_to_run = TIMES_TO_RUN;
+
 #define SIZE_OF_ALPHABETS 4
 
 static int base_case_log;
@@ -387,8 +389,8 @@ static void do_check(int *stor1, char *a1, char *b1, int n, int result) {
   free(stor2);
 }
 
-const char* specifiers[] = {"-n", "-c", "-h", "-b"};
-int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG};
+const char* specifiers[] = {"-n", "-c", "-h", "-b", "-nruns"};
+int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG, INTARG};
 
 int main(int argc, char *argv[]) {
   CILK_FUNC_PREAMBLE;
@@ -400,7 +402,7 @@ int main(int argc, char *argv[]) {
   int bSize = 0;
   int check = 0, help = 0;
 
-  get_options(argc, argv, specifiers, opt_types, &n, &check, &help, &bSize);
+  get_options(argc, argv, specifiers, opt_types, &n, &check, &help, &bSize, &times_to_run);
 
   if(help) {
     fprintf(stderr, "Usage: sw [-n size] [-c] [-h]\n");
@@ -458,11 +460,11 @@ int main(int argc, char *argv[]) {
          bSize, bSize);
 #endif
 
-  uint64_t running_time[TIMES_TO_RUN];
+  uint64_t running_time[times_to_run];
 
   __cilkrts_init();
   int *stor1 = NULL;
-  for (int i = 0; i < TIMES_TO_RUN; i++) {
+  for (int i = 0; i < times_to_run; i++) {
     stor1 = (int *) malloc(sizeof(int) * n * n);
   //auto start = std::chrono::steady_clock::now();
     auto start = ktiming_getmark();
@@ -474,13 +476,16 @@ int main(int argc, char *argv[]) {
     //auto end = std::chrono::steady_clock::now();
     auto end = ktiming_getmark();
     running_time[i] = ktiming_diff_usec(&start, &end);
-    if (i < TIMES_TO_RUN-1) free(stor1);
+    if (i < times_to_run-1) free(stor1);
   } 
   if(check && stor1) { do_check(stor1, a1, b1, n, result); }
     
   printf("Result: %d\n", result);
     
-  print_runtime(running_time, TIMES_TO_RUN);
+  if (times_to_run > 10)
+    print_runtime_summary(running_time, times_to_run);
+  else
+    print_runtime(running_time, times_to_run);
   //auto time = std::chrono::duration <double, std::milli> (end-start).count();
   //printf("Benchmark time: %f ms\n", time);
 

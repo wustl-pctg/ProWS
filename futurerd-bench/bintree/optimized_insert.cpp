@@ -1,7 +1,7 @@
 #include "bintree.hpp"
 #include <cstdlib>
 
-#if defined(NONBLOCKING_FUTURES)
+#ifndef SERIAL_ELISION
   #include <cilk/cilk.h>
 #else
   #define cilk_spawn
@@ -23,7 +23,7 @@ bintree* prepare(const size_t size) {
 }
 
 void prepare_trees(bintree **t1, bintree **t2, const size_t &t1_size, const size_t &t2_size) {
-  *t1 = cilk_spawn prepare(t1_size);
+  *t1 = prepare(t1_size);
   *t2 = prepare(t2_size);
 }
 

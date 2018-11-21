@@ -19,6 +19,8 @@
 #define TIMING_COUNT 3
 #endif
 
+int timing_count = TIMING_COUNT;
+
 #if TIMING_COUNT
 #include "ktiming.h"
 #endif
@@ -325,8 +327,8 @@ void mat_mul_par_rm(REAL *A, REAL *B, REAL *C, int n, int orig_n){
 
 }
 
-const char *specifiers[] = {"-n", "-c", "-rc", "-h", 0};
-int opt_types[] = {INTARG, BOOLARG, BOOLARG, BOOLARG, 0};
+const char *specifiers[] = {"-n", "-c", "-rc", "-h", "-nruns", 0};
+int opt_types[] = {INTARG, BOOLARG, BOOLARG, BOOLARG, INTARG, 0};
 
 void check_result(REAL* A, REAL* B, REAL* C, int n) {
   REAL *ans = (REAL *) malloc(n*n*sizeof(REAL));
@@ -343,7 +345,7 @@ int main(int argc, char *argv[]) {
 
     int check = 0, rand_check = 0, help = 0; // default options
     get_options(argc, argv, specifiers, opt_types, 
-                      &n, &check, &rand_check, &help);
+                      &n, &check, &rand_check, &help, &timing_count);
 
   if(help) {
       fprintf(stderr, 
@@ -364,9 +366,9 @@ int main(int argc, char *argv[]) {
    
 #if TIMING_COUNT
   clockmark_t begin, end;
-  uint64_t elapsed[TIMING_COUNT];
+  uint64_t elapsed[timing_count];
 
-  for(int i=0; i < TIMING_COUNT; i++) {
+  for(int i=0; i < timing_count; i++) {
     //__cilkrts_set_param("local stacks", "256");
     init_rm(A, n);
     init_rm(B, n);
@@ -376,7 +378,10 @@ int main(int argc, char *argv[]) {
     end = ktiming_getmark();
     elapsed[i] = ktiming_diff_usec(&begin, &end);
   }
-  print_runtime(elapsed, TIMING_COUNT);
+  if (timing_count > 10)
+    print_runtime_summary(elapsed, timing_count);
+  else
+    print_runtime(elapsed, timing_count);
 #else
   init_rm(A, n);
   init_rm(B, n);

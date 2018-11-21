@@ -37,6 +37,8 @@
 #define TIMES_TO_RUN 10
 #endif
 
+int times_to_run = TIMES_TO_RUN;
+
 static int base_case_log;
 #define MIN_BASE_CASE 32
 #define NUM_BLOCKS(n) (n >> base_case_log)
@@ -482,8 +484,8 @@ static void do_check(int *stor1, char *a1, char *b1, int n, int result) {
   free(where);
 }
 
-const char* specifiers[] = {"-n", "-c", "-h", "-b"};
-int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG};
+const char* specifiers[] = {"-n", "-c", "-h", "-b", "-nruns"};
+int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG, INTARG};
 
 int main(int argc, char *argv[]) {
   CILK_FUNC_PREAMBLE;
@@ -495,7 +497,7 @@ int main(int argc, char *argv[]) {
   int bSize = 0;
   int check = 0, help = 0;
 
-  get_options(argc, argv, specifiers, opt_types, &n, &check, &help, &bSize);
+  get_options(argc, argv, specifiers, opt_types, &n, &check, &help, &bSize, &times_to_run);
 
   if(help) {
     fprintf(stderr, "Usage: lcs [-n size] [-b base_size] [-c] [-h]\n");
@@ -554,10 +556,10 @@ int main(int argc, char *argv[]) {
 #endif
 
   //__cilkrts_init();
-  uint64_t running_time[TIMES_TO_RUN];
+  uint64_t running_time[times_to_run];
 
   int *stor1;// = (int *) malloc(sizeof(int) * n * n);
-  for (int i = 0; i < TIMES_TO_RUN; i++) {
+  for (int i = 0; i < times_to_run; i++) {
     stor1 = (int *) malloc(sizeof(int) * n * n);
     __asm__ volatile ("" ::: "memory");
     auto start = ktiming_getmark();
@@ -565,7 +567,7 @@ int main(int argc, char *argv[]) {
     auto end = ktiming_getmark();
     __asm__ volatile ("" ::: "memory");
     running_time[i] = ktiming_diff_usec(&start, &end);
-    if (i < TIMES_TO_RUN-1)
+    if (i < times_to_run-1)
         free(stor1);
   }
   if(check) { do_check(stor1, a1, b1, n, result); }
@@ -573,10 +575,10 @@ int main(int argc, char *argv[]) {
   printf("Result: %d\n", result);
   //auto time = std::chrono::duration <double, std::milli> (end-start).count();
   //printf("Benchmark time: %f ms\n", time);
-  //if( TIMES_TO_RUN > 10 ) 
-  //    print_runtime_summary(running_time, TIMES_TO_RUN); 
-  //else 
-      print_runtime(running_time, TIMES_TO_RUN); 
+  if( times_to_run > 10 ) 
+      print_runtime_summary(running_time, times_to_run); 
+  else 
+      print_runtime(running_time, times_to_run); 
 
   free(a1);
   free(b1);

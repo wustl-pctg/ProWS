@@ -7,6 +7,8 @@
 #define TIMES_TO_RUN 3 
 #endif
 
+int times_to_run = TIMES_TO_RUN;
+
 #define cilk_spawn
 #define cilk_sync
 
@@ -46,27 +48,34 @@ int __attribute__((noinline)) run(int n, uint64_t *running_time, int i) {
 
 int main(int argc, char * args[]) {
     int n;
-    uint64_t running_time[TIMES_TO_RUN];
 
-    if(argc != 2) {
-        fprintf(stderr, "Usage: fib [<cilk-options>] <n>\n");
+    if(argc < 2 || argc > 3) {
+        fprintf(stderr, "Usage: fib <n> [<times_to_run>]\n");
         exit(1);
     }
     
     n = atoi(args[1]);
+    if (argc == 3) {
+       times_to_run = atoi(args[2]);
+    }
+    uint64_t* running_time = (uint64_t*)malloc(times_to_run * sizeof(uint64_t));
+
+    //uint64_t running_time[TIMES_TO_RUN];
 
     int res = 0;
-    for (int i = 0; i < TIMES_TO_RUN; i++) {
+    for (int i = 0; i < times_to_run; i++) {
         res = cilk_spawn run(n, running_time, i);
         cilk_sync;
     }
 
     printf("Result: %d\n", res);
 
-    if( TIMES_TO_RUN > 10 ) 
-        print_runtime_summary(running_time, TIMES_TO_RUN); 
+    if( times_to_run > 10 ) 
+        print_runtime_summary(running_time, times_to_run); 
     else 
-        print_runtime(running_time, TIMES_TO_RUN); 
+        print_runtime(running_time, times_to_run); 
+
+    free(running_time);
 
     return 0;
 }

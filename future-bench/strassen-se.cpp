@@ -16,6 +16,8 @@
 #define TIMING_COUNT 3
 #endif
 
+int timing_count = TIMING_COUNT;
+
 #define cilk_spawn
 #define cilk_sync
 
@@ -657,8 +659,8 @@ int usage(void) {
   return 1;
 }
 
-const char *specifiers[] = {"-n", "-c", "-h", 0};
-int opt_types[] = {INTARG, BOOLARG, BOOLARG, 0};
+const char *specifiers[] = {"-n", "-c", "-h", "-nruns", 0};
+int opt_types[] = {INTARG, BOOLARG, BOOLARG, INTARG, 0};
 
 int main(int argc, char *argv[]) {
 
@@ -669,7 +671,7 @@ int main(int argc, char *argv[]) {
   n = 2048;  
   verify = 0;  
 
-  get_options(argc, argv, specifiers, opt_types, &n, &verify, &help);
+  get_options(argc, argv, specifiers, opt_types, &n, &verify, &help, &timing_count);
   if (help || argc == 1) return usage();
 
   if((n & (n - 1)) != 0 || (n % 16) != 0) {
@@ -695,15 +697,18 @@ int main(int argc, char *argv[]) {
   //__cilkrts_reset_timing();
 
 #if TIMING_COUNT
-  uint64_t elapsed_times[TIMING_COUNT];
+  uint64_t elapsed_times[timing_count];
 
-  for(int i=0; i < TIMING_COUNT; i++) {
+  for(int i=0; i < timing_count; i++) {
     begin = ktiming_getmark();
     strassen_z(C, A, B, n);
     end = ktiming_getmark();
     elapsed_times[i] = ktiming_diff_usec(&begin, &end);
   }
-  print_runtime(elapsed_times, TIMING_COUNT);
+  if (timing_count > 10)
+    print_runtime_summary(elapsed_times, timing_count);
+  else
+    print_runtime(elapsed_times, timing_count);
 #else
   begin = ktiming_getmark();
   strassen_z(C, A, B, n);

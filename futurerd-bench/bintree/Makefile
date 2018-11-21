@@ -28,18 +28,22 @@ merge.o: merge.cpp
 getoptions.o: ../util/getoptions.o
 	$(CXX) -c ../util/getoptions.cpp -o ../util/getoptions.o
 
+# The definition is STRUCTURED_FUTURES, but this is a misnomer
 bst-fj: merge.o bintree.cpp getoptions.o
+	$(CXX) $(VANILLA_CXXFLAGS) -DSTRUCTURED_FUTURES -O3 -c optimized_insert.cpp -o optimized-insert-fj.o
 	$(CXX) $(VANILLA_CXXFLAGS) -DSTRUCTURED_FUTURES -c bintree.cpp -o bintree-fj.o
-	$(CXX) merge.o bintree-fj.o ../util/getoptions.o $(VANILLA_LDFLAGS) -o $@
+	$(CXX) merge.o bintree-fj.o optimized-insert-fj.o ../util/getoptions.o $(VANILLA_LDFLAGS) -o $@
 
 bst-gf: merge.o bintree.cpp getoptions.o
+	$(CXX) $(FUTURE_CXXFLAGS) -DNONBLOCKING_FUTURES -O3 -c optimized_insert.cpp -o optimized-insert-gf.o
 	$(CXX) $(FUTURE_CXXFLAGS) -DNONBLOCKING_FUTURES -c bintree.cpp -o bintree-gf.o
-	$(CXX) merge.o bintree-gf.o ../util/getoptions.o $(FUTURE_LDFLAGS) -o $@
+	$(CXX) merge.o bintree-gf.o optimized-insert-gf.o ../util/getoptions.o $(FUTURE_LDFLAGS) -o $@
 
 bst-se:
+	$(CXX) $(COMMON_CXXFLAGS) -DSERIAL_ELISION=1 -O3 -c optimized_insert.cpp -o optimized-insert-se.o
 	$(CXX) $(COMMON_CXXFLAGS) -DSERIAL_ELISION=1 -c merge.cpp -o bst-se.o
-	$(CXX) $(COMMON_CXXFLAGS) -DSTRUCTURED_FUTURES -DSERIAL_ELISION=1 -c bintree.cpp -o bintree-se.o
-	$(CXX) bst-se.o bintree-se.o ../util/getoptions.o $(COMMON_LDFLAGS) -o $@
+	$(CXX) $(COMMON_CXXFLAGS) -DSERIAL_ELISION=1 -c bintree.cpp -o bintree-se.o
+	$(CXX) bst-se.o bintree-se.o optimized-insert-se.o ../util/getoptions.o $(COMMON_LDFLAGS) -o $@
 
 # delete all object files
 clean:

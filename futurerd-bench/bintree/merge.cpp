@@ -13,20 +13,14 @@
 using key_t = bintree::key_t;
 
 // these will be initialized later
-static key_t g_key_max = 0;
+key_t g_key_max = 0;
 
-static inline key_t randkey() { return rand() % (g_key_max + 1); }
-
-bintree* prepare(size_t size) {
-  bintree* t = new bintree();
-  for (int i = 0; i < size; ++i) t->insert(randkey());
-  assert(t->validate()); 
-  return t;
-}
 
 // size of first tree, size of second tree, max key to use
 const char* specifiers[] = {"-s1", "-s2", "-kmax", "-c"};
 int opt_types[] = { INTARG, INTARG, INTARG, BOOLARG };
+
+extern void prepare_trees(bintree **t1, bintree **t2, const size_t &t1_size, const size_t &t2_size);
 
 int main(int argc, char* argv[]) {
 
@@ -48,8 +42,11 @@ int main(int argc, char* argv[]) {
   int *t1_key_counts = nullptr, *t2_key_counts = nullptr;
 
   // Prep the trees
-  bintree* t1 = prepare(t1_size);
-  bintree* t2 = prepare(t2_size);
+  //bintree* t1 = prepare(t1_size);
+  //bintree* t2 = prepare(t2_size);
+  bintree *t1;
+  bintree *t2;
+  prepare_trees(&t1, &t2, t1_size, t2_size);
 
   // fprintf(stderr, "t1: ");
   // t1->print_keys();

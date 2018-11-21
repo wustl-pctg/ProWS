@@ -99,15 +99,6 @@ void bintree::merge(bintree *that) {
   delete that;
 }
 
-node* bintree::insert(node* n, const key_t k) {
-  if (!n) return new node(k);
-  if (k < n->key)
-    n->left = insert(n->left, k);
-  else
-    n->right = insert(n->right, k);
-  return n;
-}
-
 std::size_t bintree::validate(node *n) {
   if (n == nullptr) return 0;
   assert(n->key >= 0);
@@ -327,7 +318,7 @@ static node* merge_helper(node* lr, cilk::future<node*>* rr, int depth) {
 
 
 
-#ifdef STRUCTURED_FUTURES
+#if defined(STRUCTURED_FUTURES) or defined(SERIAL_ELISION)
 #define split2 split
 #define merge_helper bintree::merge
 #endif

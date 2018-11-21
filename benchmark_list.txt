@@ -1,0 +1,167 @@
+General Note: When running benchmarks, we restrict the number of cores in order
+              to control the number of threads as well as force the cores to be
+              assigned linearly such that we stay on the least number of NUMA
+              nodes. Howe ver, it is possible to change the number of threads
+              for any of our benchmarks (except serial elisions) by running
+              `CILK_NWORKERS=<nthreads> <benchmark> <arguments>`
+
+****Category A Benchmarks****
+
+[1] Divide and Conquer Matrix Multiply
+
+    mm-se - The serial elision version
+    mm-fj - The fork-join version
+    mm-sf - The structured future version
+    
+    These benchmarks are located in ./future-bench/
+    
+    For all mm binaries, the invocation is as follows:
+    
+      <mm binary> [-n size] [-c] [-rc] [-h] [-nruns times]
+    
+      -nruns: sets the number of times to run the benchmark
+      -n    : the size of the matrices (size x size)
+      -c    : check the result is accurate
+      -rc   : check the result is accurate (checks against randomized algorithm)
+      -h    : print help information (NOTE: this does not display the nruns argument)
+
+
+
+[2] Strassen's Matrix Multiply
+
+    smm-se - The serial elision version
+    smm-fj - The fork-join version
+    smm-sf - The structured future version
+    
+    These benchmarks are located in ./future-bench/
+
+    For all smm binaries, the invocation is as follows:
+
+      <smm binary> [-n size] [-c] [-nruns times]
+
+      -nruns: sets the number of times to run the benchmark
+      -n    : the size of the matrices (size x size)
+      -c    : check the result is accurate
+      -h    : print help information (NOTE: this does not display the nruns argument)
+
+[3] Merge Sort 
+
+    sort-se - The serial elision version
+    sort-fj - The fork-join version
+    sort-sf - The structured futures version
+
+    These benchmaks are located in ./future-bench/
+
+    For all sort binaries, the invocation is as follows:
+
+      <sort binary> [-n size] [-c] [-h] [-nruns times]
+  
+      -nruns: sets the number of times to run the benchmark
+      -n    : the size of the array to be sorted
+      -c    : check the result is accurate
+      -h    : print help information (NOTE: this does not display the nruns argument)
+
+[4] HeartWall
+
+    hw-se - The serial elision version
+    hw-fj - The fork-join version
+    hw-sf - The structured futures version
+    hw-gf - The general futures version
+
+    These benchmarks are located in ./futurerd-bench/heartWallTracking/cilk-futures/
+
+    For all hw binaries, the invocation is as follows:
+
+      <hw binary> <file> <nframes> <nthreads>
+
+      file     : The .avi file to process. We use ./futurerd-bench/heartWallTracking/data/test.avi.
+      nframes  : The number of frames in the video file to process.
+      nthreads : The number of threads (or cilk workers) to use to process the video.
+
+
+****Category B Benchmarks****
+
+[5] Longest Common Subsequence
+
+    lcs-se - The serial elision version
+    lcs-fj - The fork-join version
+    lcs-sf - The structured futures version
+    lcs-gf - The general futures version
+  
+    These benchmarks are located in ./futurerd-bench/basic/
+
+    For all lcs binaries, the invocation is as follows:
+
+      <lcs binary> [-n size] [-b base_size] [-c] [-h] [-nruns times]
+
+      -nruns: sets the number of times to run the benchmark
+      -n    : sets the size of the sequences to use
+      -b    : sets the serial base case size
+      -c    : check the result is accurate
+      -h    : print help information (NOTE: this not display the nruns argument)
+
+[6] Smith-Waterman
+
+    sw-se - The serial elision version
+    sw-fj - The fork-join version
+    sw-sf - The structured futures version
+    sw-gf - The general futures version
+
+    These benchmarks are located in ./futurerd-bench/basic/
+
+    For all sw binaries, the invocation is as follows:
+
+      <sw binary> [-n size] [-b base_size] [-c] [-h] [-nruns times]
+
+      -nruns: sets the number of times to run the benchmark
+      -n    : sets the input size to use
+      -b    : sets the serial base case size
+      -c    : check the result is accurate
+      -h    : print help information (NOTE: this not display the nruns argument)
+
+
+[7] Pipelined Binary Search Tree Merge
+
+    bst-se - The serial elision version
+    bst-fj - The fork-join version
+    bst-gf - The general future version
+
+    **WARNING** Constructing the search trees can be expensive. On our machine,
+                when the first tree is of size 8e6 and the second is size 4e6,
+                constructing the tree takes 4 minutes whereas the part we are
+                timing runs in around 2 seconds.
+
+    These benchmarks are located in ./futurerd-bench/bintree/
+
+    For all bst binaries, the invocation is as follows:
+
+      <bst binary> [-s1 tree1_size] [-s2 tree2_size] [-kmax max_key] [-c]
+
+      -kmax : the maximum value to store in a node
+      -s1   : the size of the first binary search tree
+      -s2   : the size of the second binary search tree
+      -c    : check the result is accurate
+
+    Note that entering "-s1 <n> -s2 <m>" is equivalent to entering "-s1 <m> -s2 <n>."
+
+****Category C Benchmarks****
+
+[8] Ferret
+
+    ferret-serial      - The serial elision of ferret
+    ferret-piper       - The cilk plus linear pipeline version (fer-lp)
+    ferret-cilk-future - The general futures version           (fer-gf)
+
+    These benchmarks are located in ./ferret/src/build/bin/
+
+    For all ferret binaries, the invocation is as follows:
+
+    <ferret binary> <database> <table> <query dir> <top K> <n> <out> <depth>
+
+    database  - the input database. We use ./ferret/data/native/corel/
+    table     - which database table to use. We use lsh
+    query dir - the directory containing the images to be processed
+    top K     - 
+    n         - the number of threads to use (IGNORED)
+    out       - where to output results
+    depth     - the pipeline depth (ignored in ferret-cilk-future)

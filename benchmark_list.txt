@@ -165,3 +165,22 @@ General Note: When running benchmarks, we restrict the number of cores in order
     n         - the number of threads to use (IGNORED)
     out       - where to output results
     depth     - the pipeline depth (ignored in ferret-cilk-future)
+
+
+****Overhead Microbenchmarks****
+
+[9] The Fibonacci Sequence
+
+    fib-se       - The serial elision version
+    fib-fj       - The fork-join version
+    fib-sf       - The structured future version
+    fib-sf-stack - The structured future version without stack switchin
+
+    These benchmarks are located in ./future-bench/
+
+    For all fib binaries, the invocation is as follows:
+
+      <fib binary> <n> <n_runs>
+
+      n      : which fibonacci number to calculate
+      n_runs : the number of times to run the benchmark

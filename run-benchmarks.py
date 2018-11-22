@@ -66,10 +66,14 @@ def main():
     subprocess.call(['mkdir', '-p', 'bench-results'])
 
     for bench in bench_list:
-        findCMD = 'dirname $(realpath $(find ' + search_dirs + ' -name "' + bench + '"))'
+        progname = bench
+        while progname[-1] in "0123456789":
+            progname = progname[0:-1]
+
+        findCMD = 'dirname $(realpath $(find ' + search_dirs + ' -name "' + progname + '"))'
         location = subprocess.Popen(findCMD, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = location.communicate()
-        location = stdout.decode().strip() + '/' + bench
+        location = stdout.decode().strip() + '/' + progname
 
         group_key = bench.split('-')[0]
         group_key += benchargs.bench_args[bench]['args'].format('<P>', '<P*4>')
@@ -77,7 +81,7 @@ def main():
         header = benchargs.bench_args[bench]['args'].format('<P>', '<P*4>') + '\nrunning times (s):,'
         data = bench + ','
         
-        for ncores in [16]:#benchargs.core_counts:
+        for ncores in benchargs.core_counts:
             if ('se' in bench):
                 ncores = 1
 

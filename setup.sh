@@ -75,8 +75,7 @@ cd src/
 make piper
 make cilk-future
 make serial
-cd ../..
-cd future-bench
+cd ../../future-bench
 make all
 cd ../futurerd-bench/basic
 make all

@@ -71,36 +71,6 @@ fib-sf-stack: ktiming.o
 	$(CXX) $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut_nofibers.cpp -o fib-sf-stack.o
 	$(CXX) -flto fib-sf-stack.o ktiming.o -o fib-sf-stack $(FUTURE_LDFLAGS)
 
-TARGETS += fib-interop-tests
-APPS += handcomp_fib_cilkfut_spawn-after-sync-after handcomp_fib_cilkfut_spawn-after-sync-before handcomp_fib_cilkfut_spawn-before-sync-after handcomp_fib_cilkfut_spawn-before-sync-before handcomp_fib_cilkfut_future-interop  handcomp_fib_cilkfut_nofibers
-
-fib-interop-tests: ktiming.o fib fib-future
-	# Test spawns before futures, sync after touching the future
-	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-after $(FUTURE_LDFLAGS)
-	# Test spawns before futures, sync before touching the future
-	$(CXX) -DTEST_INTEROP_PRE_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-before-sync-before $(FUTURE_LDFLAGS)
-	# Test spawns after futures, sync after touching the future
-	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-after $(FUTURE_LDFLAGS)
-	# Test spawns after futures, sync before touching the future
-	$(CXX) -DTEST_INTEROP_POST_FUTURE_CREATE -DFUTURE_AFTER_SYNC $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_spawn-after-sync-before $(FUTURE_LDFLAGS)
-	# Test futures working with futures
-	$(CXX) -DTEST_INTEROP_MULTI_FUTURE $(FUTURE_CXXFLAGS) -c handcomp_fib_cilkfut.cpp -o handcomp_fib_cilkfut.o
-	$(CXX) -flto handcomp_fib_cilkfut.o ktiming.o -o handcomp_fib_cilkfut_future-interop $(FUTURE_LDFLAGS)
-	#make run-tests
-
-run-tests:
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_spawn-before-sync-after 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_spawn-before-sync-before 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_spawn-after-sync-after 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_spawn-after-sync-before 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./handcomp_fib_cilkfut_future-interop 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib ./fib-future 40
-	LD_LIBRARY_PATH=$(mkfile_dir)/../SuperMalloc/release/lib taskset -c 8 ./fib-future 40
-
 TARGETS += smm-se
 APPS += smm-se
 

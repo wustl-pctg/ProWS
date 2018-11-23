@@ -71,10 +71,37 @@ It is specifically set up to enforce use of the Docker container.
 It is recommended that the benchmarks are run within the provided Docker
 container. When the Docker container is started with the _start-docker.sh_
 script, the location of the _SuperMalloc_ library is added to the
-LD\_LIBRARY\_PATH to allow the linker to locate it when the benchmarks are
-loaded for execution.
+LD\_LIBRARY\_PATH to allow the linker to locate it when dynamic libraries are
+loaded as part of the binary execution process.
 
-TODO: Add information about how to run all the benchmarks using Justin's scripts.
+In order to run all benchmarks related to the *Proactive Work-Stealing for Futures*
+paper, run the _run-benchmarks.py_ script from the root directory of the
+repository (from within the Docker container). This will both run all of the
+benchmarks and store the data in a file named _all\_data.csv_. The data for each
+benchmark also gets stored in individual csv files within a directory named
+bench-results.
+
+The _run-benchmarks.py_ script can be customized by modifying the _benchargs.py_
+configuration script in the root of the repository. This file contains a list of
+the CPU counts to run the benchmark on (the _core\_counts_ list), As well as a
+dictionary that maps binary names to both the arguments to use for the binary and
+the number of times to run that binary (the _bench\_args_ dictionary). Within the
+_bench\_args_ dictionary, the keys are the names of what to run and the entries 
+are themselves dictionaries. The dictionaries stored in the _bench\_args_
+dictionary contain a mapping from the string 'args' to the argument string used
+on the command line, as well as a mapping from the string 'runs' to the number
+of times to run the benchmark. More benchmarks can be added to the script by
+adding them to this dictionary, and the arguments to each benchmark can be
+changed by modifying the string in the 'args' mapping. For a description of how
+the provided benchmarks are invoked, see the included _benchmark\_list.txt_ file.
+In order to run the same benchmark multiple times but with different arguments,
+simply add a new entry for the benchmark with a number appended to the name. An
+example of this can be seen in the included _benchargs.py_ file, where there are
+two different configurations for the lcs benchmark. Note that this means the
+script requires that all binary names end with non-numeric text, as they get
+stripped from the binary name provided in the dictionary (i.e. the script will
+execute _lcs-fj_ rather than a binary named _lcs-fj2_ in the example in
+_benchargs.py_).
 
 The Docker container is recommended because it has all the dependencies
 installed, and the overhead of the container is so low that we did not

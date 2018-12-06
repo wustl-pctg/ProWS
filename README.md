@@ -114,3 +114,17 @@ operating system. Only in Linux operating systems do the host operating
 system and the guest operating system (the one in the container) share
 the same kernel process. For all other operating systems, Docker runs
 a Linux virtual machine on top of which the containers run.
+
+## Source Files of Interest
+
+cilkrtssuspend is the folder containing the Cilk-F runtime source code.
+
+The code changes most relevant to scheduling occur in:
+
+    cilkrtssuspend/runtime/deque.c
+    cilkrtssuspend/runtime/deque_pool.c
+    cilkrtssuspend/runtime/scheduler.c
+    cilkrtssuspent/include/cilk/future.h
+
+In scheduler.c, perhaps the most relevant function to Cilk-F's ProWS scheduling
+algorithm is the random_steal function.

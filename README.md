@@ -127,4 +127,12 @@ The code changes most relevant to scheduling occur in:
     cilkrtssuspend/include/cilk/future.h
 
 In scheduler.c, perhaps the most relevant function to Cilk-F's ProWS scheduling
-algorithm is the random_steal function.
+algorithm is the random_steal function, though the entire file is dedicated to
+tasks related to scheduling.
+
+The deque.c file contains code related to the management of individual deques,
+whereas the deque_pool.c file contains code primarily related to managing
+suspended deques.
+
+The future.h file makes the calls into the runtime that handle suspending deques
+and making them resumable again.

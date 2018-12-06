@@ -124,7 +124,7 @@ The code changes most relevant to scheduling occur in:
     cilkrtssuspend/runtime/deque.c
     cilkrtssuspend/runtime/deque_pool.c
     cilkrtssuspend/runtime/scheduler.c
-    cilkrtssuspent/include/cilk/future.h
+    cilkrtssuspend/include/cilk/future.h
 
 In scheduler.c, perhaps the most relevant function to Cilk-F's ProWS scheduling
 algorithm is the random_steal function.

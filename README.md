@@ -136,3 +136,16 @@ suspended deques.
 
 The future.h file makes the calls into the runtime that handle suspending deques
 and making them resumable again.
+
+## Cititation
+Please use the following citiation when using this software in your work:
+
+Kyle Singer, Yifan Xu, and I-Ting Angelina Lee, "Proactive Work Stealing for Futures", 
+Proceedings of the 24th Symposium on Principles and Practice of Parallel Programming (PPoPP), 2019.
+Available: https://dl.acm.org/citation.cfm?id=3295735.
+
+## Acknowledgment
+This research was supported in part by National Science Foundation under grants number CCF-1150036, CCF-1527692, and CCF-1733873.
+
+Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) 
+and do not necessarily reflect the views of the National Science Foundation.

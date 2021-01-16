@@ -66,7 +66,9 @@ if [ ! -e config.mk ]; then
 fi
 
 cd ferret
-wget www.cse.wustl.edu/~utterbackr/ferret-data.tar.gz
+#wget www.cse.wustl.edu/~utterbackr/ferret-data.tar.gz
+cat split-data/ferret-data-00 > ferret-data.tar.gz
+cat split-data/ferret-data-0{1..7} >> ferret-data.tar.gz
 tar -vxzf ferret-data.tar.gz data
 rm ferret-data.tar.gz
 

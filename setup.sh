@@ -67,10 +67,7 @@ fi
 
 cd ferret
 #wget www.cse.wustl.edu/~utterbackr/ferret-data.tar.gz
-cat split-data/ferret-data-00 > ferret-data.tar.gz
-cat split-data/ferret-data-0{1..7} >> ferret-data.tar.gz
-tar -vxzf ferret-data.tar.gz data
-rm ferret-data.tar.gz
+cat ferret-data-{00..07} | tar vxzf - data
 
 # Now build all of the benchmarks (starting with ferret)
 cd src/
